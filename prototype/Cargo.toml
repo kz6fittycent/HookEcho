@@ -1,0 +1,24 @@
+[package]
+name = "hookecho-prototype"
+version = "0.0.0"
+edition = "2024"
+license = "GPL-3.0-or-later"
+publish = false
+description = "Phase 0 throwaway main-screen prototype for Hook Echo"
+
+# Not a member of the future workspace; keep it standalone.
+[workspace]
+
+[dependencies]
+eframe = { version = "=0.36.2", default-features = false, features = ["wgpu", "wayland", "x11", "accesskit"] }
+egui-wgpu = "=0.36.2"
+nexrad-data = { version = "=1.0.0-rc.7", default-features = false, features = ["nexrad-model"] }
+nexrad-model = "=1.0.0-rc.2"
+lyon = "1.0.19"
+resvg = "0.48.1"
+image = { version = "0.25.10", default-features = false, features = ["png"] }
+bytemuck = { version = "1.25", features = ["derive"] }
+pollster = "1.0"
+
+[profile.release]
+opt-level = 3
