@@ -45,24 +45,26 @@ assets/                  fonts, icons, sample data (large samples are fetched, n
 
 ## Status (keep this current)
 
-**Phase 1 in progress.** Nothing has been pushed.
+**Phase 1 is complete locally (2026-10-10), except the snap build and GPU test, which are waiting on CI.** Nothing has been pushed, and the repo has no GitHub remote yet.
 
-Phase 0 was approved: design, the `bzip2-1.0.6` exception, and KDP from Level III.
+Phase 0 was approved: design, the `bzip2-1.0.6` exception, and KDP from Level III. `BSL-1.0` was approved on 2026-10-10.
 
 Phase 1 checklist:
 - [x] Read every Desktop-Scriptures workflow and comment. The lessons are in `docs/CI_NOTES.md`.
-- [x] Workspace; cargo-deny config (`deny.toml`, scoped to shipping targets)
-- [x] hookecho-core: Level II adapter for all moments, matching MetPy exactly (`tests/data/`, `tools/verify/dump_metpy.py`)
-- [x] hookecho-data: `sites` (NCEI) and `basemap` (Census + Natural Earth) → `assets/basemap/basemap.bin` (5 MB)
-- [x] hookecho-render: GPU radar, basemap, glyphon labels, blur, offscreen
-- [x] hookecho-app: design system, main screen, site picker, product/tilt picker, inspector, `--smoke-test`, `--screenshots`, `--bench`
-- [x] `BSL-1.0` allowed (owner, 2026-10-10); `ttf-parser` unmaintained advisory ignored with a reason (`deny.toml`)
-- [ ] THIRD_PARTY_LICENSES.md (cargo-about is installed)
-- [ ] `cargo-fuzz` targets for L2 (and later L3) before Phase 2
-- [ ] `bench/baseline.json` (record per adapter; CI compares at 10%)
-- [ ] snap/snapcraft.yaml, plus a real strict-install test of Vulkan and GL
-- [ ] The six workflows (see CI_NOTES.md), README with the owner's TODO list (store secret, `promote-stable` environment, `snapcraft register hookecho`)
-- [ ] Update FEATURE_PARITY.md statuses for Phase 1 rows
+- [x] Workspace; cargo-deny (`deny.toml`, scoped to shipping targets; `ttf-parser` advisory ignored with a reason)
+- [x] hookecho-core: Level II for all moments, matching MetPy exactly; fuzzed (`fuzz/`, regressions in `tests/data/fuzz-regressions/`)
+- [x] hookecho-data: `sites` and `basemap`
+- [x] hookecho-render, hookecho-app (main screen, pickers, inspector, `--smoke-test`, `--screenshots`, `--bench`)
+- [x] THIRD_PARTY_LICENSES.md (`scripts/gen-licenses.sh`), `bench/baseline.json` (RTX 2080 and llvmpipe on the dev machine)
+- [x] `snap/snapcraft.yaml`, six workflows, `packaging/`, README with the owner's one-time setup
+- [x] FEATURE_PARITY.md updated for Phase 1
+- [ ] **Snap build and strict-install GPU test (Vulkan + GL fallback): deferred to CI** (owner's choice). The local build is blocked because Docker's iptables `FORWARD DROP` cuts off LXD's network. The owner declined the DOCKER-USER rule change. Do this once the repo is on GitHub.
+- [ ] After the first green CI run: add the CI adapter's `bench-result.json` to `bench/baseline.json`.
+
+Phase 2 follow-ups found during the Phase 1 review:
+- Mask dual-pol products (CC, ZDR, PHI) where reflectivity or SNR is low; clear-air noise is chaotic on CC.
+- Rank place labels by Census population estimates instead of land area.
+- Upstream: nexrad-data rc.7 panics on input shorter than 24 bytes (our adapter guards it). **Ask the owner before filing an issue.**
 
 Known issues and notes:
 - Memory with a 20-frame loop is about 435 MB against a 300 MB budget: about 150 MB is the GPU driver, about 95 MB the decoded full volume, about 32 MB basemap decode transients. This is Phase 4 work. Use `HOOKECHO_MEM_TRACE=1` for a stage breakdown.
