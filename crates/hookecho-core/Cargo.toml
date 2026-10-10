@@ -15,6 +15,10 @@ serde.workspace = true
 toml.workspace = true
 directories.workspace = true
 thiserror.workspace = true
+# Async fetching (KICKOFF §2): tokio + reqwest with rustls (ring provider).
+tokio = { version = "1.53", default-features = false, features = ["rt", "time", "sync", "macros"] }
+reqwest = { version = "0.13.5", default-features = false, features = ["rustls-no-provider", "http2"] }
+rustls = { version = "0.23.45", default-features = false, features = ["ring", "std", "tls12"] }
 
 [dev-dependencies]
 serde_json.workspace = true
