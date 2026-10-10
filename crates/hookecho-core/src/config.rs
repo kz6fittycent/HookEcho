@@ -22,6 +22,25 @@ pub enum Units {
     Metric,
 }
 
+/// Basemap layers the user can hide (side sheet → Layers).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct MapLayers {
+    pub counties: bool,
+    pub roads: bool,
+    pub labels: bool,
+}
+
+impl Default for MapLayers {
+    fn default() -> Self {
+        MapLayers {
+            counties: true,
+            roads: true,
+            labels: true,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {
@@ -37,6 +56,9 @@ pub struct Config {
     pub loop_speed: f32,
     /// Chosen palette per product (product code, e.g. "REF" → palette name).
     pub palettes: BTreeMap<String, String>,
+    /// Show times in UTC instead of local time.
+    pub utc: bool,
+    pub map: MapLayers,
 }
 
 impl Default for Config {
@@ -50,6 +72,8 @@ impl Default for Config {
             loop_frames: 10,
             loop_speed: 1.0,
             palettes: BTreeMap::new(),
+            utc: false,
+            map: MapLayers::default(),
         }
     }
 }

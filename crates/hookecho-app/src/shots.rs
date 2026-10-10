@@ -3,7 +3,7 @@
 
 use crate::design::tokens::ThemeKind;
 use crate::headless::Offscreen;
-use crate::model::{Inspect, Picker};
+use crate::model::{Inspect, Picker, Sheet, SheetTab};
 use hookecho_core::Moment;
 use hookecho_core::geo::Camera;
 use std::path::Path;
@@ -43,6 +43,7 @@ struct Shot {
     km_across: f64,
     picker: Picker,
     inspect: bool,
+    sheet: Option<SheetTab>,
 }
 
 pub fn run(dir: &Path) -> Result<(), String> {
@@ -62,6 +63,7 @@ pub fn run(dir: &Path) -> Result<(), String> {
             km_across: 70.0,
             picker: Picker::None,
             inspect: true,
+            sheet: None,
         },
         Shot {
             name: "2-velocity",
@@ -71,6 +73,7 @@ pub fn run(dir: &Path) -> Result<(), String> {
             km_across: 70.0,
             picker: Picker::None,
             inspect: true,
+            sheet: None,
         },
         Shot {
             name: "3-site-picker",
@@ -84,6 +87,7 @@ pub fn run(dir: &Path) -> Result<(), String> {
                 scroll: 0.0,
             },
             inspect: false,
+            sheet: None,
         },
         Shot {
             name: "4-product-picker",
@@ -93,6 +97,7 @@ pub fn run(dir: &Path) -> Result<(), String> {
             km_across: 70.0,
             picker: Picker::Product,
             inspect: false,
+            sheet: None,
         },
         Shot {
             name: "5-home-light",
@@ -102,6 +107,7 @@ pub fn run(dir: &Path) -> Result<(), String> {
             km_across: 70.0,
             picker: Picker::None,
             inspect: true,
+            sheet: None,
         },
         Shot {
             name: "6-velocity-light",
@@ -111,6 +117,7 @@ pub fn run(dir: &Path) -> Result<(), String> {
             km_across: 70.0,
             picker: Picker::None,
             inspect: true,
+            sheet: None,
         },
         Shot {
             name: "7-correlation",
@@ -120,6 +127,7 @@ pub fn run(dir: &Path) -> Result<(), String> {
             km_across: 70.0,
             picker: Picker::None,
             inspect: true,
+            sheet: None,
         },
         Shot {
             name: "8-compact",
@@ -129,6 +137,7 @@ pub fn run(dir: &Path) -> Result<(), String> {
             km_across: 56.0,
             picker: Picker::None,
             inspect: true,
+            sheet: None,
         },
         Shot {
             name: "10-palettes",
@@ -138,6 +147,7 @@ pub fn run(dir: &Path) -> Result<(), String> {
             km_across: 70.0,
             picker: Picker::Palette,
             inspect: false,
+            sheet: None,
         },
         Shot {
             name: "9-regional",
@@ -147,6 +157,47 @@ pub fn run(dir: &Path) -> Result<(), String> {
             km_across: 520.0,
             picker: Picker::None,
             inspect: false,
+            sheet: None,
+        },
+        Shot {
+            name: "11-sheet-layers",
+            theme: ThemeKind::Dark,
+            moment: Moment::Reflectivity,
+            size: SIZE,
+            km_across: 70.0,
+            picker: Picker::None,
+            inspect: false,
+            sheet: Some(SheetTab::Layers),
+        },
+        Shot {
+            name: "12-sheet-colors",
+            theme: ThemeKind::Dark,
+            moment: Moment::Reflectivity,
+            size: SIZE,
+            km_across: 70.0,
+            picker: Picker::None,
+            inspect: false,
+            sheet: Some(SheetTab::Colors),
+        },
+        Shot {
+            name: "13-sheet-settings",
+            theme: ThemeKind::Dark,
+            moment: Moment::Reflectivity,
+            size: SIZE,
+            km_across: 70.0,
+            picker: Picker::None,
+            inspect: false,
+            sheet: Some(SheetTab::Settings),
+        },
+        Shot {
+            name: "14-sheet-settings-light",
+            theme: ThemeKind::Light,
+            moment: Moment::Reflectivity,
+            size: SIZE,
+            km_across: 70.0,
+            picker: Picker::None,
+            inspect: false,
+            sheet: Some(SheetTab::Settings),
         },
     ];
     for s in shots {
@@ -156,6 +207,11 @@ pub fn run(dir: &Path) -> Result<(), String> {
         m.camera = Camera::looking_at(35.29, -97.42, s.km_across, s.size[0] as f64);
         m.motion.zoom_target = m.camera.scale;
         m.picker = s.picker;
+        m.sheet = s.sheet.map(|tab| Sheet {
+            // Deterministic: no real cache size in screenshots.
+            cache_bytes: Some(184 * 1024 * 1024),
+            ..Sheet::new(tab)
+        });
         m.inspect = if s.inspect {
             Inspect::Pinned(ball)
         } else {

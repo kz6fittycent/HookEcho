@@ -562,3 +562,87 @@ pub fn scroll_indicator(kit: &Kit, painter: &Painter, area: Rect, offset: f32, c
     );
     painter.rect_filled(r, CornerRadius::same(2), kit.theme.track);
 }
+
+/// Segmented control (DESIGN.md §8): a glass track, the selected item
+/// filled. Returns the index clicked this frame, if any.
+#[allow(clippy::too_many_arguments)]
+pub fn segmented(
+    ui: &mut Ui,
+    kit: &mut Kit,
+    painter: &Painter,
+    rect: Rect,
+    id: Id,
+    items: &[&str],
+    selected: usize,
+    ty: Type,
+) -> Option<usize> {
+    let t = kit.theme;
+    painter.rect_filled(rect, CornerRadius::same(radius::SM), t.track);
+    let w = rect.width() / items.len().max(1) as f32;
+    let mut clicked = None;
+    for (i, label) in items.iter().enumerate() {
+        let r = Rect::from_min_size(
+            pos2(rect.min.x + i as f32 * w, rect.min.y),
+            vec2(w, rect.height()),
+        )
+        .shrink(size::TOGGLE_INSET);
+        let on = i == selected;
+        let resp = interact(ui, r, id.with(i), WidgetType::RadioButton, label, Some(on));
+        kit.state_fill(painter, r, radius::SM, &resp, on);
+        kit.text(
+            painter,
+            r.center(),
+            Align2::CENTER_CENTER,
+            *label,
+            ty,
+            if on { t.text_primary } else { t.text_secondary },
+        );
+        kit.focus_ring(painter, r, radius::SM, &resp);
+        if resp.clicked() {
+            clicked = Some(i);
+        }
+    }
+    clicked
+}
+
+/// Toggle (DESIGN.md §8): a 32×18 pill, accent when on. `rect` is the
+/// whole clickable row; the pill sits at its right edge. Returns true when
+/// clicked this frame.
+pub fn toggle(
+    ui: &mut Ui,
+    kit: &Kit,
+    painter: &Painter,
+    rect: Rect,
+    id: Id,
+    label: &str,
+    on: bool,
+) -> bool {
+    let t = kit.theme;
+    let resp = interact(ui, rect, id, WidgetType::Checkbox, label, Some(on));
+    kit.state_fill(painter, rect, radius::SM, &resp, false);
+    let track = Rect::from_min_size(
+        pos2(
+            rect.max.x - space::S3 - size::TOGGLE[0],
+            rect.center().y - size::TOGGLE[1] / 2.0,
+        ),
+        size::TOGGLE.into(),
+    );
+    let k = painter
+        .ctx()
+        .animate_bool_with_time(id.with("on"), on, motion::FAST);
+    painter.rect_filled(
+        track,
+        CornerRadius::same(radius::FULL),
+        if on { t.accent } else { t.track },
+    );
+    let r = size::TOGGLE[1] / 2.0 - size::TOGGLE_INSET;
+    let x0 = track.min.x + size::TOGGLE_INSET + r;
+    let x1 = track.max.x - size::TOGGLE_INSET - r;
+    painter.circle_filled(
+        pos2(x0 + (x1 - x0) * k, track.center().y),
+        r,
+        if on { t.accent_on } else { t.text_secondary },
+    );
+    kit.focus_ring(painter, rect, radius::SM, &resp);
+    resp.clicked()
+}

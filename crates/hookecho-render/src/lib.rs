@@ -685,15 +685,17 @@ impl Renderer {
             };
             queue.write_buffer(&s.uniform, 0, bytemuck::bytes_of(&u));
         }
-        self.labels.prepare(
-            device,
-            queue,
-            f.size_px,
-            f.ppp,
-            &f.camera,
-            &style.labels,
-            f.label_exclusions,
-        );
+        if style.labels.visible {
+            self.labels.prepare(
+                device,
+                queue,
+                f.size_px,
+                f.ppp,
+                &f.camera,
+                &style.labels,
+                f.label_exclusions,
+            );
+        }
 
         let t = self.targets.as_ref().expect("ensure_targets before render");
         {
@@ -752,7 +754,9 @@ impl Renderer {
             for l in self.layers.iter().filter(|l| over(&l.name) == Some(true)) {
                 draw(&mut pass, l);
             }
-            self.labels.render(&mut pass);
+            if style.labels.visible {
+                self.labels.render(&mut pass);
+            }
         }
 
         let (bw, bh) = (w.div_ceil(BLUR_DIV) as f32, h.div_ceil(BLUR_DIV) as f32);

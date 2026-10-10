@@ -45,38 +45,29 @@ assets/                  fonts, icons, sample data (large samples are fetched, n
 
 ## Status (keep this current)
 
-**Phase 1 is complete (2026-10-10).** Public repo: https://github.com/kz6fittycent/HookEcho. CI is green on `main` (PR #3 merged as `fdffb93`).
+**Phase 2 in progress (2026-10-10).** Public repo: https://github.com/kz6fittycent/HookEcho. Phase 1 is complete.
 
 - Phase 0 was approved: design, the `bzip2-1.0.6` exception, and KDP from Level III.
 - `BSL-1.0` was approved on 2026-10-10, then dropped the same day along with Windows.
-- **Linux only** (owner, 2026-10-10). The Windows/macOS test releases, their issues, screenshots and the `desktop-testing` label were all removed from GitHub.
+- **Linux only** (owner, 2026-10-10).
+- The snap is registered and the store secret exists. Each push to `main` uploads a candidate and opens a call-for-testing issue. Revision 1 was sample-only; revision 2 brought live radar (CFT #8); revision 3 is PR #7.
 
-Phase 1 results:
-- Level II decoding matches MetPy exactly. The fuzz targets run clean (4 bugs found and fixed). The pinned toolchain is `rust-toolchain.toml` (1.99).
-- Snap: 24 MB, review-tools pass, all linters clean. It gets Rust through a `rust-deps` part with `rust-channel: none`; the core24 rust plugin's own rustup handling is broken for us.
-- **Strict install, tested 2026-10-10 on the dev machine with a CI-built snap:**
-  - Vulkan on the RTX 2080: OK, windowed and offscreen.
-  - llvmpipe (snap Mesa): OK.
-  - GL through Mesa EGL: OK, windowed and offscreen.
-  - GL through NVIDIA's EGL driver: fails ("gl not compatible with provided surface"), in and out of the snap. Harmless, since NVIDIA always has Vulkan and wgpu picks it first.
-  - The local `snapcraft pack` is blocked by Docker's iptables `FORWARD DROP` (no LXD network). The owner declined the firewall change, so test PR snaps from the `hookecho-snap` workflow artifact with `snap install --dangerous`.
-- Bench baselines: dev machine (median of 3) and GitHub runner `llvmpipe (LLVM 20.1.2)` (worst of 4, because runners vary 5–14%).
+Phase 2 done:
+- Real-time chunks from `unidata-nexrad-level2-chunks`, progressive sweeps, offline chunk cache, scan-age status (PR #5).
+- Loop and timeline, plain-language product picker, color palettes and GRLevelX `.pal` import (drag and drop; snap `home` plug), a "little or no rain" notice for clear air (PR #7).
+- Side sheet: Layers / Colors / Settings (branch `phase2/side-sheet`).
 
-Owner to-do (README "One-time setup"):
-- `snapcraft register hookecho`
-- the `SNAPCRAFT_STORE_CREDENTIALS` secret
-- the `promote-stable` environment
-
-Until those exist, call-for-testing fails at the upload step, which is expected.
-
-Next: **Phase 2** (real-time chunks, progressive sweeps, loop, palettes and `.pal` import, command palette, side sheet, themes, shortcuts). Per KICKOFF, start by sending the owner the Phase 1 end-of-phase screenshots.
-
-Working practice: iterate on branches with PRs. On a PR only Snap Builds runs; pushes to `main` trigger the candidate pipeline. **Ask before pushing.**
-
-Phase 2 follow-ups found during the Phase 1 review:
-- Mask dual-pol products (CC, ZDR, PHI) where reflectivity or SNR is low; clear-air noise is chaotic on CC.
+Phase 2 still to do:
+- Command palette (Ctrl+K) plus the search button top right; the `?` shortcuts sheet.
+- `.pal` masks and indexed units; removing an imported palette; legend hover value.
+- Separate velocity units; font scale.
+- Mask dual-pol products (CC, ZDR, PHI) where reflectivity or SNR is low.
 - Rank place labels by Census population estimates instead of land area.
 - Upstream: nexrad-data rc.7 panics on input shorter than 24 bytes (our adapter guards it). **Ask the owner before filing an issue.**
+
+Strict-snap results (2026-10-10): Vulkan, llvmpipe and Mesa EGL GL work; NVIDIA EGL GL fails, which is harmless because wgpu picks Vulkan first. Local `snapcraft pack` is blocked by Docker's iptables rules (the owner declined the change), so test PR snaps from the `hookecho-snap` workflow artifact.
+
+Working practice: iterate on branches with PRs. CI runs only on PRs into `main`, so stacked work goes onto the open PR's branch. Pushes to `main` trigger the candidate pipeline. **Ask before pushing.** Before pushing, run all of CI's gates locally: fmt, clippy, tests and `scripts/check-design-tokens.sh`.
 
 Known issues and notes:
 - Memory with a 20-frame loop is about 435 MB against a 300 MB budget: about 150 MB is the GPU driver, about 95 MB the decoded full volume, about 32 MB basemap decode transients. This is Phase 4 work. Use `HOOKECHO_MEM_TRACE=1` for a stage breakdown.

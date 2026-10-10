@@ -194,6 +194,25 @@ impl App {
         }
     }
 
+    /// The Settings tab's cache size (measured once per opening) and Clear.
+    fn sheet_data(&mut self) {
+        let Some(sheet) = &mut self.model.sheet else {
+            return;
+        };
+        let Some(dirs) = &self.dirs else { return };
+        let cache = hookecho_core::cache::ChunkCache::new(&dirs.cache, 0);
+        if sheet.clear_cache {
+            sheet.clear_cache = false;
+            sheet.cache_bytes = None;
+            if let Err(e) = cache.clear() {
+                eprintln!("hookecho: clearing cache: {e}");
+            }
+        }
+        if sheet.tab == model::SheetTab::Settings && sheet.cache_bytes.is_none() {
+            sheet.cache_bytes = Some(cache.size());
+        }
+    }
+
     pub fn theme_kind(&self, ctx: &egui::Context) -> ThemeKind {
         if let Some(t) = self.theme_override {
             return t;
@@ -307,7 +326,15 @@ impl App {
         if !radar.is_empty() {
             self.first_radar_frame = true;
         }
-        let style = theme.scene_style();
+        let mut style = theme.scene_style();
+        let layers = self.model.config.map;
+        style.lines.retain(|l| match l.0 {
+            "county" => layers.counties,
+            "road" => layers.roads,
+            _ => true,
+        });
+        style.labels.visible = layers.labels;
+        self.sheet_data();
         let exclusions = screen::label_exclusions(&self.model, screen);
         let mut enc = gpu.device.create_command_encoder(&Default::default());
         self.renderer.render(
@@ -334,19 +361,9 @@ impl App {
             blur,
             screen,
         };
-        let before = (
-            self.model.site.id.clone(),
-            self.model.config.favorites.clone(),
-            self.model.palettes.version,
-        );
+        let before = self.model.config.clone();
         screen::paint(ui, &mut kit, &mut self.model, scene);
-        if before
-            != (
-                self.model.site.id.clone(),
-                self.model.config.favorites.clone(),
-                self.model.palettes.version,
-            )
-        {
+        if before != self.model.config {
             self.save_config();
         }
         if let Some((_, until)) = &self.model.notice {
