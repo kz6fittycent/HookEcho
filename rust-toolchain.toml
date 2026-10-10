@@ -1,0 +1,6 @@
+# The workspace's minimum Rust (edition 2024). CI, the snap and local
+# builds all use exactly this toolchain.
+[toolchain]
+channel = "1.99"
+components = ["clippy", "rustfmt"]
+profile = "minimal"

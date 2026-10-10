@@ -1,21 +1,21 @@
 # cargo-deny policy (KICKOFF §1). Run: cargo deny check
 [graph]
 all-features = false
-# Only the platforms we ship (KICKOFF §8). Other targets (e.g. Android) pull
-# crates such as webpki-root-certs (CDLA-Permissive-2.0) that never reach
-# our binaries; widen this list, and re-check licenses, if a target is added.
+# Only the platform we ship: Linux (the owner dropped Windows and macOS on
+# 2026-10-10). Other targets pull crates that never reach our binary (e.g.
+# webpki-root-certs, CDLA-Permissive-2.0, on Android; clipboard-win,
+# BSL-1.0, on Windows). Widen this list, and re-check licenses, if a target
+# is ever added.
 targets = [
     "x86_64-unknown-linux-gnu",
-    "x86_64-pc-windows-msvc",
-    "aarch64-apple-darwin",
 ]
 
 [licenses]
 # KICKOFF §1 allowlist, plus owner-approved exceptions:
 # - bzip2-1.0.6 (2026-10-09, docs/DECODER_PLAN.md): every bzip2 decoder,
 #   needed for Level II, carries it.
-# - BSL-1.0 (2026-10-10): clipboard-win and error-code, which eframe always
-#   pulls in on Windows for clipboard support.
+# (BSL-1.0 was approved on 2026-10-10 for eframe's Windows clipboard crates,
+# then became unnecessary when Windows builds were dropped the same day.)
 allow = [
     "MIT",
     "Apache-2.0",
@@ -28,7 +28,6 @@ allow = [
     "Unicode-3.0",
     "GPL-3.0-or-later",
     "bzip2-1.0.6",
-    "BSL-1.0",
 ]
 confidence-threshold = 0.9
 # OFL-1.1 covers bundled fonts, not crates, so it is never "encountered".

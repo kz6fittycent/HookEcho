@@ -34,6 +34,15 @@ jobs:
           snap: ${{ steps.build.outputs.snap }}
           isClassic: 'false'
 
+      - name: Keep the snap as a workflow artifact
+        # For testing a PR's snap by hand (`snap install --dangerous`)
+        # before it reaches the candidate channel.
+        uses: actions/upload-artifact@v7
+        with:
+          name: hookecho-snap
+          path: ${{ steps.build.outputs.snap }}
+          retention-days: 14
+
       - name: Check the snap size budget (KICKOFF §4, < 50 MB)
         run: |
           size=$(stat -c %s "${{ steps.build.outputs.snap }}")

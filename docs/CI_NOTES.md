@@ -17,7 +17,7 @@ Every item below is a real failure documented in the comments of `/home/james/gi
 | security-rebuild | Rebuild from the **release commit** (newest commit whose version file has exactly the stable version) | `main` may hold unreleased work |
 | security-rebuild | `dry_run` input defaults to **true**; `force` input; skip while an open `security-rebuild` issue exists; `concurrency: security-rebuild` | Avoids daily duplicate rebuilds |
 | security-rebuild | `review-tools` install retried | CDN flakiness |
-| desktop-builds | Tag must equal `v<version>`, or the run fails | Prevents mislabeled releases |
+| desktop-builds *(dropped 2026-10-10, Linux only)* | Tag must equal `v<version>`, or the run fails | Prevents mislabeled releases |
 | desktop-builds | Smoke test checks that config/cache dirs were created | Proves first-run paths work |
 | desktop-builds | Native screenshots first, then a fallback renderer with a `::warning::` | CI machines sometimes lack a working native display path |
 | desktop-builds | Windows: silent install test (`/VERYSILENT`) and check of the install path. macOS: ad-hoc `codesign --sign -` | Apple Silicon refuses unsigned binaries |
@@ -32,3 +32,5 @@ Translation for Hook Echo:
 - The version comes from `[workspace.package] version` in `Cargo.toml`, not from `__init__.py`.
 - PyInstaller becomes `cargo build --release`.
 - Qt's offscreen fallback becomes our `--screenshots` path. It is already offscreen (wgpu, no window), so the "native first" step tries the default adapter, then forces the GL backend (`WGPU_BACKEND=gl`) before failing.
+
+**Windows and macOS were dropped on 2026-10-10 (owner decision).** The `desktop-builds` rows above are kept only as a record of Desktop-Scriptures' lessons; Hook Echo has no `desktop-builds.yml`.

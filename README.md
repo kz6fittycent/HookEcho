@@ -1,6 +1,6 @@
 # Hook Echo
 
-A fast, clean weather radar viewer for storm chasers and weather enthusiasts, written in Rust. Linux first (Snap Store), with Windows and macOS builds.
+A fast, clean weather radar viewer for storm chasers and weather enthusiasts, written in Rust, for Linux (Snap Store).
 
 - **Full-resolution NEXRAD Level II**, every moment and tilt, drawn on the GPU with wgpu.
 - **Map-first and calm:** floating glass panels over edge-to-edge radar, in dark and light themes.
@@ -18,7 +18,7 @@ cargo build --release -p hookecho-app
 ./target/release/hookecho --bench            # performance budgets (KICKOFF §4)
 ```
 
-Requires Rust 1.99 or newer and a GPU driver with Vulkan, Metal, DX12 or OpenGL. With no GPU, Mesa's lavapipe (`mesa-vulkan-drivers`) works for the offscreen modes.
+Requires Rust 1.99 (pinned in `rust-toolchain.toml`) and a GPU driver with Vulkan or OpenGL. With no GPU, Mesa's lavapipe (`mesa-vulkan-drivers`) works for the offscreen modes.
 
 | Check | Command |
 |---|---|
@@ -38,7 +38,6 @@ The pipeline matches Desktop Scriptures' (see `docs/CI_NOTES.md`):
 - `call-for-testing.yml`: after a green build on `main`, uploads to `candidate` and opens a call-for-testing issue with VM screenshots.
 - `promote-to-stable.yml`: commenting `/promote <revision> stable done` on that issue releases to stable, after your approval.
 - `security-rebuild.yml`: daily, rebuilds the stable release when Ubuntu publishes fixes for packages bundled in the snap.
-- `desktop-builds.yml`: Windows installer and macOS `.dmg`; test pre-releases on `main`, and a GitHub Release on `v*` tags (the tag must match the `Cargo.toml` version).
 - `refresh-radar-data.yml`: weekly, regenerates the site list and basemap and publishes them to the `radar-data` release.
 
 ### One-time setup (owner)

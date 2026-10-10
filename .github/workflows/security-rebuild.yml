@@ -95,8 +95,8 @@ jobs:
         id: commit
         run: |
           want="${{ steps.stable.outputs.version }}"
-          # The release tag (desktop-builds.yml publishes v<version>) is the
-          # exact release commit.
+          # A v<version> release tag, if releases are tagged, is the exact
+          # release commit.
           if c="$(git rev-list -n 1 "refs/tags/v$want" 2>/dev/null)"; then
             echo "commit=$c" >> "$GITHUB_OUTPUT"
             echo "Release commit (tag v$want): $(git log -1 --format='%h %s' "$c")"

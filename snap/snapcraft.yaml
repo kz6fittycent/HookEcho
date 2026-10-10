@@ -45,15 +45,32 @@ apps:
       - location-observe
 
 parts:
+  # The core24 rust plugin's own rustup build snap isn't on the PATH its
+  # environment check uses ("'rustup' not found"), so the toolchain comes
+  # from this part instead - the plugin's documented `rust-deps` hook. It
+  # installs rustup into the build user's ~/.cargo, which the plugin puts on
+  # PATH; rust-toolchain.toml then pins the exact Rust version.
+  rust-deps:
+    plugin: nil
+    build-packages: [curl, ca-certificates]
+    override-build: |
+      # The pinned version becomes the default toolchain, so `cargo` works
+      # from any directory (the plugin's environment check runs outside the
+      # source tree, where rust-toolchain.toml doesn't apply).
+      channel="$(sed -n 's/^channel = "\(.*\)"/\1/p' "$CRAFT_PROJECT_DIR/rust-toolchain.toml")"
+      curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+        | sh -s -- -y --no-modify-path --profile minimal --default-toolchain "$channel"
+
   hookecho:
+    after: [rust-deps]
     plugin: rust
     source: .
-    # The workspace's rust-version (edition 2024).
-    rust-channel: "1.99"
+    # "none": the plugin runs no rustup commands of its own. They'd run in
+    # the pull step, which happens for every part before rust-deps is built.
+    # cargo comes from ~/.cargo/bin (rust-deps), and rust-toolchain.toml
+    # selects the pinned version.
+    rust-channel: none
     rust-path: [crates/hookecho-app]
-    # On core24 the rust plugin installs rust-channel with rustup, which the
-    # build environment only has if the part asks for it.
-    build-snaps: [rustup]
     stage-packages:
       # wgpu loads the Vulkan loader at runtime; the GPU drivers themselves
       # come from the host via the opengl interface and the gnome extension.
