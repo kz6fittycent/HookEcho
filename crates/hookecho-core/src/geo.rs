@@ -82,6 +82,69 @@ pub fn slant_range_km(s_km: f64, elev_deg: f64) -> f64 {
     re * phi.sin() / (elev_deg.to_radians() + phi).cos()
 }
 
+/// Map view: a center in normalized mercator and a zoom expressed as logical
+/// pixels per mercator unit. Screen coordinates are logical px with the
+/// origin at the top-left of the view.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Camera {
+    pub center: [f64; 2],
+    pub scale: f64,
+}
+
+impl Camera {
+    pub const MIN_SCALE: f64 = 600.0; // whole CONUS on a laptop screen
+    pub const MAX_SCALE: f64 = 6.0e7; // ~1 m per logical px
+
+    /// Centered on (lat, lon), showing `km_across` kilometers over `width` px.
+    pub fn looking_at(lat: f64, lon: f64, km_across: f64, width: f64) -> Camera {
+        Camera {
+            center: to_mercator(lat, lon),
+            scale: width * km_per_mercator_unit(lat) / km_across,
+        }
+    }
+
+    pub fn to_screen(&self, m: [f64; 2], size: [f64; 2]) -> [f64; 2] {
+        [
+            (m[0] - self.center[0]) * self.scale + size[0] / 2.0,
+            (m[1] - self.center[1]) * self.scale + size[1] / 2.0,
+        ]
+    }
+
+    pub fn to_mercator(&self, p: [f64; 2], size: [f64; 2]) -> [f64; 2] {
+        [
+            (p[0] - size[0] / 2.0) / self.scale + self.center[0],
+            (p[1] - size[1] / 2.0) / self.scale + self.center[1],
+        ]
+    }
+
+    pub fn latlon_to_screen(&self, lat: f64, lon: f64, size: [f64; 2]) -> [f64; 2] {
+        self.to_screen(to_mercator(lat, lon), size)
+    }
+
+    pub fn screen_to_latlon(&self, p: [f64; 2], size: [f64; 2]) -> (f64, f64) {
+        from_mercator(self.to_mercator(p, size))
+    }
+
+    /// Ground kilometers per logical px at the view center.
+    pub fn km_per_px(&self) -> f64 {
+        km_per_mercator_unit(from_mercator(self.center).0) / self.scale
+    }
+
+    pub fn pan(&mut self, dx: f64, dy: f64) {
+        self.center[0] -= dx / self.scale;
+        self.center[1] = (self.center[1] - dy / self.scale).clamp(0.0, 1.0);
+    }
+
+    /// Zoom by `factor`, keeping the point under `anchor` fixed.
+    pub fn zoom_at(&mut self, factor: f64, anchor: [f64; 2], size: [f64; 2]) {
+        let before = self.to_mercator(anchor, size);
+        self.scale = (self.scale * factor).clamp(Self::MIN_SCALE, Self::MAX_SCALE);
+        let after = self.to_mercator(anchor, size);
+        self.center[0] += before[0] - after[0];
+        self.center[1] += before[1] - after[1];
+    }
+}
+
 /// Number of bins in [`azimuth_index`] (0.1° each).
 pub const AZIMUTH_BINS: usize = 3600;
 
@@ -120,6 +183,25 @@ pub fn azimuth_index(centers_deg: &[f32], spacing_deg: &[f32]) -> Vec<u16> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn camera_zoom_keeps_anchor_fixed() {
+        let size = [1280.0, 800.0];
+        let mut c = Camera::looking_at(35.33, -97.28, 100.0, size[0]);
+        let anchor = [300.0, 200.0];
+        let before = c.screen_to_latlon(anchor, size);
+        c.zoom_at(2.5, anchor, size);
+        let after = c.screen_to_latlon(anchor, size);
+        assert!((before.0 - after.0).abs() < 1e-9 && (before.1 - after.1).abs() < 1e-9);
+        // The center latitude moves a little (zoom is around an off-center
+        // anchor), so compare the scale change, not the exact value.
+        let expected = 100.0 / 1280.0 / 2.5;
+        assert!(
+            (c.km_per_px() / expected - 1.0).abs() < 0.01,
+            "{} vs {expected}",
+            c.km_per_px()
+        );
+    }
 
     #[test]
     fn mercator_round_trip() {

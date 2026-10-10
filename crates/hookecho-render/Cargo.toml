@@ -1,8 +1,19 @@
 [package]
 name = "hookecho-render"
+description = "Hook Echo wgpu renderer: radar, basemap, labels, backdrop blur"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 publish = false
+
+[dependencies]
+hookecho-core.workspace = true
+wgpu.workspace = true
+glyphon.workspace = true
+bytemuck.workspace = true
+pollster.workspace = true
+
+[dev-dependencies]
+image.workspace = true

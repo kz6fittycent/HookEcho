@@ -25,6 +25,9 @@ pub struct Sweep {
     pub elevation_number: u8,
     /// Mean measured elevation of the radials, degrees.
     pub elevation_deg: f32,
+    /// The VCP's commanded angle for this cut (what users call the tilt,
+    /// e.g. 0.5°), when the volume carries its VCP (Message 5/7).
+    pub nominal_elevation_deg: Option<f32>,
     pub radials: Vec<RadialInfo>,
     pub moments: Vec<(Moment, Field)>,
     /// Whether the last radial carried end-of-elevation (or end-of-volume)
@@ -69,11 +72,7 @@ pub struct Field {
 
 impl Field {
     pub fn radials(&self) -> usize {
-        if self.gates == 0 {
-            0
-        } else {
-            self.raw.len() / self.gates
-        }
+        self.raw.len().checked_div(self.gates).unwrap_or(0)
     }
 
     pub fn raw_at(&self, radial: usize, gate: usize) -> u16 {
@@ -83,6 +82,12 @@ impl Field {
     pub fn value(&self, raw: u16) -> Option<f32> {
         (raw > 1).then(|| (raw as f32 - self.offset) / self.scale)
     }
+}
+
+/// Operating mode implied by a VCP number. Clear-air VCPs scan slowly for
+/// sensitivity (NWS: VCPs 31, 32 and 35); all others are precipitation mode.
+pub fn vcp_is_clear_air(vcp: u16) -> bool {
+    matches!(vcp, 31 | 32 | 35)
 }
 
 /// Decodes an Archive II volume file (gzip-wrapped or not).
@@ -95,6 +100,12 @@ pub fn decode_volume(bytes: &[u8]) -> Result<Volume, Error> {
 }
 
 fn convert(scan: &Scan) -> Volume {
+    let cuts: Vec<f32> = scan
+        .coverage_pattern()
+        .elevation_cuts()
+        .iter()
+        .map(|c| c.elevation_angle_degrees() as f32)
+        .collect();
     let sweeps = scan
         .sweeps()
         .iter()
@@ -125,6 +136,9 @@ fn convert(scan: &Scan) -> Volume {
             Sweep {
                 elevation_number: s.elevation_number(),
                 elevation_deg,
+                nominal_elevation_deg: cuts
+                    .get((s.elevation_number() as usize).wrapping_sub(1))
+                    .copied(),
                 radials: infos,
                 moments,
                 complete,
@@ -200,7 +214,7 @@ fn field(radials: &[Radial], m: Moment) -> Option<Field> {
                 .copy_from_slice(&b.bytes[..b.bytes.len().min(gates)]),
             RawGates::U16(v) => {
                 // 16-bit moments are big-endian on the wire (ICD 2620002, Message 31).
-                for (k, pair) in b.bytes.chunks_exact(2).take(gates).enumerate() {
+                for (k, pair) in b.bytes.as_chunks::<2>().0.iter().take(gates).enumerate() {
                     v[base + k] = u16::from_be_bytes([pair[0], pair[1]]);
                 }
             }

@@ -500,10 +500,10 @@ fn clip_ring(ring: &Ring, (lat0, lat1, lon0, lon1): (f64, f64, f64, f64)) -> Rin
             }
         }
     }
-    if let (Some(&f), Some(&l)) = (pts.first(), pts.last()) {
-        if f != l {
-            pts.push(f);
-        }
+    if let (Some(&f), Some(&l)) = (pts.first(), pts.last())
+        && f != l
+    {
+        pts.push(f);
     }
     pts
 }
@@ -533,8 +533,8 @@ fn simplify(pts: &[(f64, f64)], tol: f64) -> Ring {
         let (dx, dy) = (pb.0 - pa.0, pb.1 - pa.1);
         let len2 = dx * dx + dy * dy;
         let mut best = (0.0, 0usize);
-        for i in a + 1..b {
-            let p = xy(pts[i]);
+        for (i, &pt) in pts.iter().enumerate().take(b).skip(a + 1) {
+            let p = xy(pt);
             let d = if len2 == 0.0 {
                 ((p.0 - pa.0).powi(2) + (p.1 - pa.1).powi(2)).sqrt()
             } else {

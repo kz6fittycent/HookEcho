@@ -119,6 +119,13 @@ fn check(volume: &Volume, reference: &Value) {
 fn ktlx_2013_uncompressed_gzip_matches_metpy() {
     let v = decode_volume(&data("KTLX20130520_201643_3sweeps.ar2.gz")).unwrap();
     assert_eq!(v.vcp, 12);
+    // VCP 12 cuts 1-3 are 0.5° (surveillance), 0.5° (Doppler), 0.9°.
+    let nominal: Vec<_> = v
+        .sweeps
+        .iter()
+        .map(|s| s.nominal_elevation_deg.map(|e| (e * 10.0).round() / 10.0))
+        .collect();
+    assert_eq!(nominal, vec![Some(0.5), Some(0.5), Some(0.9)]);
     check(&v, &reference("KTLX20130520_201643_3sweeps.metpy.json"));
 }
 

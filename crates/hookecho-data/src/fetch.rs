@@ -31,10 +31,10 @@ pub fn cached(
     let name = url.rsplit('/').next().unwrap_or("download");
     let path = cache.join(name);
     let mut req = client.get(url);
-    if let Ok(meta) = std::fs::metadata(&path) {
-        if let Ok(modified) = meta.modified() {
-            req = req.header(reqwest::header::IF_MODIFIED_SINCE, httpdate(modified));
-        }
+    if let Ok(meta) = std::fs::metadata(&path)
+        && let Ok(modified) = meta.modified()
+    {
+        req = req.header(reqwest::header::IF_MODIFIED_SINCE, httpdate(modified));
     }
     let resp = req.send().map_err(|e| format!("{url}: {e}"))?;
     if resp.status() == reqwest::StatusCode::NOT_MODIFIED {
