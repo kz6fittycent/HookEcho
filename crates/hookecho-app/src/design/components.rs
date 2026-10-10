@@ -310,7 +310,7 @@ impl Kit<'_> {
             pos2(row.min.x, row.min.y + space::S2),
             vec2(size::SELECTION_BAR_W, row.height() - 2.0 * space::S2),
         );
-        painter.rect_filled(bar, CornerRadius::same(2), self.theme.accent);
+        painter.rect_filled(bar, CornerRadius::same(radius::XS), self.theme.accent);
     }
 
     /// A hairline horizontal divider.

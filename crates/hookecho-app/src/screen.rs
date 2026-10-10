@@ -720,7 +720,7 @@ fn timeline(
         // Nothing to animate: just say when this scan is from.
         let g = kit.galley(painter, label, Type::LabelTab, t.accent);
         let w = space::S3 + size::ICON_SM + space::S2 + g.size().x + space::S4;
-        let rect = place(w).shrink2(vec2(0.0, space::S1));
+        let rect = place(w).shrink2(egui::Vec2::Y * space::S1);
         kit.glass(painter, rect, radius::MD, 1);
         let icon = components::icon_rect(
             pos2(
@@ -895,18 +895,18 @@ fn timeline(
         }
     }
     let pos = model.timeline_pos();
-    painter.rect_filled(track, CornerRadius::same(1), t.track);
+    painter.rect_filled(track, CornerRadius::same(radius::HAIR), t.track);
     let cur_x = x_of(positions[pos.min(live_pos)].0);
     painter.rect_filled(
         Rect::from_min_max(track.min, pos2(cur_x, track.max.y)),
-        CornerRadius::same(1),
+        CornerRadius::same(radius::HAIR),
         t.accent.gamma_multiply(0.55),
     );
     for (i, &(ms, _)) in positions.iter().enumerate() {
         let tick = Rect::from_center_size(pos2(x_of(ms), cy), size::TICK.into());
         painter.rect_filled(
             tick,
-            CornerRadius::same(1),
+            CornerRadius::same(radius::HAIR),
             if i <= pos {
                 t.text_secondary
             } else {
@@ -916,7 +916,7 @@ fn timeline(
     }
     painter.rect_filled(
         Rect::from_center_size(pos2(cur_x, cy), size::PLAYHEAD.into()),
-        CornerRadius::same(2),
+        CornerRadius::same(radius::XS),
         t.accent,
     );
     kit.focus_ring(painter, track, radius::SM, &scrub);

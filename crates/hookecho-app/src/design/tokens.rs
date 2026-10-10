@@ -21,6 +21,10 @@ pub mod space {
 }
 
 pub mod radius {
+    /// Timeline track and ticks.
+    pub const HAIR: u8 = 1;
+    /// Timeline playhead.
+    pub const XS: u8 = 2;
     pub const SM: u8 = 8;
     pub const MD: u8 = 12;
     pub const LG: u8 = 16;
