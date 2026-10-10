@@ -4,7 +4,8 @@
 set -eu
 cd "$(dirname "$0")"
 base=https://unidata-nexrad-level2.s3.amazonaws.com
-for key in 2013/05/20/KTLX/KTLX20130520_201643_V06.gz 2024/04/28/KTLX/KTLX20240428_031312_V06; do
+# The Moore volume the app bundles lives in assets/bundled/ (committed).
+for key in 2024/04/28/KTLX/KTLX20240428_031312_V06; do
   f=$(basename "$key")
   [ -f "$f" ] || curl -fsSL -o "$f" "$base/$key"
 done

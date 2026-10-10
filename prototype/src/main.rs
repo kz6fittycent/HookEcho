@@ -26,7 +26,7 @@ use view::Camera;
 
 const SAMPLE: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../assets/samples/KTLX20130520_201643_V06.gz"
+    "/../assets/bundled/KTLX20130520_201643_V06.gz"
 );
 /// Rough position of the Moore hook at 20:16 UTC; refined to the reflectivity
 /// maximum (the debris ball) at load. "Me" is staged in Norman.

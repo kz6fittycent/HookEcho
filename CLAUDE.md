@@ -45,17 +45,30 @@ assets/                  fonts, icons, sample data (large samples are fetched, n
 
 ## Status (keep this current)
 
-**Phase 1 in progress.** Phase 0 was approved on 2026-10-09: design and prototype, the `bzip2-1.0.6` license exception, and KDP from Level III.
+**Phase 1 in progress, paused 2026-10-09 at the owner's request.** Nothing has been pushed.
+
+Phase 0 was approved: design, the `bzip2-1.0.6` exception, and KDP from Level III.
 
 Phase 1 checklist:
-- [ ] Read every Desktop-Scriptures workflow and comment, and its snapcraft.yaml
-- [ ] Workspace and crates skeleton; cargo-deny config; THIRD_PARTY_LICENSES.md
-- [ ] hookecho-core: L2 adapter for all moments; tests on small samples; MetPy/Py-ART comparison
-- [ ] hookecho-data: bundled site list and basemap
-- [ ] hookecho-render: GPU radial render, basemap, blur
-- [ ] hookecho-app: design system, site picker, tilt selection
-- [ ] `--smoke-test`, `--screenshots`, `--bench`
-- [ ] Snap build and CI workflows
+- [x] Read every Desktop-Scriptures workflow and comment. The lessons are in `docs/CI_NOTES.md`.
+- [x] Workspace; cargo-deny config (`deny.toml`, scoped to shipping targets)
+- [x] hookecho-core: Level II adapter for all moments, matching MetPy exactly (`tests/data/`, `tools/verify/dump_metpy.py`)
+- [x] hookecho-data: `sites` (NCEI) and `basemap` (Census + Natural Earth) → `assets/basemap/basemap.bin` (5 MB)
+- [x] hookecho-render: GPU radar, basemap, glyphon labels, blur, offscreen
+- [x] hookecho-app: design system, main screen, site picker, product/tilt picker, inspector, `--smoke-test`, `--screenshots`, `--bench`
+- [ ] **Blocked on the owner:** allow `BSL-1.0`? eframe always pulls `clipboard-win` and `error-code` on Windows. `cargo deny check` fails on it until decided.
+- [ ] cargo-deny advisory: `ttf-parser` unmaintained (RUSTSEC-2026-0192, via glyphon → cosmic-text → fontdb). Plan: ignore with a reason, unless the owner objects.
+- [ ] THIRD_PARTY_LICENSES.md (cargo-about is installed)
+- [ ] `cargo-fuzz` targets for L2 (and later L3) before Phase 2
+- [ ] `bench/baseline.json` (record per adapter; CI compares at 10%)
+- [ ] snap/snapcraft.yaml, plus a real strict-install test of Vulkan and GL
+- [ ] The six workflows (see CI_NOTES.md), README with the owner's TODO list (store secret, `promote-stable` environment, `snapcraft register hookecho`)
+- [ ] Update FEATURE_PARITY.md statuses for Phase 1 rows
 
-Open questions for the owner:
-- Rows marked **Ask first** in FEATURE_PARITY.md (geocoding, mPING, Spotter Network, satellite basemap).
+Known issues and notes:
+- Memory with a 20-frame loop is about 435 MB against a 300 MB budget: about 150 MB is the GPU driver, about 95 MB the decoded full volume, about 32 MB basemap decode transients. This is Phase 4 work. Use `HOOKECHO_MEM_TRACE=1` for a stage breakdown.
+- Bench on the RTX 2080: cold start about 0.5 s, switch about 2 ms, 4K frame p99 about 2.7 ms.
+- Place labels rank by land area, so large rural places outrank towns. Switch to Census population estimates (a free file).
+- Always run manual smoke tests with `HOOKECHO_HOME=<scratch dir>`. Without it they write `~/.config/hookecho`.
+- The contrast test models egui's gamma-space blending. Accent text is used only on plain glass.
+- App screenshots: `./target/release/hookecho --screenshots target/shots`.

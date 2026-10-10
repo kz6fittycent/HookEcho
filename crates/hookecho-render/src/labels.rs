@@ -38,7 +38,7 @@ pub struct Labels {
 }
 
 /// The most labels drawn at once; more than this reads as clutter.
-const MAX_LABELS: usize = 160;
+const MAX_LABELS: usize = 90;
 /// Visible candidates examined per frame (places are sorted by rank, best first).
 const MAX_CANDIDATES: usize = 4000;
 
@@ -102,7 +102,7 @@ impl Labels {
         ];
         // Hide small towns as you zoom out (land area as a size proxy).
         let km = camera.km_per_px();
-        let min_rank = (km * km * 20.0).max(400.0) as u64;
+        let min_rank = (km * km * 4000.0).max(300.0) as u64;
         let mut taken: Vec<[f32; 4]> = exclude.to_vec();
         let mut chosen: Vec<(usize, [f32; 2])> = Vec::new();
         let mut examined = 0;
