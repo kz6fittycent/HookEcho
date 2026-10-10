@@ -1,0 +1,9 @@
+# cargo-about config: generates THIRD_PARTY_LICENSES.md (scripts/gen-licenses.sh).
+accepted = [
+    "MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC", "Zlib",
+    "MPL-2.0", "OFL-1.1", "Unicode-3.0", "GPL-3.0-or-later", "bzip2-1.0.6", "BSL-1.0",
+]
+targets = ["x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc", "aarch64-apple-darwin"]
+ignore-dev-dependencies = true
+ignore-build-dependencies = false
+private = { ignore = true }

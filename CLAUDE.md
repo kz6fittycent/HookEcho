@@ -10,7 +10,7 @@ Hook Echo is a clean-room weather radar viewer in Rust that aims for 1:1 feature
 
 - **Clean room.** No decompiling or inspecting the original's binaries, traffic or private APIs, and no leaked code. Learn features only from public material. Never use the original's name, logo or text.
 - **Every data format and algorithm** gets a public source in `docs/PROVENANCE.md`.
-- **Dependency licenses:** MIT / Apache-2.0 / BSD / ISC / Zlib / MPL-2.0 / OFL / Unicode, plus the approved exception `bzip2-1.0.6`, enforced by `cargo-deny`. Any other exception needs the owner's approval. Keep `THIRD_PARTY_LICENSES.md` current.
+- **Dependency licenses:** MIT / Apache-2.0 / BSD / ISC / Zlib / MPL-2.0 / OFL / Unicode, plus the approved exceptions `bzip2-1.0.6` and `BSL-1.0`, enforced by `cargo-deny`. Any other exception needs the owner's approval. Keep `THIRD_PARTY_LICENSES.md` current.
 - **No telemetry, no accounts, no paid services.** Ask before adding any new outbound endpoint.
 - **No `unsafe` in `hookecho-core`.** Fuzz the L2/L3 parsers before Phase 2.
 - **UI:** stock egui widgets never appear. No literal colors, sizes or fonts outside `crates/hookecho-app/src/design/`. Follow `docs/DESIGN.md`.
@@ -45,7 +45,7 @@ assets/                  fonts, icons, sample data (large samples are fetched, n
 
 ## Status (keep this current)
 
-**Phase 1 in progress, paused 2026-10-09 at the owner's request.** Nothing has been pushed.
+**Phase 1 in progress.** Nothing has been pushed.
 
 Phase 0 was approved: design, the `bzip2-1.0.6` exception, and KDP from Level III.
 
@@ -56,8 +56,7 @@ Phase 1 checklist:
 - [x] hookecho-data: `sites` (NCEI) and `basemap` (Census + Natural Earth) → `assets/basemap/basemap.bin` (5 MB)
 - [x] hookecho-render: GPU radar, basemap, glyphon labels, blur, offscreen
 - [x] hookecho-app: design system, main screen, site picker, product/tilt picker, inspector, `--smoke-test`, `--screenshots`, `--bench`
-- [ ] **Blocked on the owner:** allow `BSL-1.0`? eframe always pulls `clipboard-win` and `error-code` on Windows. `cargo deny check` fails on it until decided.
-- [ ] cargo-deny advisory: `ttf-parser` unmaintained (RUSTSEC-2026-0192, via glyphon → cosmic-text → fontdb). Plan: ignore with a reason, unless the owner objects.
+- [x] `BSL-1.0` allowed (owner, 2026-10-10); `ttf-parser` unmaintained advisory ignored with a reason (`deny.toml`)
 - [ ] THIRD_PARTY_LICENSES.md (cargo-about is installed)
 - [ ] `cargo-fuzz` targets for L2 (and later L3) before Phase 2
 - [ ] `bench/baseline.json` (record per adapter; CI compares at 10%)

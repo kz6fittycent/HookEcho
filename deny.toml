@@ -11,9 +11,11 @@ targets = [
 ]
 
 [licenses]
-# KICKOFF §1 allowlist, plus the single owner-approved exception
-# bzip2-1.0.6 (2026-10-09, docs/DECODER_PLAN.md): every bzip2 decoder,
-# needed for Level II, carries it.
+# KICKOFF §1 allowlist, plus owner-approved exceptions:
+# - bzip2-1.0.6 (2026-10-09, docs/DECODER_PLAN.md): every bzip2 decoder,
+#   needed for Level II, carries it.
+# - BSL-1.0 (2026-10-10): clipboard-win and error-code, which eframe always
+#   pulls in on Windows for clipboard support.
 allow = [
     "MIT",
     "Apache-2.0",
@@ -26,6 +28,7 @@ allow = [
     "Unicode-3.0",
     "GPL-3.0-or-later",
     "bzip2-1.0.6",
+    "BSL-1.0",
 ]
 confidence-threshold = 0.9
 # OFL-1.1 covers bundled fonts, not crates, so it is never "encountered".
@@ -48,3 +51,9 @@ unknown-git = "deny"
 
 [advisories]
 yanked = "deny"
+ignore = [
+    # Unmaintained notice, not a vulnerability; reached via glyphon ->
+    # cosmic-text -> fontdb, and no maintained release exists yet. Drop this
+    # once cosmic-text moves off ttf-parser.
+    { id = "RUSTSEC-2026-0192", reason = "ttf-parser unmaintained; no upgrade path via cosmic-text yet" },
+]
