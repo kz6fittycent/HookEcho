@@ -125,6 +125,14 @@ impl Library {
         }
     }
 
+    /// Every product back to its built-in default (imports stay listed).
+    pub fn restore_defaults(&mut self, config: &mut Config) {
+        if !config.palettes.is_empty() {
+            config.palettes.clear();
+            self.version += 1;
+        }
+    }
+
     /// Imports a dropped color table. Files without `Product:` go to
     /// `fallback` (the product on screen). Saves a copy when `config_dir`
     /// is set, selects it, and returns (product, palette name).
@@ -195,6 +203,12 @@ mod tests {
         assert_eq!(lib.version, v, "re-selecting the same palette is no change");
 
         let reloaded = Library::load(Some(&base));
+        let mut restored = (config.clone(), Library::load(None));
+        restored.1.restore_defaults(&mut restored.0);
+        assert_eq!(
+            restored.1.active(&restored.0, m),
+            &Palette::default_for(Moment::Velocity)
+        );
         assert_eq!(reloaded.active(&config, m), lib.active(&config, m));
         assert_eq!(reloaded.choices(m).iter().filter(|c| c.imported).count(), 1);
 

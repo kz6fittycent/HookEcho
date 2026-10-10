@@ -17,6 +17,7 @@ mod model;
 mod palettes;
 mod pickers;
 mod screen;
+mod sheet;
 mod shots;
 mod smoke;
 

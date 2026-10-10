@@ -85,6 +85,10 @@ pub fn label_exclusions(model: &Model, screen: Rect) -> Vec<[f32; 4]> {
         };
         v.push([p.x - hw + off, p.y - hh, p.x + hw + off, p.y + hh]);
     }
+    if model.sheet.is_some() {
+        let r = crate::sheet::sheet_rect(screen, margin(screen));
+        v.push([r.min.x, r.min.y, r.max.x, r.max.y]);
+    }
     v
 }
 
@@ -196,6 +200,10 @@ pub fn keys(ui: &Ui, model: &mut Model, screen: Rect) {
     let typing = matches!(model.picker, Picker::Site { .. });
     ui.input(|i| {
         if i.key_pressed(Key::Escape) {
+            // One layer at a time: a picker first, then the sheet.
+            if matches!(model.picker, Picker::None) {
+                model.sheet = None;
+            }
             model.picker = Picker::None;
             if matches!(model.inspect, Inspect::Pinned(_)) {
                 model.inspect = Inspect::Off;
@@ -213,6 +221,9 @@ pub fn keys(ui: &Ui, model: &mut Model, screen: Rect) {
         }
         if i.key_pressed(Key::P) {
             model.picker = Picker::Product;
+        }
+        if i.key_pressed(Key::L) {
+            model.toggle_sheet();
         }
         if matches!(model.picker, Picker::None) {
             if i.key_pressed(Key::Space) {
@@ -306,6 +317,8 @@ pub fn paint(ui: &mut Ui, kit: &mut Kit, model: &mut Model, scene: egui::Texture
     if let Inspect::Hover(at) | Inspect::Pinned(at) = model.inspect {
         inspector(kit, model, &painter, at);
     }
+    sheet_button(ui, kit, model, &painter, screen, m);
+    crate::sheet::side_sheet(ui, kit, model, crate::sheet::sheet_rect(screen, m));
     match model.picker {
         Picker::Site { .. } => pickers::site_picker(ui, kit, model, site_rect),
         Picker::Product => pickers::product_picker(ui, kit, model, product_rect),
@@ -317,6 +330,37 @@ pub fn paint(ui: &mut Ui, kit: &mut Kit, model: &mut Model, scene: egui::Texture
     } else if matches!(model.picker, Picker::None) && model.no_precipitation() {
         let text = format!("Little or no rain or snow near {} right now", model.site.id);
         notice(kit, &painter, screen, m, &text);
+    }
+}
+
+/// Top-right cluster (DESIGN.md §3.2): the side sheet button. The command
+/// palette's search button joins it when the palette exists.
+fn sheet_button(
+    ui: &mut Ui,
+    kit: &mut Kit,
+    model: &mut Model,
+    painter: &egui::Painter,
+    screen: Rect,
+    m: f32,
+) {
+    let h = size::CHIP_H;
+    let rect = Rect::from_min_size(pos2(screen.max.x - m - h, screen.min.y + m), vec2(h, h));
+    kit.glass(painter, rect, radius::MD, 1);
+    let b = size::ICON_BUTTON;
+    let button = Rect::from_center_size(rect.center(), vec2(b, b));
+    let resp = components::icon_button(
+        ui,
+        kit,
+        painter,
+        button,
+        Id::new("sheet-button"),
+        Icon::Layers,
+        "Layers, colors and settings",
+        Some("L"),
+        model.sheet.is_some(),
+    );
+    if resp.clicked() {
+        model.toggle_sheet();
     }
 }
 
@@ -754,7 +798,7 @@ fn timeline(
         let Some(ms) = sweep_end.or(shown.newest_ms()) else {
             return;
         };
-        model::local_time(ms)
+        model::clock_time(ms, model.config.utc)
     };
     let positions = model.timeline();
     let h = size::TIMELINE_H;

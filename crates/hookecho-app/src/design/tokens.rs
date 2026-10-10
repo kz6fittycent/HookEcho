@@ -28,6 +28,8 @@ pub mod radius {
     pub const SM: u8 = 8;
     pub const MD: u8 = 12;
     pub const LG: u8 = 16;
+    /// Pills (toggle tracks).
+    pub const FULL: u8 = 255;
 }
 
 pub mod size {
@@ -102,6 +104,17 @@ pub mod size {
     pub const TRACK_H: f32 = 2.0;
     pub const TRACK_INSET: f32 = 4.0;
     pub const LIVE_BUTTON: [f32; 2] = [64.0, 28.0];
+    /// Side sheet (DESIGN.md §3.6).
+    pub const SHEET_W: f32 = 360.0;
+    pub const SEGMENTED_H: f32 = 32.0;
+    /// A settings row: label (and hint) on the left, control on the right.
+    pub const SETTING_ROW_H: f32 = 48.0;
+    pub const SECTION_GAP: f32 = 24.0;
+    pub const TOGGLE: [f32; 2] = [32.0, 18.0];
+    pub const TOGGLE_INSET: f32 = 2.0;
+    /// Segmented control inside a settings row.
+    pub const SETTING_SEGMENT_W: f32 = 64.0;
+    pub const SETTING_SEGMENT_H: f32 = 28.0;
     pub const SPEED_BUTTON: [f32; 2] = [36.0, 28.0];
     pub const LIVE_DOT_X: f32 = 14.0;
     pub const LIVE_TEXT_X: f32 = 24.0;
@@ -328,6 +341,7 @@ impl Theme {
                 halo: srgba(self.map_label_halo),
                 size: 12.0,
                 family: family::MAP_LABELS,
+                visible: true,
             },
             radar_alpha: self.radar_alpha,
             blur_sigma: 18.0,

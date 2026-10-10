@@ -224,6 +224,47 @@ pub enum Picker {
     Palette,
 }
 
+/// Side sheet sections (DESIGN.md §3.6).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SheetTab {
+    Layers,
+    Colors,
+    Settings,
+}
+
+impl SheetTab {
+    pub const ALL: [SheetTab; 3] = [SheetTab::Layers, SheetTab::Colors, SheetTab::Settings];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            SheetTab::Layers => "Layers",
+            SheetTab::Colors => "Colors",
+            SheetTab::Settings => "Settings",
+        }
+    }
+}
+
+/// Side sheet state. `cache_bytes` is measured when Settings opens.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Sheet {
+    pub tab: SheetTab,
+    pub scroll: f32,
+    pub cache_bytes: Option<u64>,
+    /// Set by the Clear button; the app clears the cache and resets it.
+    pub clear_cache: bool,
+}
+
+impl Sheet {
+    pub fn new(tab: SheetTab) -> Sheet {
+        Sheet {
+            tab,
+            scroll: 0.0,
+            cache_bytes: None,
+            clear_cache: false,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Inspect {
     Off,
@@ -265,6 +306,7 @@ pub struct Model {
     pub notice: Option<(String, f64)>,
     /// Cached `no_precipitation` answer, keyed by (generation, sweep, palette version).
     quiet: Option<((u64, usize, u64), bool)>,
+    pub sheet: Option<Sheet>,
     generation: u64,
 }
 
@@ -333,6 +375,7 @@ impl Model {
             palettes: crate::palettes::Library::load(None),
             notice: None,
             quiet: None,
+            sheet: None,
             generation: 0,
         }
     }
@@ -528,6 +571,15 @@ impl Model {
                 .is_some_and(|f| echo_area_km2(sweep, f, palette) < QUIET_KM2);
         self.quiet = Some((key, quiet));
         quiet
+    }
+
+    /// Opens the side sheet (closing any picker), or closes it.
+    pub fn toggle_sheet(&mut self) {
+        self.sheet = match self.sheet {
+            Some(_) => None,
+            None => Some(Sheet::new(SheetTab::Layers)),
+        };
+        self.picker = Picker::None;
     }
 
     pub fn current_sweep(&self) -> Option<usize> {
@@ -838,10 +890,17 @@ fn stamp_of(prefix: &str) -> &str {
     prefix.rsplit('/').next().unwrap_or("")
 }
 
-/// "3:16 PM" in the user's local time for live data; archive scans keep
-/// the explicit UTC date (`archive_time`).
-pub fn local_time(ms: i64) -> String {
-    use chrono::{Local, TimeZone};
+/// "3:16 PM" in the user's local time for live data, or "20:16 UTC" when
+/// the user prefers UTC; archive scans keep the explicit UTC date
+/// (`archive_time`).
+pub fn clock_time(ms: i64, utc: bool) -> String {
+    use chrono::{Local, TimeZone, Utc};
+    if utc {
+        return Utc
+            .timestamp_millis_opt(ms)
+            .single()
+            .map_or_else(String::new, |t| t.format("%H:%M UTC").to_string());
+    }
     Local
         .timestamp_millis_opt(ms)
         .single()
@@ -1036,6 +1095,7 @@ mod tests {
     #[test]
     fn archive_time_format() {
         assert_eq!(archive_time(1_369_080_003_000), "May 20, 2013 · 20:00 UTC");
+        assert_eq!(clock_time(1_369_080_003_000, true), "20:00 UTC");
     }
 
     #[test]

@@ -153,7 +153,7 @@ Sources (all public, read 2026-10-09):
 | WeatherOps enterprise assets layer | 3P | [layers] [accounts] | — | won't do | Enterprise service. Substitute: placefile/GeoJSON import (beyond parity) |
 | Notification badge: count of active bulletins, colored by highest priority | Base | [bulletins] | P3 | planned | Shown in the top-left cluster; opens the bulletins list |
 | Bulletin list and detail, with raw-text toggle | Base | [bulletins] [appstore] | P3 | planned | |
-| Layer quick-toggle grid | Base | [shortcuts] | P2 | planned | Side sheet → Layers + command palette |
+| Layer quick-toggle grid | Base | [shortcuts] | P2 | in progress | Side sheet (`L`) → Layers: county lines, highways, place names (saved). Bulletin/outlook/lightning layers join in P3; command palette next |
 
 ## 4. Tools and interaction
 
@@ -168,7 +168,7 @@ Sources (all public, read 2026-10-09):
 | Saved locations: add by search or current position, rename, reorder, delete | Base | [locations] | P3 | planned | Geocoding needs a free service. **Ask first** (phones home); offline fallback: Census places gazetteer |
 | Import/export locations as JSON (≤ 250) | Base | [locations] | P3 | planned | Same `name/lat/lon` shape, for interoperability |
 | Loop animation | Base | [getting-started] | P2 | done | Earlier volumes at the current tilt from the real-time bucket (only the chunks up to that tilt), newest first; plays oldest → live with a longer hold on live |
-| Loop length: 10 / 30 / 50 frames | Base/T1/T2 | [appstore] [upgrading] | P2 | in progress | `loop_frames` in config (default 10); the picker arrives with the side sheet |
+| Loop length: 10 / 30 / 50 frames | Base/T1/T2 | [appstore] [upgrading] | P2 | done | Side sheet → Settings → Loop (saved; default 10) |
 | Previous/next frame; jump to first/last | Base | [getting-started] | P2 | done | `,` `.` step; Shift+`,`/Home first; Shift+`.`/End live |
 | Loop scrubber | Base | [shortcuts] | P2 | done | Ticks spaced by real scan time; click or drag to scrub |
 | Loop speed | Base | [advanced] | P2 | done | ½× / 1× / 2× on the timeline (saved) |
@@ -191,10 +191,10 @@ Sources (all public, read 2026-10-09):
 | Built-in alternate palettes per product, incl. colorblind-friendly ones | Base | [palettes] | P2 | done | Our own originals: Standard (default, colorblind-aware), Classic, Classic red/green velocity, Grayscale. Click the legend to choose; the choice persists per product |
 | Import custom palettes in the GRLevelX `.pal` format with extensions (Color, Color4, SolidColor, SolidColor4, RF, Scale, Units, masks RAIN/MIX/SNOW/TOPPED, indexed `???` units) | T1 | [pal-tech] [pal-import] | P2 | in progress | Drop a `.pal` on the window. Done: Product, Units (speed units imply Scale), Scale, Offset, RF, Color/Color4 (with second color), SolidColor/SolidColor4; parser fuzzed (`pal_parse`); unknown statements ignored. Still to do: masks RAIN/MIX/SNOW/TOPPED, indexed `???` units, removing an imported palette |
 | Restore default palettes | Base | [palettes] | P2 | done | Pick "Hook Echo Standard" in the legend's palette list |
-| Theme: dark (default), light, follow system | Base | [advanced] | P2 | in progress | Config supports all three and the UI follows it; the in-app switch arrives with the side sheet (P2) |
+| Theme: dark (default), light, follow system | Base | [advanced] | P2 | done | Side sheet → Settings → Appearance (saved) |
 | Font scale for map labels | Base | [advanced] | P2 | planned | |
-| Metric units toggle | Base | [advanced] | P2 | planned | Plus separate units for velocity (kt/mph/m/s) |
-| UTC time display mode | Base | [appstore] | P2 | planned | |
+| Metric units toggle | Base | [advanced] | P2 | in progress | Side sheet → Settings: mi/mph or km/m/s (saved). Still to do: separate velocity units (kt/mph/m/s) |
+| UTC time display mode | Base | [appstore] | P2 | done | Side sheet → Settings → Clock: Local or UTC (archived scans always show the UTC date) |
 | Prevent the screen from sleeping while open | Base | [advanced] | P4 | planned | Desktop: the idle-inhibit portal (snap `desktop` plug) |
 | International products: choose countries | Base | [advanced] | P5 | planned | |
 | External display "TV mirroring" (full-res map, no chrome) | Base | [advanced] | P5 | planned | Desktop analog: presentation/fullscreen mode (`F`) |
@@ -230,4 +230,4 @@ Requests users raise against other viewers (mainly [Supercell Wx issues][scwx]) 
 | Export the raw Level II file currently viewed | [scwx] #176 | P5+ | planned | |
 | GPSD network connection for in-car GPS | [scwx] #367 | P5+ | planned | Useful for chasers without GeoClue |
 | Advanced drawing tools (shapes, text, persistence) | [scwx] #590, #80 | P5+ | planned | |
-| Offline cache of recent site data (cold start without network) | [scwx] #613 | P2 | done | Chunk disk cache (512 MB cap); a site reopens on its last cached volume before any network answer |
+| Offline cache of recent site data (cold start without network) | [scwx] #613 | P2 | done | Chunk disk cache (512 MB cap); a site reopens on its last cached volume before any network answer. Side sheet → Settings → Data shows its size and clears it |

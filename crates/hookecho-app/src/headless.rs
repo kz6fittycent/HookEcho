@@ -215,4 +215,29 @@ mod tests {
             "Grayscale"
         );
     }
+
+    #[test]
+    fn side_sheet_controls_respond() {
+        let Ok(mut o) = Offscreen::new(None, SIZE) else {
+            eprintln!("no GPU adapter; skipped");
+            return;
+        };
+        o.app.wait_for_data();
+        o.frame(SIZE, 1.0, Vec::new());
+        click(&mut o, egui::Id::new("sheet-button"));
+        assert!(o.app.model.sheet.is_some(), "button opens the sheet");
+        click(&mut o, egui::Id::new(("sheet", "roads")));
+        assert!(!o.app.model.config.map.roads, "toggle flips");
+        click(&mut o, egui::Id::new("sheet-tabs").with(2));
+        assert_eq!(
+            o.app.model.sheet.as_ref().map(|s| s.tab),
+            Some(crate::model::SheetTab::Settings)
+        );
+        click(&mut o, egui::Id::new(("sheet", "utc")).with(1));
+        assert!(o.app.model.config.utc);
+        click(&mut o, egui::Id::new(("sheet", "frames")).with(1));
+        assert_eq!(o.app.model.config.loop_frames, 30);
+        click(&mut o, egui::Id::new("sheet-button"));
+        assert!(o.app.model.sheet.is_none(), "and closes it");
+    }
 }

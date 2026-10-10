@@ -24,6 +24,7 @@ fn style() -> SceneStyle {
             halo: [21, 24, 29, 200],
             size: 12.0,
             family: "Inter",
+            visible: true,
         },
         radar_alpha: 1.0,
         blur_sigma: 18.0,

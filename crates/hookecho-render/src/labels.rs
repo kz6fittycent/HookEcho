@@ -18,6 +18,8 @@ pub struct LabelStyle {
     /// Logical px; major places get `size + 1`.
     pub size: f32,
     pub family: &'static str,
+    /// False hides every place label.
+    pub visible: bool,
 }
 
 struct Entry {

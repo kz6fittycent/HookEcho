@@ -666,7 +666,6 @@ pub fn palette_picker(ui: &mut Ui, kit: &mut Kit, model: &mut Model, anchor: Rec
         let name = choices[next].palette.name.clone();
         model.palettes.select(&mut model.config, m, &name);
     }
-    let active = model.palettes.active(&model.config, m).name.clone();
 
     let mut y = rect.min.y + pad;
     kit.text(
@@ -679,60 +678,16 @@ pub fn palette_picker(ui: &mut Ui, kit: &mut Kit, model: &mut Model, anchor: Rec
     );
     y += eyebrow;
     let mut close = enter;
-    for c in &choices {
-        let row = Rect::from_min_size(
-            pos2(rect.min.x + space::S2, y),
-            vec2(rect.width() - 2.0 * space::S2, size::PRODUCT_ROW_H),
-        );
-        y += size::PRODUCT_ROW_H;
-        let p = &c.palette;
-        let selected = p.name == active;
-        let resp = interact(
-            &mut ui,
-            row,
-            Id::new(("palette", m.code(), &p.name)),
-            WidgetType::Button,
-            &p.name,
-            Some(selected),
-        );
-        kit.row_fill(&painter, row, &resp, selected);
-        if selected {
-            kit.selection_bar(&painter, row);
-        }
-        let x0 = row.min.x + space::S3;
-        let x1 = row.max.x - space::S3;
-        let line1 = row.center().y - size::PRODUCT_LINE_GAP;
-        kit.text(
-            &painter,
-            pos2(x0, line1),
-            Align2::LEFT_CENTER,
-            &p.name,
-            Type::Body,
-            t.text_primary,
-        );
-        if c.imported {
-            kit.text(
-                &painter,
-                pos2(x1, line1),
-                Align2::RIGHT_CENTER,
-                "Imported",
-                Type::Caption,
-                t.text_tertiary,
-            );
-        }
-        let bar = Rect::from_min_size(
-            pos2(
-                x0,
-                row.center().y + size::PRODUCT_LINE_GAP - size::PALETTE_PREVIEW_H / 2.0,
-            ),
-            vec2(x1 - x0, size::PALETTE_PREVIEW_H),
-        );
-        let (lo, hi) = (p.min(), p.max());
-        kit.color_bar(&painter, bar, |f| p.sample(lo + (hi - lo) * f));
-        if resp.clicked() {
-            model.palettes.select(&mut model.config, m, &p.name);
-            close = true;
-        }
+    if palette_rows(
+        &mut ui,
+        kit,
+        &painter,
+        model,
+        rect.min.x + space::S2,
+        rect.max.x - space::S2,
+        &mut y,
+    ) {
+        close = true;
     }
     y += space::S3;
     kit.divider(
@@ -760,4 +715,75 @@ pub fn palette_picker(ui: &mut Ui, kit: &mut Kit, model: &mut Model, anchor: Rec
     } else {
         close_on_outside_click(&ui, model, rect, anchor);
     }
+}
+
+/// Palette rows for the product on screen, from `*y` down (shared by the
+/// legend's picker and the side sheet's Colors tab). Returns true when one
+/// was clicked.
+pub fn palette_rows(
+    ui: &mut Ui,
+    kit: &mut Kit,
+    painter: &egui::Painter,
+    model: &mut Model,
+    x0: f32,
+    x1: f32,
+    y: &mut f32,
+) -> bool {
+    let t = kit.theme.clone();
+    let m = model.moment;
+    let choices = model.palettes.choices(m).to_vec();
+    let active = model.palettes.active(&model.config, m).name.clone();
+    let mut chosen = false;
+    for c in &choices {
+        let row = Rect::from_min_size(pos2(x0, *y), vec2(x1 - x0, size::PRODUCT_ROW_H));
+        *y += size::PRODUCT_ROW_H;
+        let p = &c.palette;
+        let selected = p.name == active;
+        let resp = interact(
+            ui,
+            row,
+            Id::new(("palette", m.code(), &p.name)),
+            WidgetType::Button,
+            &p.name,
+            Some(selected),
+        );
+        kit.row_fill(painter, row, &resp, selected);
+        if selected {
+            kit.selection_bar(painter, row);
+        }
+        let (tx0, tx1) = (row.min.x + space::S3, row.max.x - space::S3);
+        let line1 = row.center().y - size::PRODUCT_LINE_GAP;
+        kit.text(
+            painter,
+            pos2(tx0, line1),
+            Align2::LEFT_CENTER,
+            &p.name,
+            Type::Body,
+            t.text_primary,
+        );
+        if c.imported {
+            kit.text(
+                painter,
+                pos2(tx1, line1),
+                Align2::RIGHT_CENTER,
+                "Imported",
+                Type::Caption,
+                t.text_tertiary,
+            );
+        }
+        let bar = Rect::from_min_size(
+            pos2(
+                tx0,
+                row.center().y + size::PRODUCT_LINE_GAP - size::PALETTE_PREVIEW_H / 2.0,
+            ),
+            vec2(tx1 - tx0, size::PALETTE_PREVIEW_H),
+        );
+        let (lo, hi) = (p.min(), p.max());
+        kit.color_bar(painter, bar, |f| p.sample(lo + (hi - lo) * f));
+        if resp.clicked() {
+            model.palettes.select(&mut model.config, m, &p.name);
+            chosen = true;
+        }
+    }
+    chosen
 }

@@ -77,6 +77,34 @@ impl ChunkCache {
         keys
     }
 
+    /// Total bytes of cached chunks.
+    pub fn size(&self) -> u64 {
+        let mut total = 0;
+        let mut stack = vec![self.dir.clone()];
+        while let Some(d) = stack.pop() {
+            let Ok(rd) = std::fs::read_dir(&d) else {
+                continue;
+            };
+            for e in rd.flatten() {
+                match e.metadata() {
+                    Ok(m) if m.is_dir() => stack.push(e.path()),
+                    Ok(m) => total += m.len(),
+                    Err(_) => {}
+                }
+            }
+        }
+        total
+    }
+
+    /// Deletes every cached chunk (side sheet → Data → Clear). Only this
+    /// cache's own `chunks/` directory is touched.
+    pub fn clear(&self) -> std::io::Result<()> {
+        match std::fs::remove_dir_all(&self.dir) {
+            Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e),
+            _ => Ok(()),
+        }
+    }
+
     /// Deletes the oldest files until the cache is under its cap.
     pub fn trim(&self) -> std::io::Result<u64> {
         let mut files = Vec::new();
@@ -130,10 +158,14 @@ mod tests {
             c.latest("KTLX").as_deref(),
             Some("KTLX/276/20261008-140202")
         );
+        assert!(c.size() >= 12);
         assert!(
             c.trim().unwrap() >= 2,
             "12 bytes > 10 byte cap: oldest goes"
         );
+        c.clear().unwrap();
+        assert_eq!(c.size(), 0);
+        c.clear().unwrap();
         std::fs::remove_dir_all(&dir).unwrap();
     }
 }
