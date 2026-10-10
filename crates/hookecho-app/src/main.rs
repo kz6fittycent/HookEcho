@@ -5,10 +5,6 @@
 //!   hookecho --screenshots DIR    numbered PNGs from bundled data, both themes
 //!   hookecho --bench [--bench-out FILE] [--bench-baseline FILE]
 
-// Release builds on Windows are GUI apps (no console window); CI waits on
-// the exit code instead (desktop-builds.yml).
-#![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
-
 mod app;
 mod assets;
 mod bench;

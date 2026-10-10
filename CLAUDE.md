@@ -2,7 +2,7 @@
 
 Hook Echo is a clean-room weather radar viewer in Rust that aims for 1:1 feature/workflow parity with the leading commercial viewer.
 
-- **Platforms:** Linux first (Snap Store), then Windows and macOS.
+- **Platform:** Linux only, via the Snap Store. The owner dropped Windows and macOS on 2026-10-10, overriding KICKOFF §§1–2 and §8 (`desktop-builds.yml` and its packaging were removed). Don't add other platforms back unless asked.
 - **License:** GPL-3.0-or-later.
 - **The full brief** is `docs/KICKOFF.md`. Read it before any non-trivial change. It is the source of truth for rules, stack, budgets, design and phases.
 
@@ -10,7 +10,7 @@ Hook Echo is a clean-room weather radar viewer in Rust that aims for 1:1 feature
 
 - **Clean room.** No decompiling or inspecting the original's binaries, traffic or private APIs, and no leaked code. Learn features only from public material. Never use the original's name, logo or text.
 - **Every data format and algorithm** gets a public source in `docs/PROVENANCE.md`.
-- **Dependency licenses:** MIT / Apache-2.0 / BSD / ISC / Zlib / MPL-2.0 / OFL / Unicode, plus the approved exceptions `bzip2-1.0.6` and `BSL-1.0`, enforced by `cargo-deny`. Any other exception needs the owner's approval. Keep `THIRD_PARTY_LICENSES.md` current.
+- **Dependency licenses:** MIT / Apache-2.0 / BSD / ISC / Zlib / MPL-2.0 / OFL / Unicode, plus the approved exception `bzip2-1.0.6`, enforced by `cargo-deny`. Any other exception needs the owner's approval. Keep `THIRD_PARTY_LICENSES.md` current.
 - **No telemetry, no accounts, no paid services.** Ask before adding any new outbound endpoint.
 - **No `unsafe` in `hookecho-core`.** Fuzz the L2/L3 parsers before Phase 2.
 - **UI:** stock egui widgets never appear. No literal colors, sizes or fonts outside `crates/hookecho-app/src/design/`. Follow `docs/DESIGN.md`.
@@ -47,7 +47,7 @@ assets/                  fonts, icons, sample data (large samples are fetched, n
 
 **Phase 1 is complete locally (2026-10-10), except the snap build and GPU test, which are waiting on CI.** Nothing has been pushed, and the repo has no GitHub remote yet.
 
-Phase 0 was approved: design, the `bzip2-1.0.6` exception, and KDP from Level III. `BSL-1.0` was approved on 2026-10-10.
+Phase 0 was approved: design, the `bzip2-1.0.6` exception, and KDP from Level III. (`BSL-1.0` was approved on 2026-10-10, then dropped with Windows the same day.)
 
 Phase 1 checklist:
 - [x] Read every Desktop-Scriptures workflow and comment. The lessons are in `docs/CI_NOTES.md`.

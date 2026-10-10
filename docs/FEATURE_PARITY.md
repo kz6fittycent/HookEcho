@@ -164,7 +164,7 @@ Sources (all public, read 2026-10-09):
 | Inspector: value under the pointer, with direction-to-radar indicator | T1 | [tools] [upgrading] | P2 | in progress | Hover card with value, beam height ARL, range/bearing from the radar (Phase 1). Distance from me arrives with location (P3); pin with `I` |
 | Distance tool with beam height, snapping to radar/spotters/reports | Base | [tools] | P3 | planned | |
 | Draw tool (freehand annotations) | Base | [tools] | P5 | planned | |
-| My location (GPS/platform location) | Base | [getting-started] | P3 | planned | GeoClue on Linux, platform APIs on Windows/macOS |
+| My location (GPS/platform location) | Base | [getting-started] | P3 | planned | GeoClue (D-Bus) on Linux |
 | Saved locations: add by search or current position, rename, reorder, delete | Base | [locations] | P3 | planned | Geocoding needs a free service. **Ask first** (phones home); offline fallback: Census places gazetteer |
 | Import/export locations as JSON (≤ 250) | Base | [locations] | P3 | planned | Same `name/lat/lon` shape, for interoperability |
 | Loop animation | Base | [getting-started] | P2 | planned | |
