@@ -167,11 +167,11 @@ Sources (all public, read 2026-10-09):
 | My location (GPS/platform location) | Base | [getting-started] | P3 | planned | GeoClue (D-Bus) on Linux |
 | Saved locations: add by search or current position, rename, reorder, delete | Base | [locations] | P3 | planned | Geocoding needs a free service. **Ask first** (phones home); offline fallback: Census places gazetteer |
 | Import/export locations as JSON (≤ 250) | Base | [locations] | P3 | planned | Same `name/lat/lon` shape, for interoperability |
-| Loop animation | Base | [getting-started] | P2 | planned | |
-| Loop length: 10 / 30 / 50 frames | Base/T1/T2 | [appstore] [upgrading] | P2 | planned | Configurable, bounded by the GPU memory budget |
-| Previous/next frame; jump to first/last | Base | [getting-started] | P2 | planned | Keys `,` `.` and Shift for first/last |
-| Loop scrubber | Base | [shortcuts] | P2 | planned | The timeline scrubber is always visible |
-| Loop speed | Base | [advanced] | P2 | planned | Timeline speed control |
+| Loop animation | Base | [getting-started] | P2 | done | Earlier volumes at the current tilt from the real-time bucket (only the chunks up to that tilt), newest first; plays oldest → live with a longer hold on live |
+| Loop length: 10 / 30 / 50 frames | Base/T1/T2 | [appstore] [upgrading] | P2 | in progress | `loop_frames` in config (default 10); the picker arrives with the side sheet |
+| Previous/next frame; jump to first/last | Base | [getting-started] | P2 | done | `,` `.` step; Shift+`,`/Home first; Shift+`.`/End live |
+| Loop scrubber | Base | [shortcuts] | P2 | done | Ticks spaced by real scan time; click or drag to scrub |
+| Loop speed | Base | [advanced] | P2 | done | ½× / 1× / 2× on the timeline (saved) |
 | Color bar with value on hover | Base | [product-legend] | P2 | planned | Legend inside the product chip's expansion |
 | Product time plus "updated" time; red when stale | Base | [product-legend] | P2 | in progress | Scan age + green/amber/red dot vs the VCP volume time, local sweep time, offline notice; the explicit "updated at" time comes with the timeline |
 | Radar legend: VCP number and clear-air / precipitation mode | Base | [radar-legend] | P2 | planned | In the site chip detail |

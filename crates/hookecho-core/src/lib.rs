@@ -4,6 +4,7 @@
 pub mod basemap;
 pub mod cache;
 pub mod config;
+pub mod frames;
 pub mod geo;
 pub mod level2;
 pub mod live;

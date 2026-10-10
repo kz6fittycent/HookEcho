@@ -82,6 +82,15 @@ pub mod size {
     pub const LEGEND_STEPS: usize = 96;
     pub const LEGEND_TICKS: f32 = 5.0;
     pub const LEGEND_BAR_RADIUS: u8 = 2;
+    /// Timeline scrubber (DESIGN §3.3).
+    pub const TICK: [f32; 2] = [2.0, 10.0];
+    pub const PLAYHEAD: [f32; 2] = [4.0, 20.0];
+    pub const TRACK_H: f32 = 2.0;
+    pub const TRACK_INSET: f32 = 4.0;
+    pub const LIVE_BUTTON: [f32; 2] = [64.0, 28.0];
+    pub const SPEED_BUTTON: [f32; 2] = [36.0, 28.0];
+    pub const LIVE_DOT_X: f32 = 14.0;
+    pub const LIVE_TEXT_X: f32 = 24.0;
 }
 
 pub mod motion {
