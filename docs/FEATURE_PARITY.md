@@ -75,7 +75,7 @@ Sources (all public, read 2026-10-09):
 | Auto radar selection as location changes (toggle) | Base | [advanced] | P3 | planned | |
 | Show TDWR sites (off by default) | Base | [advanced] [tdwr] | P5 | planned | TDWR Level III; source bucket to verify |
 | Show research radars (off by default) | Base | [advanced] [whatsnew57] | P5 | planned | Free public research feeds only; list TBD |
-| Data update timed to the VCP schedule (no wasteful polling) | Base | [data-overview] | P2 | planned | Chunk-timing model from `nexrad-data` plus conditional requests |
+| Data update timed to the VCP schedule (no wasteful polling) | Base | [data-overview] | P2 | in progress | Polls the chunk bucket every 4 s with `start-after` (only new keys come back); state changes only, so the idle app is never woken. Predicting chunk times from the VCP is a later refinement |
 | Multiple data providers with automatic fallback | Base | [providers] | P4 | planned | Free substitutes: Unidata chunks → NOAA NODD `noaa-nexrad-level2` → NWS Level III. No paid feeds |
 | Third provider (Amazon) | T2 | [providers] [appstore] | P1 | planned | AWS Open Data is our *primary* source |
 | Archive: Level II back to 1991 | T2 | [upgrading] [appstore] | P5 | planned | `unidata-nexrad-level2` / NODD |
@@ -112,7 +112,7 @@ Sources (all public, read 2026-10-09):
 | TDWR long-range and short-range reflectivity, velocity | Base | [tdwr] | P5 | planned | TDWR Level III |
 | Tilt selection | Base | [product-legend] | P1 | done | Product chip → picker; `[`/`]` keys |
 | Quick product/tilt grid ("product picker" shortcut) | Base | [shortcuts] | P2 | planned | Product chip opens a grid: product × tilt |
-| Progressive sweep display while the volume is still scanning | — | KICKOFF | P2 | planned | Not documented in the original; our requirement |
+| Progressive sweep display while the volume is still scanning | — | KICKOFF | P2 | done | Real-time chunks decoded as they arrive; the previous volume shows under a sweep still arriving; sweep strip shows in / arriving / pending tilts |
 | Velocity dealiasing | — | KICKOFF, [scwx] #290 | P4 | planned | Algorithm and source documented in PROVENANCE.md |
 | Forecast models (8 models incl. RRFS, HRRR), run/hour pickers | T2 | [whatsnew57] [appstore] | P5 | planned | NOAA NODD GRIB2 on AWS (free). Large scope: needs a GRIB2 decoder |
 | MRMS national mosaic products | T2 | [upgrading] [whatsnew57] | P5 | planned | `noaa-mrms-pds` on AWS (free) |
@@ -173,7 +173,7 @@ Sources (all public, read 2026-10-09):
 | Loop scrubber | Base | [shortcuts] | P2 | planned | The timeline scrubber is always visible |
 | Loop speed | Base | [advanced] | P2 | planned | Timeline speed control |
 | Color bar with value on hover | Base | [product-legend] | P2 | planned | Legend inside the product chip's expansion |
-| Product time plus "updated" time; red when stale | Base | [product-legend] | P2 | planned | Scan-age chip goes green → amber → red |
+| Product time plus "updated" time; red when stale | Base | [product-legend] | P2 | in progress | Scan age + green/amber/red dot vs the VCP volume time, local sweep time, offline notice; the explicit "updated at" time comes with the timeline |
 | Radar legend: VCP number and clear-air / precipitation mode | Base | [radar-legend] | P2 | planned | In the site chip detail |
 | Dual-pane (2 products side by side) | T1 | [upgrading] [getting-started] | P3 | planned | Shared camera |
 | Quad-pane | T1 | [getting-started] [appstore] | P3 | planned | |
@@ -229,4 +229,4 @@ Requests users raise against other viewers (mainly [Supercell Wx issues][scwx]) 
 | Export the raw Level II file currently viewed | [scwx] #176 | P5+ | planned | |
 | GPSD network connection for in-car GPS | [scwx] #367 | P5+ | planned | Useful for chasers without GeoClue |
 | Advanced drawing tools (shapes, text, persistence) | [scwx] #590, #80 | P5+ | planned | |
-| Offline cache of recent site data (cold start without network) | [scwx] #613 | P2 | planned | Already required by the KICKOFF performance budgets |
+| Offline cache of recent site data (cold start without network) | [scwx] #613 | P2 | done | Chunk disk cache (512 MB cap); a site reopens on its last cached volume before any network answer |
