@@ -98,7 +98,7 @@ Sources (all public, read 2026-10-09):
 | Differential reflectivity (ZDR), standard and super-res | Base | [dualpol] | P1 | planned | Level II moment |
 | Correlation coefficient (CC/RHO), standard and super-res | Base | [dualpol] | P1 | planned | Level II moment |
 | Differential phase (PHI) | Base | [palettes] | P1 | planned | Level II moment |
-| Specific differential phase (KDP) | Base | [dualpol] | P3 | planned | **Not a Level II moment.** Level III product 163 first; L2-derived KDP in P5 (see DECODER_PLAN.md) |
+| Specific differential phase (KDP) | Base | [dualpol] | P3 | planned | **Not a Level II moment.** Decided: Level III product 163 (owner, 2026-10-09) |
 | Hydrometeor classification (HC) | Base | [dualpol] | P3 | planned | Level III product 165 |
 | Hybrid hydrometeor classification (HHC) | Base | [dualpol] | P3 | planned | Level III product 177 |
 | Super-res storm-relative velocity | Base | [srv] [appstore] | P3 | planned | L2 velocity minus the storm-motion component per azimuth. Motion from the L3 storm-motion metadata or a user-set vector |

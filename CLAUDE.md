@@ -10,7 +10,7 @@ Hook Echo is a clean-room weather radar viewer in Rust that aims for 1:1 feature
 
 - **Clean room.** No decompiling or inspecting the original's binaries, traffic or private APIs, and no leaked code. Learn features only from public material. Never use the original's name, logo or text.
 - **Every data format and algorithm** gets a public source in `docs/PROVENANCE.md`.
-- **Dependency licenses:** MIT / Apache-2.0 / BSD / ISC / Zlib / MPL-2.0 / OFL / Unicode only, enforced by `cargo-deny`. Exceptions only with the owner's approval (see `docs/DECODER_PLAN.md`). Keep `THIRD_PARTY_LICENSES.md` current.
+- **Dependency licenses:** MIT / Apache-2.0 / BSD / ISC / Zlib / MPL-2.0 / OFL / Unicode, plus the approved exception `bzip2-1.0.6`, enforced by `cargo-deny`. Any other exception needs the owner's approval. Keep `THIRD_PARTY_LICENSES.md` current.
 - **No telemetry, no accounts, no paid services.** Ask before adding any new outbound endpoint.
 - **No `unsafe` in `hookecho-core`.** Fuzz the L2/L3 parsers before Phase 2.
 - **UI:** stock egui widgets never appear. No literal colors, sizes or fonts outside `crates/hookecho-app/src/design/`. Follow `docs/DESIGN.md`.
@@ -45,19 +45,17 @@ assets/                  fonts, icons, sample data (large samples are fetched, n
 
 ## Status (keep this current)
 
-**Phase 0, waiting at the design gate.**
+**Phase 1 in progress.** Phase 0 was approved on 2026-10-09: design and prototype, the `bzip2-1.0.6` license exception, and KDP from Level III.
 
-Done:
-- Evaluated the `nexrad` crates. Proposal in `docs/DECODER_PLAN.md`: use them for L2 behind an adapter, write our own L3. **Pending approval**, including the `bzip2-1.0.6` license exception.
-- Wrote `docs/FEATURE_PARITY.md` (about 110 rows, every row sourced) and `docs/DESIGN.md`.
-- Built the prototype in `prototype/` (see `prototype/README.md`). Screenshots: `prototype/screenshots/`.
-
-Next:
-- The owner reviews the screenshots, DESIGN.md, FEATURE_PARITY.md and DECODER_PLAN.md.
-- Iterate on the prototype until approved, then start Phase 1.
-- Phase 1 must begin by reading every workflow and comment in `/home/james/git/Desktop-Scriptures/.github/workflows/` and its `snap/snapcraft.yaml` (KICKOFF §8).
+Phase 1 checklist:
+- [ ] Read every Desktop-Scriptures workflow and comment, and its snapcraft.yaml
+- [ ] Workspace and crates skeleton; cargo-deny config; THIRD_PARTY_LICENSES.md
+- [ ] hookecho-core: L2 adapter for all moments; tests on small samples; MetPy/Py-ART comparison
+- [ ] hookecho-data: bundled site list and basemap
+- [ ] hookecho-render: GPU radial render, basemap, blur
+- [ ] hookecho-app: design system, site picker, tilt selection
+- [ ] `--smoke-test`, `--screenshots`, `--bench`
+- [ ] Snap build and CI workflows
 
 Open questions for the owner:
-- License allowlist: add `bzip2-1.0.6`?
-- KDP: Level III product (proposed) versus Level II-derived?
 - Rows marked **Ask first** in FEATURE_PARITY.md (geocoding, mPING, Spotter Network, satellite basemap).

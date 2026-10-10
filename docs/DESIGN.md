@@ -1,6 +1,6 @@
 # Hook Echo design
 
-Status: **draft for the Phase 0 design gate.**
+Status: **approved at the Phase 0 design gate (2026-10-09).** Changes need a note here.
 
 Hook Echo should feel like a calm, premium consumer app that gets out of the way of the weather. The radar is the loudest thing on screen. Everything else is quiet, compact, and floats.
 

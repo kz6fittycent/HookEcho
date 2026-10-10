@@ -1,6 +1,6 @@
 # Decoder plan (Phase 0 proposal)
 
-Status: **proposed, awaiting approval**.
+Status: **approved 2026-10-09.** `bzip2-1.0.6` is allowed as the single license exception, and KDP comes from Level III.
 
 ## What I evaluated
 
@@ -43,7 +43,7 @@ Findings:
    - The reference dumps are committed, so CI doesn't need Python.
 5. **Upstream:** report any bugs found upstream rather than patching silently. If upstream stalls, fork into `crates/vendor/` under MIT with attribution.
 
-## License note needing your decision
+## License note (decided: `bzip2-1.0.6` allowed)
 
 All bzip2 decoders, including the pure-Rust `libbz2-rs-sys` that `nexrad-data` uses through `bzip2` 0.6, carry the **`bzip2-1.0.6`** license. It's a permissive BSD-style license that is compatible with GPL-3.0, but it's not on the allowed list in KICKOFF section 1. Level II chunks are bzip2-compressed, so some bzip2 implementation is unavoidable. **Proposal:** add `bzip2-1.0.6` to the `cargo-deny` allowlist as a single, documented exception.
 
