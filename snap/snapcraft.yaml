@@ -1,0 +1,64 @@
+name: hookecho
+title: Hook Echo
+summary: Fast, clean weather radar for storm chasers and weather enthusiasts
+description: |
+  Hook Echo shows NEXRAD weather radar at full resolution, drawn on the GPU so it stays smooth on a laptop in a car. It opens straight to useful radar with no account and no setup.
+
+  - Every Level II product: reflectivity, velocity, spectrum width, differential reflectivity, correlation coefficient and differential phase, at every tilt
+  - A clean, map-first layout with floating glass panels, in dark and light themes
+  - Hover anywhere for the value, beam height, and range and bearing from the radar
+
+  Radar data comes from NOAA's free public feeds. Hook Echo has no telemetry and no accounts. It is free software (GPL-3.0-or-later); sources and licenses are at https://github.com/kz6fittycent/HookEcho.
+
+adopt-info: hookecho
+license: GPL-3.0-or-later
+contact: https://github.com/kz6fittycent/HookEcho
+issues: https://github.com/kz6fittycent/HookEcho/issues
+source-code: https://github.com/kz6fittycent/HookEcho
+icon: snap/gui/hookecho.png
+website: https://github.com/kz6fittycent/HookEcho
+
+base: core24
+grade: stable
+confinement: strict
+compression: lzo
+
+platforms:
+  amd64:
+    build-on: [amd64]
+    build-for: [amd64]
+
+apps:
+  hookecho:
+    command: bin/hookecho
+    common-id: io.github.kz6fittycent.HookEcho
+    desktop: usr/share/applications/io.github.kz6fittycent.HookEcho.desktop
+    extensions:
+      - gnome
+    plugs:
+      - desktop
+      - desktop-legacy
+      - wayland
+      - x11
+      - opengl
+      - network
+      - location-observe
+
+parts:
+  hookecho:
+    plugin: rust
+    source: .
+    # The workspace's rust-version (edition 2024).
+    rust-channel: "1.99"
+    rust-path: [crates/hookecho-app]
+    stage-packages:
+      # wgpu loads the Vulkan loader at runtime; the GPU drivers themselves
+      # come from the host via the opengl interface and the gnome extension.
+      - libvulkan1
+    override-build: |
+      craftctl default
+      install -Dm644 "$CRAFT_PART_SRC/snap/local/io.github.kz6fittycent.HookEcho.desktop" \
+        "$CRAFT_PART_INSTALL/usr/share/applications/io.github.kz6fittycent.HookEcho.desktop"
+      install -Dm644 "$CRAFT_PART_SRC/LICENSE" "$CRAFT_PART_INSTALL/LICENSE"
+      install -Dm644 "$CRAFT_PART_SRC/THIRD_PARTY_LICENSES.md" "$CRAFT_PART_INSTALL/THIRD_PARTY_LICENSES.md"
+      craftctl set version="$(sed -n '/^\[workspace.package\]/,/^\[/s/^version = "\(.*\)"/\1/p' "$CRAFT_PART_SRC/Cargo.toml")"

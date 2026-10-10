@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Hook Echo
+GenericName=Weather Radar
+Comment=Fast, clean weather radar for storm chasers and weather enthusiasts
+Exec=hookecho
+Icon=${SNAP}/meta/gui/hookecho.png
+Terminal=false
+Categories=Science;Geography;Education;
+Keywords=radar;weather;nexrad;storm;tornado;doppler;
+StartupWMClass=io.github.kz6fittycent.HookEcho

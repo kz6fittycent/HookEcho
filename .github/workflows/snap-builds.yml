@@ -1,0 +1,113 @@
+name: 🧪 Snap Builds
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Build Snap
+        uses: snapcore/action-build@v1
+        id: build
+        with:
+          # Not "args" - the action renamed this input at some point;
+          # "args" is silently ignored now (just an unrecognized-input
+          # warning, not a hard failure), which meant Desktop Scriptures
+          # was actually running bare `snapcraft` instead of
+          # `snapcraft pack` for a long time. See docs/CI_NOTES.md.
+          snapcraft-args: pack
+
+      - name: Snapcraft Review
+        uses: diddlesnaps/snapcraft-review-action@v1
+        with:
+          snap: ${{ steps.build.outputs.snap }}
+          isClassic: 'false'
+
+      - name: Check the snap size budget (KICKOFF §4, < 50 MB)
+        run: |
+          size=$(stat -c %s "${{ steps.build.outputs.snap }}")
+          echo "snap size: $((size / 1048576)) MB"
+          if (( size > 50 * 1048576 )); then
+            echo "::error::snap is $((size / 1048576)) MB, over the 50 MB budget"
+            exit 1
+          fi
+
+  rust:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+
+      - name: Install the Rust toolchain
+        run: |
+          # The workspace's rust-version (edition 2024).
+          rustup toolchain install 1.99 --profile minimal -c clippy,rustfmt
+          rustup default 1.99
+
+      - name: Install a software GPU (lavapipe) for the render tests
+        run: |
+          # GitHub's runners have no GPU; Mesa's lavapipe is a CPU Vulkan
+          # driver, so the renderer tests, --smoke-test, --screenshots and
+          # --bench run the real wgpu path.
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends mesa-vulkan-drivers libvulkan1
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: cargo fmt --check
+        run: cargo fmt --all --check
+
+      - name: cargo clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: cargo test
+        run: cargo test --workspace --release
+
+      - name: cargo deny check
+        uses: EmbarkStudios/cargo-deny-action@v2
+
+      - name: Design-token check (KICKOFF §5)
+        run: ./scripts/check-design-tokens.sh
+
+      - name: Build the app
+        run: cargo build --release -p hookecho-app
+
+      - name: Smoke test
+        env:
+          HOOKECHO_HOME: ${{ runner.temp }}/hookecho-home
+        run: ./target/release/hookecho --smoke-test
+
+      - name: Screenshots
+        run: ./target/release/hookecho --screenshots screenshots
+
+      - name: Bench against the baseline (fails on >10% regressions)
+        run: |
+          # A new runner image (new adapter name) has no baseline yet: the
+          # bench prints a warning and passes, and its bench-result.json
+          # artifact is what gets committed to bench/baseline.json.
+          ./target/release/hookecho --bench \
+            --bench-out bench-result.json \
+            --bench-baseline bench/baseline.json
+
+      - name: Upload screenshots and bench results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: rust-ci-results
+          path: |
+            screenshots/*.png
+            bench-result.json
+          if-no-files-found: warn

@@ -64,10 +64,10 @@ Sources (all public, read 2026-10-09):
 
 | Feature | Tier | Source | Phase | Status | Notes |
 |---|---|---|---|---|---|
-| Single-site radar in native radial (polar) format | Base | [appstore] | P1 | planned | GPU polar-to-screen in the fragment shader |
-| NEXRAD sites incl. Guam, South Korea, Okinawa | Base | [providers] | P1 | planned | All exist in the Unidata Level II buckets |
-| Pick a radar by clicking its map marker ("radar selection mode") | Base | [getting-started] | P1 | planned | Our version: site markers appear when zoomed out or while the site picker is open |
-| Searchable radar list grouped by state/region | Base | [radar-list] | P1 | planned | Site chip → searchable picker; also in the command palette |
+| Single-site radar in native radial (polar) format | Base | [appstore] | P1 | done | GPU polar-to-screen in the fragment shader |
+| NEXRAD sites incl. Guam, South Korea, Okinawa | Base | [providers] | P1 | done | All exist in the Unidata Level II buckets |
+| Pick a radar by clicking its map marker ("radar selection mode") | Base | [getting-started] | P1 | done | Our version: site markers appear when zoomed out or while the site picker is open |
+| Searchable radar list grouped by state/region | Base | [radar-list] | P1 | done | Site chip → searchable picker; also in the command palette |
 | Favorite radars (add, remove, reorder) | Base | [radar-list] | P2 | planned | Pinned at the top of the site picker |
 | Radar status dot (receiving / late) | Base | [radar-list] | P2 | planned | From the newest chunk/volume age per site; one cheap S3 listing, cached |
 | Radar detail with latest operator status message | Base | [radar-list] [not-updating] | P3 | planned | Level III Free Text Message (FTM) product, ICD 2620001 |
@@ -90,14 +90,14 @@ Sources (all public, read 2026-10-09):
 
 | Feature | Tier | Source | Phase | Status | Notes |
 |---|---|---|---|---|---|
-| Super-res reflectivity, 4 lowest tilts (default product) | Base | [refl] | P1 | planned | We use Level II super-res directly (0.25 km × 0.5°) |
-| Level II reflectivity, all tilts | T2 | [refl] | P1 | planned | Free |
-| Super-res velocity, 4 tilts | Base | [vel] | P1 | planned | Level II |
-| Level II velocity, all tilts | T2 | [vel] | P1 | planned | |
-| Super-res and Level II spectrum width | Base/T2 | [vel] | P1 | planned | |
-| Differential reflectivity (ZDR), standard and super-res | Base | [dualpol] | P1 | planned | Level II moment |
-| Correlation coefficient (CC/RHO), standard and super-res | Base | [dualpol] | P1 | planned | Level II moment |
-| Differential phase (PHI) | Base | [palettes] | P1 | planned | Level II moment |
+| Super-res reflectivity, 4 lowest tilts (default product) | Base | [refl] | P1 | done | We use Level II super-res directly (0.25 km × 0.5°) |
+| Level II reflectivity, all tilts | T2 | [refl] | P1 | done | Free |
+| Super-res velocity, 4 tilts | Base | [vel] | P1 | done | Level II |
+| Level II velocity, all tilts | T2 | [vel] | P1 | done | |
+| Super-res and Level II spectrum width | Base/T2 | [vel] | P1 | done | |
+| Differential reflectivity (ZDR), standard and super-res | Base | [dualpol] | P1 | done | Level II moment |
+| Correlation coefficient (CC/RHO), standard and super-res | Base | [dualpol] | P1 | done | Level II moment |
+| Differential phase (PHI) | Base | [palettes] | P1 | done | Level II moment |
 | Specific differential phase (KDP) | Base | [dualpol] | P3 | planned | **Not a Level II moment.** Decided: Level III product 163 (owner, 2026-10-09) |
 | Hydrometeor classification (HC) | Base | [dualpol] | P3 | planned | Level III product 165 |
 | Hybrid hydrometeor classification (HHC) | Base | [dualpol] | P3 | planned | Level III product 177 |
@@ -110,7 +110,7 @@ Sources (all public, read 2026-10-09):
 | Precipitation: DAA, DSA/DTA, DOD, DSD, storm total, one-hour, storm total (classic) | Base | [precip] [classic] | P3 | planned | Products 170, 172, 173, 174, 175, 78, 80 |
 | Precipitation depiction (rain/mix/snow) | Base | [refl] | P5 | planned | **Proprietary** (radar plus surface obs). Free substitute: color reflectivity by MRMS `PrecipFlag` or by the HC class. It will differ from the original |
 | TDWR long-range and short-range reflectivity, velocity | Base | [tdwr] | P5 | planned | TDWR Level III |
-| Tilt selection | Base | [product-legend] | P1 | planned | Product chip → picker; `[`/`]` keys |
+| Tilt selection | Base | [product-legend] | P1 | done | Product chip → picker; `[`/`]` keys |
 | Quick product/tilt grid ("product picker" shortcut) | Base | [shortcuts] | P2 | planned | Product chip opens a grid: product × tilt |
 | Progressive sweep display while the volume is still scanning | — | KICKOFF | P2 | planned | Not documented in the original; our requirement |
 | Velocity dealiasing | — | KICKOFF, [scwx] #290 | P4 | planned | Algorithm and source documented in PROVENANCE.md |
@@ -126,9 +126,9 @@ Sources (all public, read 2026-10-09):
 
 | Feature | Tier | Source | Phase | Status | Notes |
 |---|---|---|---|---|---|
-| Base map: states, counties, coastlines | Base | [layers] | P1 | planned | Bundled Natural Earth + TIGER, lyon-tessellated |
-| Cities and towns (≈25k), decluttered by zoom | Base | [layers] | P1 | planned | Census places; label collision on the GPU (glyphon) |
-| Roads: interstates and US highways | Base | [layers] | P1 | planned | TIGER primary roads |
+| Base map: states, counties, coastlines | Base | [layers] | P1 | done | Bundled Natural Earth + TIGER, lyon-tessellated |
+| Cities and towns (≈25k), decluttered by zoom | Base | [layers] | P1 | done | Census places; label collision on the GPU (glyphon) |
+| Roads: interstates and US highways | Base | [layers] | P1 | in progress | TIGER primary roads (interstates and other limited-access highways) bundled; the rest of the US highways need TIGER secondary roads |
 | Detailed roads and road labels | T2 | [layers] [providers] | P5 | planned | Paid (Mapbox) in the original. Substitute: TIGER secondary roads bundled at higher zoom |
 | Satellite imagery base map | T2 | [layers] | P5 | planned | Paid (Mapbox) in the original. Free option needs a tile source, which conflicts with "no tile server". **Ask first** |
 | NWS warnings: tornado, severe t-storm, flash flood, special marine, snow squall, extreme wind | Base | [bulletins] | P3 | planned | api.weather.gov alerts, 60 s conditional polling |
@@ -159,9 +159,9 @@ Sources (all public, read 2026-10-09):
 
 | Feature | Tier | Source | Phase | Status | Notes |
 |---|---|---|---|---|---|
-| Pan, zoom, double-click zoom, keyboard zoom | Base | [getting-started] [shortcuts] | P1 | planned | Smooth zoom with momentum |
+| Pan, zoom, double-click zoom, keyboard zoom | Base | [getting-started] [shortcuts] | P1 | done | Smooth zoom with momentum |
 | Prefer zoom over scroll on trackpads (toggle) | Base | [advanced] | P2 | planned | |
-| Inspector: value under the pointer, with direction-to-radar indicator | T1 | [tools] [upgrading] | P2 | planned | Hover card with value, height ARL, range/bearing from the radar and from me |
+| Inspector: value under the pointer, with direction-to-radar indicator | T1 | [tools] [upgrading] | P2 | in progress | Hover card with value, beam height ARL, range/bearing from the radar (Phase 1). Distance from me arrives with location (P3); pin with `I` |
 | Distance tool with beam height, snapping to radar/spotters/reports | Base | [tools] | P3 | planned | |
 | Draw tool (freehand annotations) | Base | [tools] | P5 | planned | |
 | My location (GPS/platform location) | Base | [getting-started] | P3 | planned | GeoClue on Linux, platform APIs on Windows/macOS |
@@ -191,7 +191,7 @@ Sources (all public, read 2026-10-09):
 | Built-in alternate palettes per product, incl. colorblind-friendly ones | Base | [palettes] | P2 | planned | Our own originals; colorblind-safe defaults (KICKOFF §5) |
 | Import custom palettes in the GRLevelX `.pal` format with extensions (Color, Color4, SolidColor, SolidColor4, RF, Scale, Units, masks RAIN/MIX/SNOW/TOPPED, indexed `???` units) | T1 | [pal-tech] [pal-import] | P2 | planned | Parser fuzzed; unknown statements ignored |
 | Restore default palettes | Base | [palettes] | P2 | planned | |
-| Theme: dark (default), light, follow system | Base | [advanced] | P2 | planned | |
+| Theme: dark (default), light, follow system | Base | [advanced] | P2 | in progress | Config supports all three and the UI follows it; the in-app switch arrives with the side sheet (P2) |
 | Font scale for map labels | Base | [advanced] | P2 | planned | |
 | Metric units toggle | Base | [advanced] | P2 | planned | Plus separate units for velocity (kt/mph/m/s) |
 | UTC time display mode | Base | [appstore] | P2 | planned | |

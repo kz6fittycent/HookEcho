@@ -1,0 +1,122 @@
+name: 🗺️ Refresh Radar Data
+
+# Replaces Desktop Scriptures' citation refresh workflows. Weekly, it
+# regenerates the bundled site list and basemap with hookecho-data from
+# their public sources (NOAA NCEI, US Census, Natural Earth; see
+# docs/PROVENANCE.md), publishes them to the "radar-data" release, which the
+# app checks for updates without an app update, and opens and merges a pull
+# request so the next release bundles them too - unattended.
+#
+# hookecho-data refuses (and fails this run) if the new data lost entries:
+# a site that disappeared, a basemap layer that vanished or shrank >10%, or
+# more than 1% of places gone. A broken upstream never ships.
+on:
+  schedule:
+    - cron: "0 6 * * 1"  # weekly, Mondays
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: refresh-radar-data
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install the Rust toolchain
+        run: |
+          rustup toolchain install 1.99 --profile minimal
+          rustup default 1.99
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Start from the published data, if it's newer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # The weekly publish (below) can run ahead of the repo while its
+          # pull request waits to be merged - start from whichever is newer
+          # so nothing published is ever dropped from the baseline.
+          mkdir -p /tmp/baseline
+          cp crates/hookecho-core/data/sites.tsv /tmp/baseline/sites.tsv
+          cp assets/basemap/basemap.bin /tmp/baseline/basemap.bin
+          if gh release download radar-data --pattern "radar-data.json" --dir /tmp/published 2>/dev/null; then
+            published="$(jq -r .generated /tmp/published/radar-data.json)"
+            repo="$(jq -r .generated assets/radar-data.json 2>/dev/null || echo 0)"
+            if [[ "$published" > "$repo" ]]; then
+              gh release download radar-data --pattern "sites.tsv" --pattern "basemap.bin" --dir /tmp/published
+              cp /tmp/published/sites.tsv /tmp/baseline/sites.tsv
+              cp /tmp/published/basemap.bin /tmp/baseline/basemap.bin
+              echo "Baseline: the published copy ($published)"
+            fi
+          fi
+
+      - name: Regenerate (refuses if entries were lost)
+        run: |
+          cargo run --release -p hookecho-data -- sites \
+            --out crates/hookecho-core/data/sites.tsv --baseline /tmp/baseline/sites.tsv
+          cargo run --release -p hookecho-data -- basemap \
+            --out assets/basemap/basemap.bin --cache "$RUNNER_TEMP/hookecho-data-cache" \
+            --baseline /tmp/baseline/basemap.bin
+
+      - name: Check the app still builds and passes with the new data
+        run: cargo test --release -p hookecho-core
+
+      - name: Publish for the app
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p dist
+          cp crates/hookecho-core/data/sites.tsv assets/basemap/basemap.bin dist/
+          ( cd dist && sha256sum sites.tsv basemap.bin > SHA256SUMS )
+          jq -n --arg generated "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+                --arg sites "$(sha256sum dist/sites.tsv | cut -d' ' -f1)" \
+                --arg basemap "$(sha256sum dist/basemap.bin | cut -d' ' -f1)" \
+                '{format: 1, generated: $generated, sha256: {"sites.tsv": $sites, "basemap.bin": $basemap}}' \
+                > assets/radar-data.json
+          cp assets/radar-data.json dist/
+          gh release view radar-data >/dev/null 2>&1 || gh release create radar-data \
+            --prerelease --title "Radar data (updated weekly)" \
+            --notes "Site list and basemap, regenerated weekly by refresh-radar-data.yml from public NOAA, Census and Natural Earth data. Not an app release." \
+            || gh release view radar-data >/dev/null  # created meanwhile by another run
+          gh release upload radar-data dist/sites.tsv dist/basemap.bin dist/SHA256SUMS dist/radar-data.json --clobber
+
+      # Opens a PR only if the data actually changed (create-pull-request
+      # no-ops otherwise), then merges it straight away - no one has to be
+      # around to do it. The data has already passed hookecho-data's
+      # baseline checks and the core tests above. A merge made with
+      # GITHUB_TOKEN doesn't start other workflows, so it doesn't publish a
+      # snap candidate; the data ships with the next real release.
+      - name: Open a PR if the radar data changed
+        id: pr
+        uses: peter-evans/create-pull-request@v8
+        with:
+          # Only the data files: nothing else should ride along.
+          add-paths: |
+            crates/hookecho-core/data/sites.tsv
+            assets/basemap/basemap.bin
+            assets/radar-data.json
+          commit-message: "Refresh the bundled radar site list and basemap"
+          title: "Refresh the bundled radar site list and basemap"
+          body: |
+            Automated regeneration by `hookecho-data` from NOAA NCEI's station list, US Census boundaries and gazetteer, and Natural Earth (see `docs/PROVENANCE.md`).
+
+            Merged automatically by this workflow, so the next release bundles it. The app already has it: this run published it to the `radar-data` release.
+          branch: automated/refresh-radar-data
+          delete-branch: true
+
+      - name: Merge the PR
+        if: steps.pr.outputs.pull-request-number && steps.pr.outputs.pull-request-operation != 'closed'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh pr merge "${{ steps.pr.outputs.pull-request-number }}" --squash --delete-branch
