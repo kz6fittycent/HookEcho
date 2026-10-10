@@ -1,0 +1,25 @@
+{
+  "_comment": "Per-adapter bench baselines (median of 3 runs). CI fails if a metric regresses >10% vs the entry for its adapter; record new entries from a run's --bench-out (see README).",
+  "adapters": {
+    "NVIDIA GeForce RTX 2080 (Vulkan)": {
+      "cold_start_ms": 598.7,
+      "decode_volume_ms": 173.3,
+      "frame_p50_ms": 2.1,
+      "frame_p99_ms": 3.3,
+      "gpu_20_frames_mb": 108.6,
+      "memory_20_frames_mb": 433.4,
+      "new_sweep_ms": 12.2,
+      "switch_ms": 2.0
+    },
+    "llvmpipe (LLVM 21.1.8, 256 bits) (Vulkan)": {
+      "cold_start_ms": 912.8,
+      "decode_volume_ms": 180.5,
+      "frame_p50_ms": 241.1,
+      "frame_p99_ms": 269.3,
+      "gpu_20_frames_mb": 108.6,
+      "memory_20_frames_mb": 591.0,
+      "new_sweep_ms": 187.0,
+      "switch_ms": 176.9
+    }
+  }
+}
