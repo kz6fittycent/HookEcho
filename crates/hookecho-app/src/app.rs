@@ -36,6 +36,7 @@ type Waker = std::sync::Arc<std::sync::OnceLock<egui::Context>>;
 pub struct App {
     pub model: Model,
     feed: Option<hookecho_core::live::Feed>,
+    frames: Option<hookecho_core::frames::LoopLoader>,
     waker: Waker,
     watching: Option<String>,
     pub renderer: Renderer,
@@ -92,12 +93,27 @@ impl App {
                         ctx.request_repaint();
                     }
                 });
-                (None, Some(hookecho_core::live::Feed::start(cache, wake)))
+                let w = waker.clone();
+                let wake2 = std::sync::Arc::new(move || {
+                    if let Some(ctx) = w.get() {
+                        ctx.request_repaint();
+                    }
+                });
+                let frames = hookecho_core::frames::LoopLoader::start(cache.clone(), wake2);
+                (
+                    None,
+                    Some((hookecho_core::live::Feed::start(cache, wake), frames)),
+                )
             }
+        };
+        let (feed, frames) = match feed {
+            Some((f, l)) => (Some(f), Some(l)),
+            None => (None, None),
         };
         App {
             model: Model::new(config, initial, size),
             feed,
+            frames,
             waker,
             watching: None,
             renderer,
@@ -179,6 +195,20 @@ impl App {
                 _ => {}
             }
         }
+        // Loop frames for the current site, tilt and live volume.
+        if let Some(loader) = &self.frames {
+            if let Some(r) = self.model.loop_request()
+                && self.model.looping.request.as_ref() != Some(&r)
+            {
+                self.model.set_loop_request(r.clone());
+                loader.request(r);
+            }
+            while let Ok(e) = loader.events.try_recv() {
+                if let hookecho_core::frames::LoopEvent::Frame(f) = e {
+                    self.model.accept_frame(f);
+                }
+            }
+        }
         // The scan-age label is minute-grained: repaint at most every 30 s
         // when nothing else happens (KICKOFF §4: ~0% idle CPU).
         ctx.request_repaint_after(std::time::Duration::from_secs(30));
@@ -191,6 +221,10 @@ impl App {
         let screen = ctx.content_rect();
         let theme = Theme::get(self.theme_kind(&ctx));
         screen::keys(ui, &mut self.model, screen);
+        let now = ctx.input(|i| i.time);
+        if let Some(next) = self.model.advance(now) {
+            ctx.request_repaint_after(std::time::Duration::from_secs_f64((next - now).max(0.0)));
+        }
         let animating = screen::map_input(ui, &mut self.model, screen);
         if animating || self.pending.is_some() {
             ctx.request_repaint();

@@ -216,6 +216,33 @@ pub fn keys(ui: &Ui, model: &mut Model, screen: Rect) {
             model.picker = Picker::Product { row: 0, col: 0 };
         }
         if matches!(model.picker, Picker::None) {
+            if i.key_pressed(Key::Space) {
+                model.toggle_play(i.time);
+            }
+            if i.key_pressed(Key::Comma) {
+                model.looping.playing = false;
+                if i.modifiers.shift {
+                    model.show_pos(0)
+                } else {
+                    model.step_frame(-1)
+                }
+            }
+            if i.key_pressed(Key::Period) {
+                model.looping.playing = false;
+                if i.modifiers.shift {
+                    model.show_pos(usize::MAX)
+                } else {
+                    model.step_frame(1)
+                }
+            }
+            if i.key_pressed(Key::Home) {
+                model.looping.playing = false;
+                model.show_pos(0);
+            }
+            if i.key_pressed(Key::End) {
+                model.looping.playing = false;
+                model.show_pos(usize::MAX);
+            }
             if i.key_pressed(Key::OpenBracket) {
                 model.step_tilt(-1);
             }
@@ -276,7 +303,7 @@ pub fn paint(ui: &mut Ui, kit: &mut Kit, model: &mut Model, scene: egui::Texture
     );
     let compact = screen.width() < size::COMPACT_BREAKPOINT;
     let legend_rect = legend(kit, model, &painter, screen, m, compact);
-    scan_time(kit, model, &painter, screen, m, compact, legend_rect);
+    timeline(ui, kit, model, &painter, screen, m, compact, legend_rect);
     if let Inspect::Hover(at) | Inspect::Pinned(at) = model.inspect {
         inspector(kit, model, &painter, at);
     }
@@ -652,9 +679,14 @@ fn nice_step(raw: f32) -> f32 {
 
 /// Phase 1 stands in for the timeline with the scan-time chip; the loop
 /// controls arrive with real-time data in Phase 2.
-fn scan_time(
+/// The bottom timeline (DESIGN.md §3.3): play/pause, a scrubber with one
+/// tick per scan spaced by real time, the frame's time, speed, and Live.
+/// With nothing to loop (archived or sample data), a compact time chip.
+#[allow(clippy::too_many_arguments)]
+fn timeline(
+    ui: &mut Ui,
     kit: &mut Kit,
-    model: &Model,
+    model: &mut Model,
     painter: &egui::Painter,
     screen: Rect,
     m: f32,
@@ -662,44 +694,242 @@ fn scan_time(
     legend: Rect,
 ) {
     let t = kit.theme.clone();
-    let Some(l) = model.loaded_here() else { return };
-    // The time of the sweep on screen (live: its last radial, local time;
-    // archive: the scan start, explicit UTC date).
+    let Some(shown) = model.shown() else { return };
+    let archived = shown.archived;
     let sweep_end = model
         .current_sweep()
-        .and_then(|i| l.volume.sweeps[i].time_range_ms())
+        .and_then(|i| shown.volume.sweeps[i].time_range_ms())
         .map(|r| r.1);
-    let text = if l.archived {
-        let Some(ms) = l.time_ms() else { return };
+    let label = if archived {
+        let Some(ms) = shown.time_ms() else { return };
         model::archive_time(ms)
     } else {
-        let Some(ms) = sweep_end.or(l.newest_ms()) else {
+        let Some(ms) = sweep_end.or(shown.newest_ms()) else {
             return;
         };
         model::local_time(ms)
     };
-    let g = kit.galley(painter, text.clone(), Type::LabelTab, t.accent);
-    let w = space::S3 + size::ICON_SM + space::S2 + g.size().x + space::S4;
-    let h = size::TIMELINE_H - space::S2;
-    let mut x = screen.center().x - w / 2.0;
-    if !compact && x + w > legend.min.x - space::S2 {
-        x = legend.min.x - space::S2 - w;
+    let positions = model.timeline();
+    let h = size::TIMELINE_H;
+    let y = screen.max.y - m - h;
+    let place = |w: f32| {
+        let mut x = screen.center().x - w / 2.0;
+        if !compact && x + w > legend.min.x - space::S2 {
+            x = (legend.min.x - space::S2 - w).max(screen.min.x + m);
+        }
+        Rect::from_min_size(
+            pos2(x, y),
+            vec2(
+                w.min(legend.min.x - space::S2 - x)
+                    .max(w.min(screen.width() - 2.0 * m)),
+                h,
+            ),
+        )
+    };
+    if positions.len() < 2 {
+        // Nothing to animate: just say when this scan is from.
+        let g = kit.galley(painter, label, Type::LabelTab, t.accent);
+        let w = space::S3 + size::ICON_SM + space::S2 + g.size().x + space::S4;
+        let rect = place(w).shrink2(vec2(0.0, space::S1));
+        kit.glass(painter, rect, radius::MD, 1);
+        let icon = components::icon_rect(
+            pos2(
+                rect.min.x + space::S3 + size::ICON_SM / 2.0,
+                rect.center().y,
+            ),
+            size::ICON_SM,
+        );
+        kit.icon(painter, icon, Icon::Clock, size::ICON_SM, t.accent);
+        painter.galley(
+            pos2(icon.max.x + space::S2, rect.center().y - g.size().y / 2.0),
+            g,
+            t.accent,
+        );
+        return;
     }
-    let rect = Rect::from_min_size(pos2(x, screen.max.y - m - h), vec2(w, h));
+    let rect = if compact {
+        Rect::from_min_size(pos2(screen.min.x + m, y), vec2(screen.width() - 2.0 * m, h))
+    } else {
+        place(size::TIMELINE_MAX_W.min(screen.width() - 2.0 * m))
+    };
     kit.glass(painter, rect, radius::MD, 1);
-    let icon = components::icon_rect(
-        pos2(
-            rect.min.x + space::S3 + size::ICON_SM / 2.0,
-            rect.center().y,
-        ),
-        size::ICON_SM,
+    let b = size::ICON_BUTTON;
+    let pad = (h - b) / 2.0;
+    let cy = rect.center().y;
+    let now = ui.input(|i| i.time);
+
+    // Play / pause.
+    let play_rect = Rect::from_min_size(rect.min + vec2(pad, pad), vec2(b, b));
+    let playing = model.looping.playing;
+    let label_play = if playing { "Pause loop" } else { "Play loop" };
+    let resp = components::icon_button(
+        ui,
+        kit,
+        painter,
+        play_rect,
+        Id::new("play"),
+        if playing { Icon::Pause } else { Icon::Play },
+        label_play,
+        Some("Space"),
+        playing,
     );
-    kit.icon(painter, icon, Icon::Clock, size::ICON_SM, t.accent);
-    painter.galley(
-        pos2(icon.max.x + space::S2, rect.center().y - g.size().y / 2.0),
-        g,
+    if resp.clicked() {
+        model.toggle_play(now);
+    }
+
+    // Right group: Live, speed, time.
+    let live_pos = positions.len() - 1;
+    let at_live = model.timeline_pos() == live_pos;
+    let live = Rect::from_min_size(
+        pos2(
+            rect.max.x - pad - size::LIVE_BUTTON[0],
+            cy - size::LIVE_BUTTON[1] / 2.0,
+        ),
+        size::LIVE_BUTTON.into(),
+    );
+    let live_resp = interact(
+        ui,
+        live,
+        Id::new("live"),
+        WidgetType::Button,
+        "Jump to the latest scan",
+        Some(at_live),
+    );
+    if at_live {
+        painter.rect_filled(live, CornerRadius::same(radius::SM), t.selected);
+    } else {
+        kit.state_fill(painter, live, radius::SM, &live_resp, false);
+    }
+    kit.status_dot(
+        painter,
+        pos2(live.min.x + size::LIVE_DOT_X, cy),
+        if at_live { t.accent } else { t.text_tertiary },
+    );
+    // Accent text only on plain glass (contrast test): primary on the fill.
+    kit.text(
+        painter,
+        pos2(live.min.x + size::LIVE_TEXT_X, cy),
+        Align2::LEFT_CENTER,
+        "Live",
+        Type::Caption,
+        if at_live {
+            t.text_primary
+        } else {
+            t.text_secondary
+        },
+    );
+    kit.focus_ring(painter, live, radius::SM, &live_resp);
+    kit.tooltip(ui, &live_resp, "Latest scan", Some("End"));
+    if live_resp.clicked() {
+        model.looping.playing = false;
+        model.show_pos(live_pos);
+    }
+    let speed = Rect::from_min_size(
+        pos2(
+            live.min.x - space::S2 - size::SPEED_BUTTON[0],
+            cy - size::SPEED_BUTTON[1] / 2.0,
+        ),
+        size::SPEED_BUTTON.into(),
+    );
+    let speed_resp = interact(
+        ui,
+        speed,
+        Id::new("speed"),
+        WidgetType::Button,
+        "Loop speed",
+        None,
+    );
+    kit.state_fill(painter, speed, radius::SM, &speed_resp, false);
+    let sp = model.config.loop_speed;
+    let sp_label = if sp < 0.75 {
+        "½×"
+    } else if sp < 1.5 {
+        "1×"
+    } else {
+        "2×"
+    };
+    kit.text(
+        painter,
+        speed.center(),
+        Align2::CENTER_CENTER,
+        sp_label,
+        Type::CaptionTab,
+        t.text_secondary,
+    );
+    kit.focus_ring(painter, speed, radius::SM, &speed_resp);
+    kit.tooltip(ui, &speed_resp, "Loop speed", None);
+    if speed_resp.clicked() {
+        model.config.loop_speed = if sp < 0.75 {
+            1.0
+        } else if sp < 1.5 {
+            2.0
+        } else {
+            0.5
+        };
+    }
+    let time = kit.text(
+        painter,
+        pos2(speed.min.x - space::S3, cy),
+        Align2::RIGHT_CENTER,
+        label,
+        Type::LabelTab,
+        t.text_primary,
+    );
+
+    // Scrubber.
+    let track = Rect::from_min_max(
+        pos2(play_rect.max.x + space::S3, cy - size::TRACK_H / 2.0),
+        pos2(time.min.x - space::S5, cy + size::TRACK_H / 2.0),
+    );
+    let hit = track.expand2(vec2(size::TRACK_INSET, h / 2.0 - size::TRACK_H));
+    let scrub = ui.interact(hit, Id::new("scrubber"), Sense::click_and_drag());
+    scrub.widget_info(|| egui::WidgetInfo::labeled(WidgetType::Slider, true, "Loop position"));
+    let (t0, t1) = (positions[0].0 as f64, positions[live_pos].0 as f64);
+    let span = (t1 - t0).max(1.0);
+    let x_of = |ms: i64| {
+        track.min.x
+            + size::TRACK_INSET
+            + ((ms as f64 - t0) / span) as f32 * (track.width() - 2.0 * size::TRACK_INSET)
+    };
+    if (scrub.clicked() || scrub.dragged())
+        && let Some(p) = scrub.interact_pointer_pos()
+    {
+        let nearest = (0..positions.len()).min_by(|&a, &b| {
+            (x_of(positions[a].0) - p.x)
+                .abs()
+                .total_cmp(&(x_of(positions[b].0) - p.x).abs())
+        });
+        if let Some(n) = nearest {
+            model.looping.playing = false;
+            model.show_pos(n);
+        }
+    }
+    let pos = model.timeline_pos();
+    painter.rect_filled(track, CornerRadius::same(1), t.track);
+    let cur_x = x_of(positions[pos.min(live_pos)].0);
+    painter.rect_filled(
+        Rect::from_min_max(track.min, pos2(cur_x, track.max.y)),
+        CornerRadius::same(1),
+        t.accent.gamma_multiply(0.55),
+    );
+    for (i, &(ms, _)) in positions.iter().enumerate() {
+        let tick = Rect::from_center_size(pos2(x_of(ms), cy), size::TICK.into());
+        painter.rect_filled(
+            tick,
+            CornerRadius::same(1),
+            if i <= pos {
+                t.text_secondary
+            } else {
+                t.text_tertiary
+            },
+        );
+    }
+    painter.rect_filled(
+        Rect::from_center_size(pos2(cur_x, cy), size::PLAYHEAD.into()),
+        CornerRadius::same(2),
         t.accent,
     );
+    kit.focus_ring(painter, track, radius::SM, &scrub);
 }
 
 fn inspector(kit: &mut Kit, model: &Model, painter: &egui::Painter, at: (f64, f64)) {

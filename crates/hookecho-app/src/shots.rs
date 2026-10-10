@@ -180,15 +180,27 @@ pub fn live(file: &Path, site: Option<&str>) -> Result<(), String> {
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(90);
     while std::time::Instant::now() < deadline {
         o.frame(SIZE, 1.0, Vec::new());
-        if let Some(l) = o.app.model.loaded_here() {
+        // Live data, plus a few loop frames (or 45 s of trying).
+        let frames = o.app.model.looping.frames.len();
+        let waited = 90
+            - deadline
+                .saturating_duration_since(std::time::Instant::now())
+                .as_secs();
+        if let Some(l) = o.app.model.loaded_here()
+            && (frames >= 3 || waited > 45)
+        {
             if let Some(i) = &l.live {
                 eprintln!(
-                    "{}: {} chunks, complete {}, {} sweeps",
+                    "{}: {} chunks, complete {}, {} sweeps, {frames} loop frames",
                     i.prefix,
                     i.chunks,
                     i.complete,
                     l.volume.sweeps.len()
                 );
+            }
+            // Show a loop frame so the timeline's playhead isn't at live.
+            if frames >= 2 {
+                o.app.model.show_pos(frames - 2);
             }
             o.app.model.camera = Camera::looking_at(
                 o.app.model.site.lat,
