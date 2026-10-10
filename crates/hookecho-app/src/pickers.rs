@@ -1,7 +1,9 @@
-//! Site and product pickers (docs/DESIGN.md §3.7): glass popovers anchored
+//! Site, product and palette pickers (docs/DESIGN.md §3.7): glass popovers anchored
 //! to their chips, keyboard-driven, built from design components only.
 
-use crate::design::components::{self, Kit, interact, popover_rect, scroll_indicator};
+use crate::design::components::{
+    self, Kit, interact, popover_above, popover_rect, scroll_indicator,
+};
 use crate::design::icons::Icon;
 use crate::design::tokens::{Type, radius, size, space};
 use crate::model::{self, Model, PRODUCTS, Picker, TiltState};
@@ -614,5 +616,148 @@ fn state_name(code: &str) -> String {
             .iter()
             .find(|(k, _)| *k == c)
             .map_or_else(|| c.to_string(), |(_, n)| n.to_string()),
+    }
+}
+
+/// Color palettes for the product on screen, above the legend: built-ins,
+/// then imported tables, each with a preview bar. Choosing one applies it.
+pub fn palette_picker(ui: &mut Ui, kit: &mut Kit, model: &mut Model, anchor: Rect) {
+    let Picker::Palette = model.picker else {
+        return;
+    };
+    let t = kit.theme.clone();
+    let m = model.moment;
+    let choices = model.palettes.choices(m).to_vec();
+    let active = model.palettes.active(&model.config, m).name.clone();
+    let pad = space::S3;
+    let eyebrow = size::ROW_H * 0.6;
+    let w = size::LEGEND_W
+        .max(size::PICKER_W * 0.75)
+        .min(kit.screen.width() - space::S6);
+    let h = pad
+        + eyebrow
+        + choices.len() as f32 * size::PRODUCT_ROW_H
+        + space::S3
+        + 2.0 * size::HINT_H
+        + pad;
+    let rect = popover_above(kit.screen, anchor, w, h);
+    let layer = LayerId::new(Order::Foreground, Id::new("palette-picker"));
+    let painter = ui.ctx().layer_painter(layer);
+    let mut ui = ui.new_child(egui::UiBuilder::new().layer_id(layer).max_rect(rect));
+    kit.glass(&painter, rect, radius::LG, 2);
+
+    let (up, down, enter) = ui.input(|i| {
+        (
+            i.key_pressed(Key::ArrowUp),
+            i.key_pressed(Key::ArrowDown),
+            i.key_pressed(Key::Enter),
+        )
+    });
+    let cur = choices
+        .iter()
+        .position(|c| c.palette.name == active)
+        .unwrap_or(0);
+    if (up || down) && !choices.is_empty() {
+        let next = if down {
+            (cur + 1).min(choices.len() - 1)
+        } else {
+            cur.saturating_sub(1)
+        };
+        let name = choices[next].palette.name.clone();
+        model.palettes.select(&mut model.config, m, &name);
+    }
+    let active = model.palettes.active(&model.config, m).name.clone();
+
+    let mut y = rect.min.y + pad;
+    kit.text(
+        &painter,
+        pos2(rect.min.x + pad + space::S2, y + eyebrow / 2.0),
+        Align2::LEFT_CENTER,
+        format!("{} COLORS", m.short_name().to_uppercase()),
+        Type::Caption,
+        t.text_tertiary,
+    );
+    y += eyebrow;
+    let mut close = enter;
+    for c in &choices {
+        let row = Rect::from_min_size(
+            pos2(rect.min.x + space::S2, y),
+            vec2(rect.width() - 2.0 * space::S2, size::PRODUCT_ROW_H),
+        );
+        y += size::PRODUCT_ROW_H;
+        let p = &c.palette;
+        let selected = p.name == active;
+        let resp = interact(
+            &mut ui,
+            row,
+            Id::new(("palette", m.code(), &p.name)),
+            WidgetType::Button,
+            &p.name,
+            Some(selected),
+        );
+        kit.row_fill(&painter, row, &resp, selected);
+        if selected {
+            kit.selection_bar(&painter, row);
+        }
+        let x0 = row.min.x + space::S3;
+        let x1 = row.max.x - space::S3;
+        let line1 = row.center().y - size::PRODUCT_LINE_GAP;
+        kit.text(
+            &painter,
+            pos2(x0, line1),
+            Align2::LEFT_CENTER,
+            &p.name,
+            Type::Body,
+            t.text_primary,
+        );
+        if c.imported {
+            kit.text(
+                &painter,
+                pos2(x1, line1),
+                Align2::RIGHT_CENTER,
+                "Imported",
+                Type::Caption,
+                t.text_tertiary,
+            );
+        }
+        let bar = Rect::from_min_size(
+            pos2(
+                x0,
+                row.center().y + size::PRODUCT_LINE_GAP - size::PALETTE_PREVIEW_H / 2.0,
+            ),
+            vec2(x1 - x0, size::PALETTE_PREVIEW_H),
+        );
+        let (lo, hi) = (p.min(), p.max());
+        kit.color_bar(&painter, bar, |f| p.sample(lo + (hi - lo) * f));
+        if resp.clicked() {
+            model.palettes.select(&mut model.config, m, &p.name);
+            close = true;
+        }
+    }
+    y += space::S3;
+    kit.divider(
+        &painter,
+        rect.min.x + pad,
+        rect.max.x - pad,
+        y - space::S3 / 2.0,
+    );
+    for line in [
+        "To add your own, drop a GRLevelX .pal file",
+        "anywhere on the window",
+    ] {
+        kit.text(
+            &painter,
+            pos2(rect.min.x + pad + space::S2, y + size::HINT_H / 2.0),
+            Align2::LEFT_CENTER,
+            line,
+            Type::Caption,
+            t.text_tertiary,
+        );
+        y += size::HINT_H;
+    }
+    if close {
+        model.picker = Picker::None;
+    } else {
+        close_on_outside_click(&ui, model, rect, anchor);
     }
 }

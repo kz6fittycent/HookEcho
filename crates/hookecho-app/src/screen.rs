@@ -10,7 +10,6 @@ use eframe::egui::{
     WidgetType, pos2, vec2,
 };
 use hookecho_core::sites::{self, SiteKind};
-use hookecho_render::palette::Palette;
 
 /// Bands at the top and bottom where chrome lives.
 fn chrome_bands(screen: Rect) -> [Rect; 3] {
@@ -302,7 +301,7 @@ pub fn paint(ui: &mut Ui, kit: &mut Kit, model: &mut Model, scene: egui::Texture
         pos2(site_rect.max.x + space::S2, screen.min.y + m),
     );
     let compact = screen.width() < size::COMPACT_BREAKPOINT;
-    let legend_rect = legend(kit, model, &painter, screen, m, compact);
+    let legend_rect = legend(ui, kit, model, &painter, screen, m, compact);
     timeline(ui, kit, model, &painter, screen, m, compact, legend_rect);
     if let Inspect::Hover(at) | Inspect::Pinned(at) = model.inspect {
         inspector(kit, model, &painter, at);
@@ -310,8 +309,37 @@ pub fn paint(ui: &mut Ui, kit: &mut Kit, model: &mut Model, scene: egui::Texture
     match model.picker {
         Picker::Site { .. } => pickers::site_picker(ui, kit, model, site_rect),
         Picker::Product => pickers::product_picker(ui, kit, model, product_rect),
+        Picker::Palette => pickers::palette_picker(ui, kit, model, legend_rect),
         Picker::None => {}
     }
+    if let Some((text, _)) = &model.notice {
+        notice(kit, &painter, screen, m, text);
+    }
+}
+
+/// A short message centered above the bottom chrome (palette imports).
+fn notice(kit: &Kit, painter: &egui::Painter, screen: Rect, m: f32, text: &str) {
+    let g = kit.galley(
+        painter,
+        text.to_string(),
+        Type::Label,
+        kit.theme.text_primary,
+    );
+    let w = (g.size().x + 2.0 * space::S4).min(screen.width() - 2.0 * m);
+    let bottom = screen.max.y - m - size::TIMELINE_H - space::S3;
+    let rect = Rect::from_min_max(
+        pos2(screen.center().x - w / 2.0, bottom - size::NOTICE_H),
+        pos2(screen.center().x + w / 2.0, bottom),
+    );
+    kit.glass(painter, rect, radius::MD, 2);
+    kit.text(
+        painter,
+        rect.center(),
+        Align2::CENTER_CENTER,
+        text,
+        Type::Label,
+        kit.theme.text_primary,
+    );
 }
 
 /// Radar site markers: always for the selected site; all sites when zoomed
@@ -573,9 +601,11 @@ fn product_chip(
     rect
 }
 
+#[allow(clippy::too_many_arguments)]
 fn legend(
+    ui: &mut Ui,
     kit: &Kit,
-    model: &Model,
+    model: &mut Model,
     painter: &egui::Painter,
     screen: Rect,
     m: f32,
@@ -591,11 +621,35 @@ fn legend(
         pos2(screen.max.x - m - size::LEGEND_W, bottom - size::LEGEND_H),
         pos2(screen.max.x - m, bottom),
     );
+    // The legend opens the palette picker.
+    let resp = interact(
+        ui,
+        rect,
+        Id::new("legend"),
+        WidgetType::Button,
+        "Color palette",
+        None,
+    );
     kit.glass(painter, rect, radius::MD, 1);
+    kit.state_fill(
+        painter,
+        rect,
+        radius::MD,
+        &resp,
+        matches!(model.picker, Picker::Palette),
+    );
+    kit.focus_ring(painter, rect, radius::MD, &resp);
+    kit.tooltip(ui, &resp, "Change colors", None);
+    if resp.clicked() {
+        model.picker = match model.picker {
+            Picker::Palette => Picker::None,
+            _ => Picker::Palette,
+        };
+    }
     let pad = space::S3;
     let fmt = Fmt(model.config.units);
     let (unit, factor) = fmt.legend_unit(model.moment);
-    let palette = Palette::default_for(model.moment);
+    let palette = model.palettes.active(&model.config, model.moment).clone();
     let (lo, hi) = (palette.min(), palette.max());
     kit.text(
         painter,

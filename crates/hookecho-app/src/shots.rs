@@ -131,6 +131,15 @@ pub fn run(dir: &Path) -> Result<(), String> {
             inspect: true,
         },
         Shot {
+            name: "10-palettes",
+            theme: ThemeKind::Dark,
+            moment: Moment::Reflectivity,
+            size: SIZE,
+            km_across: 70.0,
+            picker: Picker::Palette,
+            inspect: false,
+        },
+        Shot {
             name: "9-regional",
             theme: ThemeKind::Dark,
             moment: Moment::Reflectivity,

@@ -528,6 +528,14 @@ fn caret(painter: &Painter, at: Pos2, color: Color32) {
     );
 }
 
+/// A popover above `anchor`, right-aligned with it (for bottom chrome).
+pub fn popover_above(screen: Rect, anchor: Rect, w: f32, h: f32) -> Rect {
+    let x = (anchor.max.x - w).max(screen.min.x + space::S3);
+    let bottom = anchor.min.y - space::S2;
+    let h = h.min(bottom - screen.min.y - space::S3);
+    Rect::from_min_max(pos2(x, bottom - h), pos2(x + w, bottom))
+}
+
 /// Where a popover anchored under `anchor` goes, clamped to the screen.
 pub fn popover_rect(screen: Rect, anchor: Rect, w: f32, h: f32) -> Rect {
     let x = anchor.min.x.clamp(

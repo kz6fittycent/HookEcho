@@ -14,6 +14,7 @@ mod bench;
 mod design;
 mod headless;
 mod model;
+mod palettes;
 mod pickers;
 mod screen;
 mod shots;

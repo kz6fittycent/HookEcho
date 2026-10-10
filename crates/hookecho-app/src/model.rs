@@ -220,6 +220,8 @@ pub enum Picker {
         scroll: f32,
     },
     Product,
+    /// Color palettes for the product on screen (opened from the legend).
+    Palette,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -258,6 +260,9 @@ pub struct Model {
     /// Live feed state for the current site (None for archived/sample data).
     pub feed: Option<hookecho_core::live::FeedState>,
     pub looping: Loop,
+    pub palettes: crate::palettes::Library,
+    /// A short message and the UI time (s) it disappears.
+    pub notice: Option<(String, f64)>,
     generation: u64,
 }
 
@@ -278,6 +283,8 @@ pub struct Loop {
 /// Seconds per frame at 1× speed; the newest frame holds three times longer
 /// so the loop reads as "...and this is now".
 pub const FRAME_DWELL_S: f64 = 0.45;
+/// How long a notice stays up, seconds.
+pub const NOTICE_S: f64 = 4.0;
 pub const LIVE_DWELL_FACTOR: f64 = 3.0;
 
 /// GPU sweeps kept resident (Phase 2 replaces this with the frame LRU).
@@ -305,6 +312,8 @@ impl Model {
             previous: None,
             feed: None,
             looping: Loop::default(),
+            palettes: crate::palettes::Library::load(None),
+            notice: None,
             generation: 0,
         }
     }

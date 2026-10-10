@@ -39,6 +39,10 @@ pub mod size {
     pub const TIMELINE_MAX_W: f32 = 720.0;
     pub const LEGEND_W: f32 = 248.0;
     pub const LEGEND_H: f32 = 60.0;
+    /// Notice pill (e.g. "Added color palette ...").
+    pub const NOTICE_H: f32 = 36.0;
+    /// Palette picker: the preview bar under each palette's name.
+    pub const PALETTE_PREVIEW_H: f32 = 6.0;
     pub const LEGEND_BAR_H: f32 = 8.0;
     pub const STATUS_DOT: f32 = 7.0;
     pub const COMPACT_BREAKPOINT: f32 = 1000.0;

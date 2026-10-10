@@ -1,8 +1,9 @@
 //! Radar color tables (docs/DESIGN.md §7). Our own originals; gradient stops
-//! in product units, baked into a 1024-entry LUT over [min, max]. Phase 2 adds
-//! the alternates and GRLevelX `.pal` import on top of this type.
+//! in product units, baked into a 1024-entry LUT over [min, max]. Alternates
+//! are built in; GRLevelX `.pal` files convert through `from_table`.
 
 use hookecho_core::Moment;
+use hookecho_core::pal::ColorTable;
 
 pub const LUT_SIZE: usize = 1024;
 
@@ -57,6 +58,80 @@ impl Palette {
         (0..LUT_SIZE)
             .flat_map(|i| self.sample(lo + (hi - lo) * i as f32 / (LUT_SIZE - 1) as f32))
             .collect()
+    }
+
+    /// An imported color table. Its range-folded color, if it has none,
+    /// comes from the moment's default.
+    pub fn from_table(name: &str, m: Moment, t: &ColorTable) -> Palette {
+        Palette {
+            name: name.into(),
+            stops: t.stops(),
+            range_folded: t
+                .range_folded
+                .unwrap_or(Palette::default_for(m).range_folded),
+        }
+    }
+
+    /// Built-in palettes for a moment, the default first.
+    pub fn builtins(m: Moment) -> Vec<Palette> {
+        let d = Palette::default_for(m);
+        let rf = d.range_folded;
+        let mut v = vec![d];
+        let alt = |name: &str, stops: Vec<(f32, [u8; 4])>| Palette {
+            name: name.into(),
+            stops,
+            range_folded: rf,
+        };
+        match m {
+            // The traditional look: greens through reds, magenta at the top.
+            Moment::Reflectivity => v.push(alt(
+                "Classic",
+                vec![
+                    (5.0, [4, 233, 231, 0]),
+                    (10.0, c(4, 160, 220)),
+                    (15.0, c(2, 80, 220)),
+                    (20.0, c(2, 230, 2)),
+                    (25.0, c(1, 196, 1)),
+                    (30.0, c(1, 140, 1)),
+                    (35.0, c(250, 240, 2)),
+                    (40.0, c(228, 184, 2)),
+                    (45.0, c(254, 140, 0)),
+                    (50.0, c(253, 0, 0)),
+                    (55.0, c(212, 0, 0)),
+                    (60.0, c(188, 0, 0)),
+                    (65.0, c(248, 0, 253)),
+                    (70.0, c(152, 84, 198)),
+                    (75.0, c(253, 253, 253)),
+                ],
+            )),
+            // Red/green, as many chasers learned it. Not colorblind safe.
+            Moment::Velocity => v.push(alt(
+                "Classic red/green",
+                vec![
+                    (-45.0, c(255, 230, 255)),
+                    (-32.0, c(0, 255, 140)),
+                    (-20.0, c(0, 190, 40)),
+                    (-10.0, c(0, 120, 20)),
+                    (-2.5, c(40, 80, 40)),
+                    (0.0, c(70, 70, 70)),
+                    (2.5, c(90, 40, 40)),
+                    (10.0, c(150, 0, 0)),
+                    (20.0, c(220, 0, 20)),
+                    (32.0, c(255, 90, 90)),
+                    (45.0, c(255, 240, 160)),
+                ],
+            )),
+            _ => {}
+        }
+        // A neutral ramp over the default's range, for every moment.
+        let (lo, hi) = (v[0].min(), v[0].max());
+        if m != Moment::ClutterFilterPower {
+            v.push(alt(
+                "Grayscale",
+                vec![(lo, [40, 40, 40, 255]), (hi, [245, 245, 245, 255])],
+            ));
+        }
+        v
     }
 
     /// The default ("Hook Echo Standard") palette for a moment.
@@ -189,6 +264,39 @@ mod tests {
             );
             assert_eq!(p.lut().len(), LUT_SIZE * 4);
         }
+    }
+
+    #[test]
+    fn builtins_are_valid_and_uniquely_named() {
+        for m in Moment::ALL {
+            let all = Palette::builtins(m);
+            assert_eq!(all[0], Palette::default_for(m));
+            for p in &all {
+                assert!(p.stops.windows(2).all(|w| w[0].0 < w[1].0), "{}", p.name);
+            }
+            let mut names: Vec<_> = all.iter().map(|p| &p.name).collect();
+            names.sort();
+            names.dedup();
+            assert_eq!(names.len(), all.len());
+        }
+    }
+
+    #[test]
+    fn from_table() {
+        let t = hookecho_core::pal::parse(
+            "Product: BR\nColor: 10 0 0 0\nSolidColor: 20 255 0 0\nColor: 30 0 0 255\n",
+        )
+        .unwrap();
+        let p = Palette::from_table("mine", Moment::Reflectivity, &t);
+        assert_eq!(p.sample(5.0), [0; 4]);
+        // 10..20 is a gradient black to red; 20..30 is solid red.
+        assert_eq!(p.sample(15.0), [128, 0, 0, 255]);
+        assert_eq!(p.sample(29.9), [255, 0, 0, 255]);
+        assert_eq!(p.sample(30.0), [0, 0, 255, 255]);
+        assert_eq!(
+            p.range_folded, [0; 4],
+            "default's RF when the file has none"
+        );
     }
 
     #[test]

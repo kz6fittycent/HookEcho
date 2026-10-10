@@ -12,7 +12,7 @@ This file gives a public source for every data format, algorithm and bundled ass
 | NEXRAD Level III products | NOAA ROC, *ICD for the RPG to Class 1 User*, ICD 2620001 | `hookecho-core::level3` (planned) |
 | NEXRAD site list | NOAA NCEI HOMR, *nexrad-stations.txt*, <https://www.ncei.noaa.gov/access/homr/file/nexrad-stations.txt> | `hookecho-data sites` → `crates/hookecho-core/data/sites.tsv` |
 | Archive II file layout (volume header, LDM bzip2 records, uncompressed 2432-byte segments) | NOAA ROC ICD 2620010 (Archive II/User); cross-checked against MetPy `metpy/io/nexrad.py` | `tools/trim_level2.py` |
-| GRLevelX color table (`.pal`) | Gibson Ridge Software, *Color Table File Specification* (public), plus the extensions publicly documented in the commercial viewer's help center (Color4, SolidColor4, masks, indexed `???` units) | planned (Phase 2) |
+| GRLevelX color table (`.pal`) | Gibson Ridge Software, *Color Table File Specification* (public), plus the extensions publicly documented in the commercial viewer's help center (Color4, SolidColor4, masks, indexed `???` units) | `crates/hookecho-core/src/pal.rs` (masks and indexed units not yet) |
 
 ## Algorithms
 

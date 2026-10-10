@@ -188,9 +188,9 @@ Sources (all public, read 2026-10-09):
 
 | Feature | Tier | Source | Phase | Status | Notes |
 |---|---|---|---|---|---|
-| Built-in alternate palettes per product, incl. colorblind-friendly ones | Base | [palettes] | P2 | planned | Our own originals; colorblind-safe defaults (KICKOFF §5) |
-| Import custom palettes in the GRLevelX `.pal` format with extensions (Color, Color4, SolidColor, SolidColor4, RF, Scale, Units, masks RAIN/MIX/SNOW/TOPPED, indexed `???` units) | T1 | [pal-tech] [pal-import] | P2 | planned | Parser fuzzed; unknown statements ignored |
-| Restore default palettes | Base | [palettes] | P2 | planned | |
+| Built-in alternate palettes per product, incl. colorblind-friendly ones | Base | [palettes] | P2 | done | Our own originals: Standard (default, colorblind-aware), Classic, Classic red/green velocity, Grayscale. Click the legend to choose; the choice persists per product |
+| Import custom palettes in the GRLevelX `.pal` format with extensions (Color, Color4, SolidColor, SolidColor4, RF, Scale, Units, masks RAIN/MIX/SNOW/TOPPED, indexed `???` units) | T1 | [pal-tech] [pal-import] | P2 | in progress | Drop a `.pal` on the window. Done: Product, Units (speed units imply Scale), Scale, Offset, RF, Color/Color4 (with second color), SolidColor/SolidColor4; parser fuzzed (`pal_parse`); unknown statements ignored. Still to do: masks RAIN/MIX/SNOW/TOPPED, indexed `???` units, removing an imported palette |
+| Restore default palettes | Base | [palettes] | P2 | done | Pick "Hook Echo Standard" in the legend's palette list |
 | Theme: dark (default), light, follow system | Base | [advanced] | P2 | in progress | Config supports all three and the UI follows it; the in-app switch arrives with the side sheet (P2) |
 | Font scale for map labels | Base | [advanced] | P2 | planned | |
 | Metric units toggle | Base | [advanced] | P2 | planned | Plus separate units for velocity (kt/mph/m/s) |
