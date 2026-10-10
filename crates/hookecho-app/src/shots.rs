@@ -91,7 +91,7 @@ pub fn run(dir: &Path) -> Result<(), String> {
             moment: Moment::Reflectivity,
             size: SIZE,
             km_across: 70.0,
-            picker: Picker::Product { row: 4, col: 0 },
+            picker: Picker::Product,
             inspect: false,
         },
         Shot {

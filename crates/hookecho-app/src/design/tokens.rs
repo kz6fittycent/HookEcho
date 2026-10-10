@@ -45,6 +45,12 @@ pub mod size {
     pub const FIELD_H: f32 = 40.0;
     pub const INSPECTOR_W: f32 = 212.0;
     pub const TILT_CELL_W: f32 = 40.0;
+    pub const TILT_CHIP_W: f32 = 56.0;
+    pub const PRODUCT_ROW_H: f32 = 48.0;
+    /// Half the gap between a product's name and its description line.
+    pub const PRODUCT_LINE_GAP: f32 = 8.0;
+    pub const HINT_H: f32 = 22.0;
+    pub const SELECTION_BAR_W: f32 = 3.0;
     pub const TILT_CELL_H: f32 = 30.0;
     pub const KEYCAP_H: f32 = 20.0;
     pub const FOCUS_RING: f32 = 2.0;

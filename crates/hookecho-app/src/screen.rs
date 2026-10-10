@@ -213,7 +213,7 @@ pub fn keys(ui: &Ui, model: &mut Model, screen: Rect) {
             };
         }
         if i.key_pressed(Key::P) {
-            model.picker = Picker::Product { row: 0, col: 0 };
+            model.picker = Picker::Product;
         }
         if matches!(model.picker, Picker::None) {
             if i.key_pressed(Key::Space) {
@@ -309,7 +309,7 @@ pub fn paint(ui: &mut Ui, kit: &mut Kit, model: &mut Model, scene: egui::Texture
     }
     match model.picker {
         Picker::Site { .. } => pickers::site_picker(ui, kit, model, site_rect),
-        Picker::Product { .. } => pickers::product_picker(ui, kit, model, product_rect),
+        Picker::Product => pickers::product_picker(ui, kit, model, product_rect),
         Picker::None => {}
     }
 }
@@ -462,7 +462,11 @@ fn site_chip(
         t.text_secondary,
     );
     kit.focus_ring(painter, rect, radius::MD, &resp);
-    kit.tooltip(ui, &resp, "Change radar", Some("S"));
+    let tip = match model.loaded_here() {
+        Some(l) => format!("Change radar · scan pattern VCP {}", l.volume.vcp),
+        None => "Change radar".to_string(),
+    };
+    kit.tooltip(ui, &resp, &tip, Some("S"));
     if resp.clicked() {
         model.picker = match model.picker {
             Picker::Site { .. } => Picker::None,
@@ -485,26 +489,12 @@ fn product_chip(
 ) -> Rect {
     let t = kit.theme.clone();
     let pad = space::S3 + 2.0;
-    let (tilts, source) = match model.loaded_here() {
-        Some(l) => {
-            let sweep = model.current_sweep().map(|i| &l.volume.sweeps[i]);
-            let superres = sweep
-                .and_then(|s| s.radials.first().map(|r| r.azimuth_spacing_deg < 0.75))
-                .unwrap_or(false);
-            (
-                l.tilts(),
-                if superres {
-                    "Level II · Super-res"
-                } else {
-                    "Level II"
-                },
-            )
-        }
-        None => (Vec::new(), "Level II"),
-    };
+    let tilts = model.loaded_here().map(|l| l.tilts()).unwrap_or_default();
+    // Plain words on the chip: what the product shows (DESIGN §3.1).
+    let source = model::product_label(model.moment).1;
     let line1 = vec![
         (
-            model.moment.short_name().to_string(),
+            model::product_label(model.moment).0.to_string(),
             Type::Label,
             t.text_primary,
             0.0,
@@ -542,7 +532,7 @@ fn product_chip(
         rect,
         radius::MD,
         &resp,
-        matches!(model.picker, Picker::Product { .. }),
+        matches!(model.picker, Picker::Product),
     );
     let (y1, y2) = (
         rect.min.y + size::CHIP_LINE1_Y,
@@ -576,8 +566,8 @@ fn product_chip(
     kit.tooltip(ui, &resp, "Change product or tilt", Some("P"));
     if resp.clicked() {
         model.picker = match model.picker {
-            Picker::Product { .. } => Picker::None,
-            _ => Picker::Product { row: 0, col: 0 },
+            Picker::Product => Picker::None,
+            _ => Picker::Product,
         };
     }
     rect

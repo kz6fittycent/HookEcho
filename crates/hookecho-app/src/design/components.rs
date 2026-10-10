@@ -303,6 +303,24 @@ impl Kit<'_> {
         );
     }
 
+    /// Accent bar on the leading edge of a selected row: selection shown
+    /// without relying on color contrast of the text (contrast test).
+    pub fn selection_bar(&self, painter: &Painter, row: Rect) {
+        let bar = Rect::from_min_size(
+            pos2(row.min.x, row.min.y + space::S2),
+            vec2(size::SELECTION_BAR_W, row.height() - 2.0 * space::S2),
+        );
+        painter.rect_filled(bar, CornerRadius::same(2), self.theme.accent);
+    }
+
+    /// A hairline horizontal divider.
+    pub fn divider(&self, painter: &Painter, x0: f32, x1: f32, y: f32) {
+        painter.line_segment(
+            [pos2(x0, y), pos2(x1, y)],
+            Stroke::new(hairline(painter.ctx()), self.theme.glass_stroke),
+        );
+    }
+
     /// Selection fill for a list row (inset by a hairline so rows separate).
     pub fn row_fill(&self, painter: &Painter, rect: Rect, resp: &Response, selected: bool) {
         self.state_fill(

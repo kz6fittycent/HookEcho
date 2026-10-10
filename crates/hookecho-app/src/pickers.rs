@@ -8,6 +8,7 @@ use crate::model::{self, Model, PRODUCTS, Picker, TiltState};
 use eframe::egui::{
     self, Align2, CornerRadius, Id, Key, LayerId, Order, Rect, Ui, WidgetType, pos2, vec2,
 };
+use hookecho_core::Moment;
 
 /// Closes the picker if the user clicked outside it.
 fn close_on_outside_click(ui: &Ui, model: &mut Model, rect: Rect, anchor: Rect) {
@@ -273,29 +274,58 @@ pub fn site_picker(ui: &mut Ui, kit: &mut Kit, model: &mut Model, anchor: Rect) 
     close_on_outside_click(&ui, model, rect, anchor);
 }
 
+/// Product picker: a list of products, each with what it shows, then the
+/// scan angles as buttons. Clicking either applies it and closes the picker;
+/// arrow keys change product (up/down) and angle (left/right) live, and
+/// Enter or Escape closes.
 pub fn product_picker(ui: &mut Ui, kit: &mut Kit, model: &mut Model, anchor: Rect) {
-    let Picker::Product { mut row, mut col } = model.picker.clone() else {
+    let Picker::Product = model.picker else {
         return;
     };
     let t = kit.theme.clone();
     let tilts = model.loaded_here().map(|l| l.tilts()).unwrap_or_default();
     let pad = space::S3;
-    let label_w = size::PICKER_LABEL_W;
-    let header_h = size::ROW_H * 0.75;
-    let cols_shown = tilts.len().max(1);
-    let w = (pad * 2.0 + label_w + cols_shown as f32 * (size::TILT_CELL_W + space::S1))
-        .min(kit.screen.width() - space::S6);
-    let h = pad * 2.0 + header_h + PRODUCTS.len() as f32 * size::ROW_H;
+    let w = size::PICKER_W.min(kit.screen.width() - space::S6);
+    let chip = vec2(size::TILT_CHIP_W, size::TILT_CELL_H);
+    let per_row = (((w - 2.0 * pad + space::S1) / (chip.x + space::S1)).floor() as usize).max(1);
+    let chip_rows = tilts.len().div_ceil(per_row).max(1);
+    let eyebrow = size::ROW_H * 0.6;
+    let h = pad
+        + eyebrow
+        + PRODUCTS.len() as f32 * size::PRODUCT_ROW_H
+        + space::S3
+        + eyebrow
+        + size::HINT_H
+        + chip_rows as f32 * (chip.y + space::S1)
+        + pad;
     let rect = popover_rect(kit.screen, anchor, w, h);
     let layer = LayerId::new(Order::Foreground, Id::new("product-picker"));
     let painter = ui.ctx().layer_painter(layer);
     let mut ui = ui.new_child(egui::UiBuilder::new().layer_id(layer).max_rect(rect));
     kit.glass(&painter, rect, radius::LG, 2);
+    // (product, angle) pairs present in the volume, computed once so the
+    // picker can change the model while drawing.
+    let present: Vec<(Moment, f32)> = model
+        .loaded_here()
+        .map(|l| {
+            PRODUCTS
+                .iter()
+                .flat_map(|&m| {
+                    tilts
+                        .iter()
+                        .filter(move |x| l.has(m, x.deg))
+                        .map(move |x| (m, x.deg))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    let available = |m: Moment, deg: f32| {
+        present
+            .iter()
+            .any(|&(pm, d)| pm == m && (d - deg).abs() < 0.05)
+    };
 
-    // Columns that don't fit are scrolled into view by keyboard focus.
-    let grid_x = rect.min.x + pad + label_w;
-    let fit =
-        (((rect.max.x - pad - grid_x) / (size::TILT_CELL_W + space::S1)).floor() as usize).max(1);
+    // Keyboard: arrows apply live, Enter closes.
     let (up, down, left, right, enter) = ui.input(|i| {
         (
             i.key_pressed(Key::ArrowUp),
@@ -305,123 +335,213 @@ pub fn product_picker(ui: &mut Ui, kit: &mut Kit, model: &mut Model, anchor: Rec
             i.key_pressed(Key::Enter),
         )
     });
-    if down {
-        row = (row + 1).min(PRODUCTS.len() - 1);
+    let cur = PRODUCTS
+        .iter()
+        .position(|&p| p == model.moment)
+        .unwrap_or(0);
+    if up || down {
+        let next = if down {
+            (cur + 1).min(PRODUCTS.len() - 1)
+        } else {
+            cur.saturating_sub(1)
+        };
+        model.moment = PRODUCTS[next];
     }
-    if up {
-        row = row.saturating_sub(1);
+    if left || right {
+        let usable: Vec<f32> = tilts
+            .iter()
+            .filter(|x| x.state != TiltState::Pending && available(model.moment, x.deg))
+            .map(|x| x.deg)
+            .collect();
+        if let Some(i) = usable
+            .iter()
+            .position(|&d| (d - model.tilt_deg).abs() < 0.05)
+        {
+            let j = if right {
+                (i + 1).min(usable.len() - 1)
+            } else {
+                i.saturating_sub(1)
+            };
+            model.tilt_deg = usable[j];
+        }
     }
-    if right {
-        col = (col + 1).min(tilts.len().saturating_sub(1));
-    }
-    if left {
-        col = col.saturating_sub(1);
-    }
-    let first = col.saturating_sub(fit - 1);
 
+    let mut y = rect.min.y + pad;
     kit.text(
         &painter,
-        pos2(
-            rect.min.x + pad + space::S2,
-            rect.min.y + pad + header_h / 2.0,
-        ),
+        pos2(rect.min.x + pad + space::S2, y + eyebrow / 2.0),
         Align2::LEFT_CENTER,
         "PRODUCT",
         Type::Caption,
         t.text_tertiary,
     );
-    for (k, tilt) in tilts.iter().enumerate().skip(first).take(fit) {
-        let x =
-            grid_x + (k - first) as f32 * (size::TILT_CELL_W + space::S1) + size::TILT_CELL_W / 2.0;
+    y += eyebrow;
+    let mut close = enter;
+    for &m in PRODUCTS.iter() {
+        let row = Rect::from_min_size(
+            pos2(rect.min.x + space::S2, y),
+            vec2(rect.width() - 2.0 * space::S2, size::PRODUCT_ROW_H),
+        );
+        y += size::PRODUCT_ROW_H;
+        let (name, what) = model::product_label(m);
+        let selected = m == model.moment;
+        let resp = interact(
+            &mut ui,
+            row,
+            Id::new(("product", m.code())),
+            WidgetType::Button,
+            &format!("{name}: {what}"),
+            Some(selected),
+        );
+        kit.row_fill(&painter, row, &resp, selected);
+        if selected {
+            kit.selection_bar(&painter, row);
+        }
+        let x = row.min.x + space::S3;
         kit.text(
             &painter,
-            pos2(x, rect.min.y + pad + header_h / 2.0),
-            Align2::CENTER_CENTER,
-            format!("{:.1}°", tilt.deg),
-            Type::CaptionTab,
+            pos2(x, row.center().y - size::PRODUCT_LINE_GAP),
+            Align2::LEFT_CENTER,
+            name,
+            Type::Body,
+            t.text_primary,
+        );
+        kit.text(
+            &painter,
+            pos2(x, row.center().y + size::PRODUCT_LINE_GAP),
+            Align2::LEFT_CENTER,
+            what,
+            Type::Caption,
             t.text_tertiary,
         );
-    }
-    let mut pick = None;
-    let available = |m, deg| model.loaded_here().is_some_and(|l| l.has(m, deg));
-    for (r, &m) in PRODUCTS.iter().enumerate() {
-        let y = rect.min.y + pad + header_h + r as f32 * size::ROW_H;
-        let cy = y + size::ROW_H / 2.0;
-        let current_row = m == model.moment;
-        kit.text(
-            &painter,
-            pos2(rect.min.x + pad + space::S2, cy),
-            Align2::LEFT_CENTER,
-            m.short_name(),
-            Type::Body,
-            if current_row {
-                t.text_primary
-            } else {
-                t.text_secondary
-            },
-        );
-        for (k, tilt) in tilts.iter().enumerate().skip(first).take(fit) {
-            let x = grid_x + (k - first) as f32 * (size::TILT_CELL_W + space::S1);
-            let cell = Rect::from_min_size(
-                pos2(x, cy - size::TILT_CELL_H / 2.0),
-                vec2(size::TILT_CELL_W, size::TILT_CELL_H),
-            );
-            let has = available(m, tilt.deg) && tilt.state == TiltState::In;
-            let current = current_row && (tilt.deg - model.tilt_deg).abs() < 0.05;
-            let focused = r == row && k == col;
-            if !has {
-                // Not in this volume: a quiet hollow marker, not a dead button.
-                kit.empty_dot(&painter, cell.center());
-                continue;
-            }
-            let resp = interact(
-                &mut ui,
-                cell,
-                Id::new(("cell", r, k)),
-                WidgetType::Button,
-                &format!("{} {:.1} degrees", m.name(), tilt.deg),
-                Some(current),
-            );
-            if current {
-                painter.rect_filled(cell, CornerRadius::same(radius::SM), t.accent);
-            } else {
-                kit.state_fill(&painter, cell, radius::SM, &resp, focused);
-            }
-            // The tilt is in the column header; the cell is just a target.
-            kit.cell_dot(
-                &painter,
-                cell.center(),
-                if current {
-                    t.accent_on
-                } else if resp.hovered() || focused {
-                    t.text_primary
-                } else {
-                    t.text_secondary
-                },
-            );
-            if focused && !current {
-                painter.rect_stroke(
-                    cell,
-                    CornerRadius::same(radius::SM),
-                    egui::Stroke::new(size::FOCUS_RING / 2.0, t.accent),
-                    egui::StrokeKind::Inside,
-                );
-            }
-            if resp.clicked() {
-                pick = Some((m, tilt.deg));
-            }
+        if resp.clicked() {
+            model.moment = m;
+            close = true;
         }
     }
-    if enter
-        && let Some(tilt) = tilts.get(col)
-        && available(PRODUCTS[row], tilt.deg)
+    // Keep the angle valid for the product (velocity isn't scanned at every angle).
+    if !available(model.moment, model.tilt_deg)
+        && let Some(d) = tilts
+            .iter()
+            .find(|x| available(model.moment, x.deg))
+            .map(|x| x.deg)
     {
-        pick = Some((PRODUCTS[row], tilt.deg));
+        model.tilt_deg = d;
     }
-    model.picker = Picker::Product { row, col };
-    if let Some((m, deg)) = pick {
-        model.moment = m;
-        model.tilt_deg = deg;
+
+    y += space::S3;
+    kit.divider(
+        &painter,
+        rect.min.x + pad,
+        rect.max.x - pad,
+        y - space::S3 / 2.0,
+    );
+    kit.text(
+        &painter,
+        pos2(rect.min.x + pad + space::S2, y + eyebrow / 2.0),
+        Align2::LEFT_CENTER,
+        "SCAN ANGLE",
+        Type::Caption,
+        t.text_tertiary,
+    );
+    y += eyebrow;
+    kit.text(
+        &painter,
+        pos2(rect.min.x + pad + space::S2, y + size::HINT_H / 2.0),
+        Align2::LEFT_CENTER,
+        "Lower angles see closer to the ground",
+        Type::Caption,
+        t.text_tertiary,
+    );
+    y += size::HINT_H;
+    for (k, tilt) in tilts.iter().enumerate() {
+        let (r, c) = (k / per_row, k % per_row);
+        let cell = Rect::from_min_size(
+            pos2(
+                rect.min.x + pad + c as f32 * (chip.x + space::S1),
+                y + r as f32 * (chip.y + space::S1),
+            ),
+            chip,
+        );
+        let label = format!("{:.1}°", tilt.deg);
+        let usable = tilt.state != TiltState::Pending && available(model.moment, tilt.deg);
+        if !usable {
+            // Not scanned yet in this volume, or this product isn't measured
+            // at this angle: shown, but clearly not a button.
+            let why = if tilt.state == TiltState::Pending {
+                "not scanned yet"
+            } else {
+                "not measured at this angle"
+            };
+            kit.text(
+                &painter,
+                cell.center(),
+                Align2::CENTER_CENTER,
+                label,
+                Type::CaptionTab,
+                t.text_tertiary.gamma_multiply(0.55),
+            );
+            let resp = ui.interact(cell, Id::new(("tilt-off", k)), egui::Sense::hover());
+            kit.tooltip(&ui, &resp, &format!("{:.1}°: {why}", tilt.deg), None);
+            continue;
+        }
+        let current = (tilt.deg - model.tilt_deg).abs() < 0.05;
+        let lowest = k == 0;
+        let tip = format!(
+            "{:.1}°{}",
+            tilt.deg,
+            if lowest {
+                " · lowest scan, closest to the ground"
+            } else {
+                ""
+            }
+        );
+        let resp = interact(
+            &mut ui,
+            cell,
+            Id::new(("tilt", k)),
+            WidgetType::Button,
+            &tip,
+            Some(current),
+        );
+        if current {
+            painter.rect_filled(cell, CornerRadius::same(radius::SM), t.accent);
+        } else {
+            kit.state_fill(&painter, cell, radius::SM, &resp, false);
+            painter.rect_stroke(
+                cell,
+                CornerRadius::same(radius::SM),
+                egui::Stroke::new(components::hairline(painter.ctx()), t.glass_stroke),
+                egui::StrokeKind::Inside,
+            );
+        }
+        kit.text(
+            &painter,
+            cell.center(),
+            Align2::CENTER_CENTER,
+            label,
+            Type::CaptionTab,
+            if current { t.accent_on } else { t.text_primary },
+        );
+        if tilt.state == TiltState::Arriving {
+            kit.sweep_dot(
+                &painter,
+                pos2(
+                    cell.max.x - size::SWEEP_DOT_R * 2.0,
+                    cell.min.y + size::SWEEP_DOT_R * 2.0,
+                ),
+                components::DotState::Arriving,
+                false,
+            );
+        }
+        kit.focus_ring(&painter, cell, radius::SM, &resp);
+        kit.tooltip(&ui, &resp, &tip, Some("[ ]"));
+        if resp.clicked() {
+            model.tilt_deg = tilt.deg;
+            close = true;
+        }
+    }
+    if close {
         model.picker = Picker::None;
         return;
     }

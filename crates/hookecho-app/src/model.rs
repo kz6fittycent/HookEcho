@@ -7,6 +7,33 @@ use hookecho_core::geo::{self, Camera};
 use hookecho_core::level2::{Sweep, Volume};
 use hookecho_core::sites::{self, Site, SiteKind};
 
+/// Plain-language name and one-line "what it shows" for the product
+/// picker and chip. Written for someone who has never read a radar manual;
+/// the abbreviations chasers know stay in parentheses.
+pub fn product_label(m: Moment) -> (&'static str, &'static str) {
+    match m {
+        Moment::Reflectivity => ("Reflectivity", "Rain, hail and snow, and how heavy"),
+        Moment::Velocity => (
+            "Velocity",
+            "Wind toward (blue) or away from (orange) the radar",
+        ),
+        Moment::SpectrumWidth => ("Spectrum width", "How turbulent the wind is"),
+        Moment::DifferentialReflectivity => (
+            "Differential reflectivity (ZDR)",
+            "Shape of raindrops and hail",
+        ),
+        Moment::CorrelationCoefficient => (
+            "Correlation coefficient (CC)",
+            "Mixed precipitation and tornado debris",
+        ),
+        Moment::DifferentialPhase => ("Differential phase (PHI)", "Heavy rain (advanced)"),
+        Moment::ClutterFilterPower => (
+            "Clutter filter power",
+            "Ground clutter removed (diagnostic)",
+        ),
+    }
+}
+
 /// Products offered in the product picker, in display order.
 pub const PRODUCTS: [Moment; 6] = [
     Moment::Reflectivity,
@@ -192,10 +219,7 @@ pub enum Picker {
         selected: usize,
         scroll: f32,
     },
-    Product {
-        row: usize,
-        col: usize,
-    },
+    Product,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -701,19 +725,15 @@ impl Model {
         use hookecho_core::live::FeedState;
         let mode = |vcp: u16| {
             if hookecho_core::level2::vcp_is_clear_air(vcp) {
-                "Clear air"
+                "Clear-air mode"
             } else {
-                "Precipitation"
+                "Precipitation mode"
             }
         };
         let l = self.loaded_here();
         match (l, &self.feed) {
             (Some(l), _) if l.archived => (
-                format!(
-                    "Archived scan · VCP {} · {}",
-                    l.volume.vcp,
-                    mode(l.volume.vcp)
-                ),
+                format!("Archived scan · {}", mode(l.volume.vcp)),
                 StatusKind::Archive,
             ),
             (Some(l), feed) => {
@@ -734,15 +754,7 @@ impl Model {
                         ),
                         StatusKind::Stale,
                     ),
-                    _ => (
-                        format!(
-                            "{} · VCP {} · {}",
-                            ago(age),
-                            l.volume.vcp,
-                            mode(l.volume.vcp)
-                        ),
-                        kind,
-                    ),
+                    _ => (format!("{} · {}", ago(age), mode(l.volume.vcp)), kind),
                 }
             }
             (None, Some(FeedState::Connecting)) => ("Connecting…".to_string(), StatusKind::Muted),
@@ -860,7 +872,7 @@ mod tests {
         m.loaded = Some(l);
         m.feed = Some(FeedState::Live);
         let (text, kind) = m.status_line(newest + 30_000);
-        assert!(text.starts_with("Live · VCP 12 · Precipitation"), "{text}");
+        assert_eq!(text, "Live · Precipitation mode");
         assert_eq!(kind, StatusKind::Fresh);
         assert_eq!(m.status_line(newest + 9 * 60_000).1, StatusKind::Aging);
         assert_eq!(m.status_line(newest + 30 * 60_000).1, StatusKind::Stale);
