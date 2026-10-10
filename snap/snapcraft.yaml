@@ -51,6 +51,9 @@ parts:
     # The workspace's rust-version (edition 2024).
     rust-channel: "1.99"
     rust-path: [crates/hookecho-app]
+    # On core24 the rust plugin installs rust-channel with rustup, which the
+    # build environment only has if the part asks for it.
+    build-snaps: [rustup]
     stage-packages:
       # wgpu loads the Vulkan loader at runtime; the GPU drivers themselves
       # come from the host via the opengl interface and the gnome extension.
