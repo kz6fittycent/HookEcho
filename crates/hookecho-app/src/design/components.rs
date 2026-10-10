@@ -303,6 +303,24 @@ impl Kit<'_> {
         );
     }
 
+    /// Accent bar on the leading edge of a selected row: selection shown
+    /// without relying on color contrast of the text (contrast test).
+    pub fn selection_bar(&self, painter: &Painter, row: Rect) {
+        let bar = Rect::from_min_size(
+            pos2(row.min.x, row.min.y + space::S2),
+            vec2(size::SELECTION_BAR_W, row.height() - 2.0 * space::S2),
+        );
+        painter.rect_filled(bar, CornerRadius::same(radius::XS), self.theme.accent);
+    }
+
+    /// A hairline horizontal divider.
+    pub fn divider(&self, painter: &Painter, x0: f32, x1: f32, y: f32) {
+        painter.line_segment(
+            [pos2(x0, y), pos2(x1, y)],
+            Stroke::new(hairline(painter.ctx()), self.theme.glass_stroke),
+        );
+    }
+
     /// Selection fill for a list row (inset by a hairline so rows separate).
     pub fn row_fill(&self, painter: &Painter, rect: Rect, resp: &Response, selected: bool) {
         self.state_fill(
@@ -508,6 +526,14 @@ fn caret(painter: &Painter, at: Pos2, color: Color32) {
         [at - vec2(0.0, 8.0), at + vec2(0.0, 8.0)],
         Stroke::new(1.5, color),
     );
+}
+
+/// A popover above `anchor`, right-aligned with it (for bottom chrome).
+pub fn popover_above(screen: Rect, anchor: Rect, w: f32, h: f32) -> Rect {
+    let x = (anchor.max.x - w).max(screen.min.x + space::S3);
+    let bottom = anchor.min.y - space::S2;
+    let h = h.min(bottom - screen.min.y - space::S3);
+    Rect::from_min_max(pos2(x, bottom - h), pos2(x + w, bottom))
 }
 
 /// Where a popover anchored under `anchor` goes, clamped to the screen.

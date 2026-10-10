@@ -167,11 +167,11 @@ Sources (all public, read 2026-10-09):
 | My location (GPS/platform location) | Base | [getting-started] | P3 | planned | GeoClue (D-Bus) on Linux |
 | Saved locations: add by search or current position, rename, reorder, delete | Base | [locations] | P3 | planned | Geocoding needs a free service. **Ask first** (phones home); offline fallback: Census places gazetteer |
 | Import/export locations as JSON (≤ 250) | Base | [locations] | P3 | planned | Same `name/lat/lon` shape, for interoperability |
-| Loop animation | Base | [getting-started] | P2 | planned | |
-| Loop length: 10 / 30 / 50 frames | Base/T1/T2 | [appstore] [upgrading] | P2 | planned | Configurable, bounded by the GPU memory budget |
-| Previous/next frame; jump to first/last | Base | [getting-started] | P2 | planned | Keys `,` `.` and Shift for first/last |
-| Loop scrubber | Base | [shortcuts] | P2 | planned | The timeline scrubber is always visible |
-| Loop speed | Base | [advanced] | P2 | planned | Timeline speed control |
+| Loop animation | Base | [getting-started] | P2 | done | Earlier volumes at the current tilt from the real-time bucket (only the chunks up to that tilt), newest first; plays oldest → live with a longer hold on live |
+| Loop length: 10 / 30 / 50 frames | Base/T1/T2 | [appstore] [upgrading] | P2 | in progress | `loop_frames` in config (default 10); the picker arrives with the side sheet |
+| Previous/next frame; jump to first/last | Base | [getting-started] | P2 | done | `,` `.` step; Shift+`,`/Home first; Shift+`.`/End live |
+| Loop scrubber | Base | [shortcuts] | P2 | done | Ticks spaced by real scan time; click or drag to scrub |
+| Loop speed | Base | [advanced] | P2 | done | ½× / 1× / 2× on the timeline (saved) |
 | Color bar with value on hover | Base | [product-legend] | P2 | planned | Legend inside the product chip's expansion |
 | Product time plus "updated" time; red when stale | Base | [product-legend] | P2 | in progress | Scan age + green/amber/red dot vs the VCP volume time, local sweep time, offline notice; the explicit "updated at" time comes with the timeline |
 | Radar legend: VCP number and clear-air / precipitation mode | Base | [radar-legend] | P2 | planned | In the site chip detail |
@@ -188,9 +188,9 @@ Sources (all public, read 2026-10-09):
 
 | Feature | Tier | Source | Phase | Status | Notes |
 |---|---|---|---|---|---|
-| Built-in alternate palettes per product, incl. colorblind-friendly ones | Base | [palettes] | P2 | planned | Our own originals; colorblind-safe defaults (KICKOFF §5) |
-| Import custom palettes in the GRLevelX `.pal` format with extensions (Color, Color4, SolidColor, SolidColor4, RF, Scale, Units, masks RAIN/MIX/SNOW/TOPPED, indexed `???` units) | T1 | [pal-tech] [pal-import] | P2 | planned | Parser fuzzed; unknown statements ignored |
-| Restore default palettes | Base | [palettes] | P2 | planned | |
+| Built-in alternate palettes per product, incl. colorblind-friendly ones | Base | [palettes] | P2 | done | Our own originals: Standard (default, colorblind-aware), Classic, Classic red/green velocity, Grayscale. Click the legend to choose; the choice persists per product |
+| Import custom palettes in the GRLevelX `.pal` format with extensions (Color, Color4, SolidColor, SolidColor4, RF, Scale, Units, masks RAIN/MIX/SNOW/TOPPED, indexed `???` units) | T1 | [pal-tech] [pal-import] | P2 | in progress | Drop a `.pal` on the window. Done: Product, Units (speed units imply Scale), Scale, Offset, RF, Color/Color4 (with second color), SolidColor/SolidColor4; parser fuzzed (`pal_parse`); unknown statements ignored. Still to do: masks RAIN/MIX/SNOW/TOPPED, indexed `???` units, removing an imported palette |
+| Restore default palettes | Base | [palettes] | P2 | done | Pick "Hook Echo Standard" in the legend's palette list |
 | Theme: dark (default), light, follow system | Base | [advanced] | P2 | in progress | Config supports all three and the UI follows it; the in-app switch arrives with the side sheet (P2) |
 | Font scale for map labels | Base | [advanced] | P2 | planned | |
 | Metric units toggle | Base | [advanced] | P2 | planned | Plus separate units for velocity (kt/mph/m/s) |
@@ -219,6 +219,7 @@ Requests users raise against other viewers (mainly [Supercell Wx issues][scwx]) 
 | GRLevelX-style placefiles | [scwx] #614, #88 | P5+ | planned | Big ecosystem for chasers |
 | GeoJSON / KML / shapefile overlays | [scwx] #638, #655, #514 | P5+ | planned | |
 | Vertical cross-section tool | [scwx] #403 | P5+ | planned | We have the full L2 volume on the GPU |
+| Says so when there's little or no precipitation in range (clear air), so a blank map doesn't look broken | Owner feedback (CFT #8) | P2 | done | Under 20 km² of drawn reflectivity in runs of 1 km or more, so clutter speckle doesn't count |
 | Rotational velocity / NROT readout in the inspector | [scwx] #160, #206 | P5+ | planned | |
 | VAD wind profile (VWP) display | [scwx] #383 | P5+ | planned | Level III product 48 |
 | Audible alerts / TTS for new warnings near me; "follow" an alert | [scwx] #352, #637, #617, #581 | P5+ | planned | Local only, no push service |

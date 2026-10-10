@@ -7,6 +7,33 @@ use hookecho_core::geo::{self, Camera};
 use hookecho_core::level2::{Sweep, Volume};
 use hookecho_core::sites::{self, Site, SiteKind};
 
+/// Plain-language name and one-line "what it shows" for the product
+/// picker and chip. Written for someone who has never read a radar manual;
+/// the abbreviations chasers know stay in parentheses.
+pub fn product_label(m: Moment) -> (&'static str, &'static str) {
+    match m {
+        Moment::Reflectivity => ("Reflectivity", "Rain, hail and snow, and how heavy"),
+        Moment::Velocity => (
+            "Velocity",
+            "Wind toward (blue) or away from (orange) the radar",
+        ),
+        Moment::SpectrumWidth => ("Spectrum width", "How turbulent the wind is"),
+        Moment::DifferentialReflectivity => (
+            "Differential reflectivity (ZDR)",
+            "Shape of raindrops and hail",
+        ),
+        Moment::CorrelationCoefficient => (
+            "Correlation coefficient (CC)",
+            "Mixed precipitation and tornado debris",
+        ),
+        Moment::DifferentialPhase => ("Differential phase (PHI)", "Heavy rain (advanced)"),
+        Moment::ClutterFilterPower => (
+            "Clutter filter power",
+            "Ground clutter removed (diagnostic)",
+        ),
+    }
+}
+
 /// Products offered in the product picker, in display order.
 pub const PRODUCTS: [Moment; 6] = [
     Moment::Reflectivity,
@@ -183,7 +210,7 @@ pub struct Probe {
     pub height_km: f64,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub enum Picker {
     #[default]
     None,
@@ -192,10 +219,9 @@ pub enum Picker {
         selected: usize,
         scroll: f32,
     },
-    Product {
-        row: usize,
-        col: usize,
-    },
+    Product,
+    /// Color palettes for the product on screen (opened from the legend).
+    Palette,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -233,7 +259,50 @@ pub struct Model {
     pub previous: Option<Loaded>,
     /// Live feed state for the current site (None for archived/sample data).
     pub feed: Option<hookecho_core::live::FeedState>,
+    pub looping: Loop,
+    pub palettes: crate::palettes::Library,
+    /// A short message and the UI time (s) it disappears.
+    pub notice: Option<(String, f64)>,
+    /// Cached `no_precipitation` answer, keyed by (generation, sweep, palette version).
+    quiet: Option<((u64, usize, u64), bool)>,
     generation: u64,
+}
+
+/// The animation loop (DESIGN.md §3.3): earlier volumes at the current tilt,
+/// oldest first; the live volume is always the last position.
+#[derive(Default)]
+pub struct Loop {
+    pub frames: Vec<Loaded>,
+    /// Shown frame; `None` = live.
+    pub index: Option<usize>,
+    pub playing: bool,
+    /// UI clock time (s) of the next frame change while playing.
+    pub next_at: f64,
+    /// The request the frames belong to.
+    pub request: Option<hookecho_core::frames::LoopRequest>,
+}
+
+/// Seconds per frame at 1× speed; the newest frame holds three times longer
+/// so the loop reads as "...and this is now".
+pub const FRAME_DWELL_S: f64 = 0.45;
+pub const LIVE_DWELL_FACTOR: f64 = 3.0;
+
+/// How long a notice stays up, seconds.
+pub const NOTICE_S: f64 = 4.0;
+
+/// Less echo than this (km², about a 5 km shower) reads as "little or no
+/// rain or snow".
+pub const QUIET_KM2: f64 = 20.0;
+
+/// Area the palette clearly draws, in runs of at least 1 km (four
+/// quarter-km gates) along a radial, so clear-air speckle doesn't count.
+pub fn echo_area_km2(
+    sweep: &Sweep,
+    f: &hookecho_core::level2::Field,
+    p: &hookecho_render::palette::Palette,
+) -> f64 {
+    let spacing = sweep.radials.first().map_or(1.0, |r| r.azimuth_spacing_deg);
+    f.echo_area_km2(|v| p.sample(v)[3] >= 128, 4, spacing)
 }
 
 /// GPU sweeps kept resident (Phase 2 replaces this with the frame LRU).
@@ -260,13 +329,209 @@ impl Model {
             uploads: Vec::new(),
             previous: None,
             feed: None,
+            looping: Loop::default(),
+            palettes: crate::palettes::Library::load(None),
+            notice: None,
+            quiet: None,
             generation: 0,
         }
     }
 
+    /// What's on screen: the selected loop frame, or the live volume.
+    pub fn shown(&self) -> Option<&Loaded> {
+        match self.looping.index {
+            Some(i) => self
+                .looping
+                .frames
+                .get(i)
+                .filter(|f| f.site.id == self.site.id),
+            None => self.loaded_here(),
+        }
+    }
+
+    /// Loop positions for the timeline: (time ms, is live), oldest first.
+    pub fn timeline(&self) -> Vec<(i64, bool)> {
+        let mut v: Vec<(i64, bool)> = self
+            .looping
+            .frames
+            .iter()
+            .filter_map(|f| f.time_ms().map(|t| (t, false)))
+            .collect();
+        if let Some(t) = self.loaded_here().and_then(|l| l.time_ms()) {
+            v.push((t, true));
+        }
+        v
+    }
+
+    /// Position on the timeline of what's shown.
+    pub fn timeline_pos(&self) -> usize {
+        self.looping.index.unwrap_or(self.looping.frames.len())
+    }
+
+    /// Shows timeline position `pos` (the last position is live).
+    pub fn show_pos(&mut self, pos: usize) {
+        self.looping.index = (pos < self.looping.frames.len()).then_some(pos);
+    }
+
+    /// Steps one frame back (-1) or forward (+1), wrapping when playing.
+    pub fn step_frame(&mut self, dir: i32) {
+        let n = self.looping.frames.len() + 1;
+        let pos = self.timeline_pos() as i32 + dir;
+        self.show_pos(pos.clamp(0, n as i32 - 1) as usize);
+    }
+
+    pub fn toggle_play(&mut self, now: f64) {
+        self.looping.playing = !self.looping.playing && !self.looping.frames.is_empty();
+        self.looping.next_at = now;
+        if !self.looping.playing {
+            self.looping.index = None; // pausing returns to live, like the original
+        }
+    }
+
+    /// Advances playback; returns the time of the next change, if playing.
+    pub fn advance(&mut self, now: f64) -> Option<f64> {
+        if !self.looping.playing || self.looping.frames.is_empty() {
+            self.looping.playing = false;
+            return None;
+        }
+        let speed = self.config.loop_speed.clamp(0.25, 4.0) as f64;
+        while now >= self.looping.next_at {
+            let n = self.looping.frames.len() + 1;
+            let pos = (self.timeline_pos() + 1) % n;
+            self.show_pos(pos);
+            let dwell = FRAME_DWELL_S / speed * if pos == n - 1 { LIVE_DWELL_FACTOR } else { 1.0 };
+            self.looping.next_at = self.looping.next_at.max(now - dwell) + dwell;
+        }
+        Some(self.looping.next_at)
+    }
+
+    /// The loop request this view needs, if any.
+    pub fn loop_request(&self) -> Option<hookecho_core::frames::LoopRequest> {
+        let live = self.loaded_here()?.live.as_ref()?;
+        Some(hookecho_core::frames::LoopRequest {
+            site: self.site.id.clone(),
+            tilt_deg: self.tilt_deg,
+            frames: self.config.loop_frames.saturating_sub(1),
+            before: live.prefix.clone(),
+        })
+    }
+
+    /// Adopts a new request: keeps frames that still fit (same site and
+    /// tilt, older than the live volume), drops the rest.
+    pub fn set_loop_request(&mut self, r: hookecho_core::frames::LoopRequest) {
+        let tilt = r.tilt_deg;
+        let before = r.before.clone();
+        let keep = |f: &Loaded| {
+            f.site.id == r.site
+                && f.live
+                    .as_ref()
+                    .is_some_and(|i| stamp_of(&i.prefix) < stamp_of(&before))
+                && f.volume
+                    .sweeps
+                    .iter()
+                    .any(|s| (Loaded::sweep_deg(s) - tilt).abs() < 0.05)
+        };
+        let shown = self
+            .looping
+            .index
+            .and_then(|i| self.looping.frames.get(i))
+            .and_then(|f| f.live.as_ref().map(|l| l.prefix.clone()));
+        self.looping.frames.retain(keep);
+        self.looping.frames.truncate(r.frames.max(1) * 2);
+        self.looping.index = shown.and_then(|p| {
+            self.looping
+                .frames
+                .iter()
+                .position(|f| f.live.as_ref().is_some_and(|l| l.prefix == p))
+        });
+        self.looping.request = Some(r);
+    }
+
+    /// Takes a loop frame for the current request (others are stale).
+    pub fn accept_frame(&mut self, f: hookecho_core::frames::LoopFrame) {
+        if self.looping.request.as_ref() != Some(&f.request) {
+            return;
+        }
+        if self
+            .looping
+            .frames
+            .iter()
+            .any(|x| x.live.as_ref().is_some_and(|i| i.prefix == f.prefix))
+        {
+            return;
+        }
+        let Some(site) = sites::by_id(&f.request.site) else {
+            return;
+        };
+        self.generation += 1;
+        let volume = std::sync::Arc::try_unwrap(f.volume).unwrap_or_else(|a| (*a).clone());
+        let mut l = Loaded::new(site, volume, false);
+        l.generation = self.generation;
+        l.live = Some(LiveInfo {
+            prefix: f.prefix,
+            chunks: 0,
+            complete: true,
+        });
+        let shown = self
+            .looping
+            .index
+            .and_then(|i| self.looping.frames.get(i))
+            .and_then(|x| x.live.as_ref().map(|l| l.prefix.clone()));
+        self.looping.frames.push(l);
+        self.looping
+            .frames
+            .sort_by_key(|x| x.live.as_ref().map(|i| stamp_of(&i.prefix).to_string()));
+        // Keep only the newest frames the loop length allows.
+        let keep = f.request.frames.max(1);
+        if self.looping.frames.len() > keep {
+            self.looping
+                .frames
+                .drain(..self.looping.frames.len() - keep);
+        }
+        if let Some(p) = shown {
+            self.looping.index = self
+                .looping
+                .frames
+                .iter()
+                .position(|x| x.live.as_ref().is_some_and(|l| l.prefix == p));
+        }
+    }
+
     /// The sweep index currently shown, if any.
+    /// True when the shown live reflectivity sweep is complete and has
+    /// (almost) nothing the palette draws, as in clear air. A blank map
+    /// otherwise looks broken. The bar is low: a single small shower is
+    /// a few hundred gates, so it never hides real weather.
+    pub fn no_precipitation(&mut self) -> bool {
+        if self.moment != Moment::Reflectivity {
+            return false;
+        }
+        let Some(i) = self.current_sweep() else {
+            return false;
+        };
+        let version = self.palettes.version;
+        let Some(l) = self.shown() else { return false };
+        if l.archived || l.live.is_none() {
+            return false;
+        }
+        let key = (l.generation, i, version);
+        if let Some((k, v)) = self.quiet
+            && k == key
+        {
+            return v;
+        }
+        let sweep = &l.volume.sweeps[i];
+        let palette = self.palettes.active(&self.config, Moment::Reflectivity);
+        let quiet = sweep.complete
+            && sweep
+                .field(Moment::Reflectivity)
+                .is_some_and(|f| echo_area_km2(sweep, f, palette) < QUIET_KM2);
+        self.quiet = Some((key, quiet));
+        quiet
+    }
+
     pub fn current_sweep(&self) -> Option<usize> {
-        let l = self.loaded.as_ref().filter(|l| l.site.id == self.site.id)?;
+        let l = self.shown()?;
         l.sweep_for(self.moment, self.tilt_deg).or_else(|| {
             // Fall back to the lowest tilt that has this moment.
             l.tilts()
@@ -314,6 +579,9 @@ impl Model {
     /// The previous volume's sweep for the current product and tilt, drawn
     /// under the current sweep while that one is still arriving.
     pub fn underlay_sweep(&self) -> Option<usize> {
+        if self.looping.index.is_some() {
+            return None;
+        }
         let cur = self.loaded_here()?;
         let i = self.current_sweep()?;
         if cur.volume.sweeps[i].complete {
@@ -331,6 +599,7 @@ impl Model {
             self.loaded = None;
             self.previous = None;
             self.feed = None;
+            self.looping = Loop::default();
         }
         self.site = site;
         self.config.site = Some(site.id.clone());
@@ -516,19 +785,15 @@ impl Model {
         use hookecho_core::live::FeedState;
         let mode = |vcp: u16| {
             if hookecho_core::level2::vcp_is_clear_air(vcp) {
-                "Clear air"
+                "Clear-air mode"
             } else {
-                "Precipitation"
+                "Precipitation mode"
             }
         };
         let l = self.loaded_here();
         match (l, &self.feed) {
             (Some(l), _) if l.archived => (
-                format!(
-                    "Archived scan · VCP {} · {}",
-                    l.volume.vcp,
-                    mode(l.volume.vcp)
-                ),
+                format!("Archived scan · {}", mode(l.volume.vcp)),
                 StatusKind::Archive,
             ),
             (Some(l), feed) => {
@@ -549,15 +814,7 @@ impl Model {
                         ),
                         StatusKind::Stale,
                     ),
-                    _ => (
-                        format!(
-                            "{} · VCP {} · {}",
-                            ago(age),
-                            l.volume.vcp,
-                            mode(l.volume.vcp)
-                        ),
-                        kind,
-                    ),
+                    _ => (format!("{} · {}", ago(age), mode(l.volume.vcp)), kind),
                 }
             }
             (None, Some(FeedState::Connecting)) => ("Connecting…".to_string(), StatusKind::Muted),
@@ -574,6 +831,11 @@ impl Model {
             (None, None) => ("No data loaded".to_string(), StatusKind::Muted),
         }
     }
+}
+
+/// `STAMP` part of a `SITE/vol/STAMP` prefix (sortable: YYYYMMDD-HHMMSS).
+fn stamp_of(prefix: &str) -> &str {
+    prefix.rsplit('/').next().unwrap_or("")
 }
 
 /// "3:16 PM" in the user's local time for live data; archive scans keep
@@ -605,7 +867,7 @@ pub fn ensure_upload(
     m: Moment,
 ) -> Option<hookecho_render::SweepId> {
     let l = match which {
-        Which::Current => model.loaded.as_ref()?,
+        Which::Current => model.shown()?,
         Which::Previous => model.previous.as_ref()?,
     };
     let key = (l.generation, sweep, m);
@@ -670,7 +932,7 @@ mod tests {
         m.loaded = Some(l);
         m.feed = Some(FeedState::Live);
         let (text, kind) = m.status_line(newest + 30_000);
-        assert!(text.starts_with("Live · VCP 12 · Precipitation"), "{text}");
+        assert_eq!(text, "Live · Precipitation mode");
         assert_eq!(kind, StatusKind::Fresh);
         assert_eq!(m.status_line(newest + 9 * 60_000).1, StatusKind::Aging);
         assert_eq!(m.status_line(newest + 30 * 60_000).1, StatusKind::Stale);
@@ -687,6 +949,87 @@ mod tests {
         assert_eq!(
             m.status_line(newest + 5 * 60_000),
             ("Offline · data 5 min ago".to_string(), StatusKind::Stale)
+        );
+    }
+
+    fn frame(
+        req: &hookecho_core::frames::LoopRequest,
+        stamp: &str,
+        v: &hookecho_core::level2::Volume,
+    ) -> hookecho_core::frames::LoopFrame {
+        hookecho_core::frames::LoopFrame {
+            request: req.clone(),
+            prefix: format!("KTLX/1/{stamp}"),
+            start: 0,
+            volume: std::sync::Arc::new(v.clone()),
+        }
+    }
+
+    #[test]
+    fn loop_frames_order_dedupe_and_playback() {
+        let v = hookecho_core::level2::decode_volume(crate::assets::SAMPLE_VOLUME).unwrap();
+        let site = sites::by_id("KTLX").unwrap();
+        let mut m = Model::new(Config::default(), site, [1280.0, 800.0]);
+        let mut live = Loaded::new(site, v.clone(), false);
+        live.live = Some(LiveInfo {
+            prefix: "KTLX/9/20261010-220000".into(),
+            chunks: 10,
+            complete: false,
+        });
+        m.loaded = Some(live);
+        let req = m.loop_request().unwrap();
+        assert_eq!(req.frames, 9, "10-frame loop = 9 earlier volumes + live");
+        m.set_loop_request(req.clone());
+        // Frames arrive newest first; a duplicate and a stale request are ignored.
+        for stamp in ["20261010-215300", "20261010-214600", "20261010-215300"] {
+            m.accept_frame(frame(&req, stamp, &v));
+        }
+        let mut stale = req.clone();
+        stale.tilt_deg = 0.9;
+        m.accept_frame(frame(&stale, "20261010-213900", &v));
+        assert_eq!(m.looping.frames.len(), 2);
+        let order: Vec<_> = m
+            .looping
+            .frames
+            .iter()
+            .map(|f| f.live.as_ref().unwrap().prefix.clone())
+            .collect();
+        assert_eq!(
+            order,
+            vec!["KTLX/1/20261010-214600", "KTLX/1/20261010-215300"],
+            "oldest first"
+        );
+        assert_eq!(m.timeline().len(), 3);
+        assert!(m.timeline()[2].1, "live is last");
+        // Stepping and playback.
+        assert_eq!(m.timeline_pos(), 2);
+        m.step_frame(-1);
+        assert_eq!(m.looping.index, Some(1));
+        m.toggle_play(0.0);
+        assert!(
+            m.looping.playing && m.looping.index == Some(1),
+            "play resumes from where you are"
+        );
+        m.toggle_play(0.0);
+        assert!(
+            !m.looping.playing && m.looping.index.is_none(),
+            "pausing shows the latest scan"
+        );
+        m.toggle_play(10.0);
+        let next = m.advance(10.0).unwrap();
+        assert_eq!(
+            m.timeline_pos(),
+            0,
+            "playback wraps from live to the oldest frame"
+        );
+        assert!((next - 10.0 - FRAME_DWELL_S).abs() < 1e-9);
+        m.advance(next);
+        m.advance(next + FRAME_DWELL_S);
+        assert_eq!(m.timeline_pos(), 2, "then live");
+        let after_live = m.looping.next_at;
+        assert!(
+            (after_live - (next + FRAME_DWELL_S + FRAME_DWELL_S * LIVE_DWELL_FACTOR)).abs() < 1e-6,
+            "live holds longer"
         );
     }
 

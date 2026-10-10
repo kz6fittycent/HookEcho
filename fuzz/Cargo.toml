@@ -32,3 +32,9 @@ name = "sites_parse"
 path = "fuzz_targets/sites_parse.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "pal_parse"
+path = "fuzz_targets/pal_parse.rs"
+test = false
+doc = false

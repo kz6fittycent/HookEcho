@@ -36,6 +36,7 @@ type Waker = std::sync::Arc<std::sync::OnceLock<egui::Context>>;
 pub struct App {
     pub model: Model,
     feed: Option<hookecho_core::live::Feed>,
+    frames: Option<hookecho_core::frames::LoopLoader>,
     waker: Waker,
     watching: Option<String>,
     pub renderer: Renderer,
@@ -46,6 +47,8 @@ pub struct App {
     pub theme_override: Option<ThemeKind>,
     /// Set once the first radar frame has been drawn (for cold-start timing).
     pub first_radar_frame: bool,
+    /// Palette library version last uploaded to the renderer.
+    palettes_applied: u64,
 }
 
 impl App {
@@ -92,12 +95,29 @@ impl App {
                         ctx.request_repaint();
                     }
                 });
-                (None, Some(hookecho_core::live::Feed::start(cache, wake)))
+                let w = waker.clone();
+                let wake2 = std::sync::Arc::new(move || {
+                    if let Some(ctx) = w.get() {
+                        ctx.request_repaint();
+                    }
+                });
+                let frames = hookecho_core::frames::LoopLoader::start(cache.clone(), wake2);
+                (
+                    None,
+                    Some((hookecho_core::live::Feed::start(cache, wake), frames)),
+                )
             }
         };
+        let (feed, frames) = match feed {
+            Some((f, l)) => (Some(f), Some(l)),
+            None => (None, None),
+        };
+        let mut model = Model::new(config, initial, size);
+        model.palettes = crate::palettes::Library::load(dirs.as_ref().map(|d| d.config.as_path()));
         App {
-            model: Model::new(config, initial, size),
+            model,
             feed,
+            frames,
             waker,
             watching: None,
             renderer,
@@ -107,6 +127,8 @@ impl App {
             dirs,
             theme_override: None,
             first_radar_frame: false,
+            // Built-in defaults are already on the GPU; anything else isn't.
+            palettes_applied: u64::MAX,
         }
     }
 
@@ -140,6 +162,35 @@ impl App {
                 Err(mpsc::TryRecvError::Disconnected) => self.pending = None,
                 Err(mpsc::TryRecvError::Empty) => {}
             }
+        }
+    }
+
+    /// Color tables dropped on the window.
+    fn take_dropped(&mut self, ctx: &egui::Context) {
+        let dropped = ctx.input(|i| i.raw.dropped_files.clone());
+        for f in dropped {
+            let bytes = f.bytes();
+            let name = f
+                .path()
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("dropped file")
+                .to_string();
+            let config_dir = self.dirs.as_ref().map(|d| d.config.clone());
+            let m = &mut self.model;
+            let r = bytes.and_then(|b| {
+                m.palettes
+                    .import(&mut m.config, config_dir.as_deref(), &name, &b, m.moment)
+            });
+            let text = match r {
+                Ok((moment, palette)) => {
+                    m.moment = moment;
+                    format!("Added color palette \u{201c}{palette}\u{201d}")
+                }
+                Err(e) => format!("Couldn't use {name}: {e}"),
+            };
+            m.notice = Some((text, ctx.input(|i| i.time) + model::NOTICE_S));
+            self.save_config();
         }
     }
 
@@ -179,6 +230,20 @@ impl App {
                 _ => {}
             }
         }
+        // Loop frames for the current site, tilt and live volume.
+        if let Some(loader) = &self.frames {
+            if let Some(r) = self.model.loop_request()
+                && self.model.looping.request.as_ref() != Some(&r)
+            {
+                self.model.set_loop_request(r.clone());
+                loader.request(r);
+            }
+            while let Ok(e) = loader.events.try_recv() {
+                if let hookecho_core::frames::LoopEvent::Frame(f) = e {
+                    self.model.accept_frame(f);
+                }
+            }
+        }
         // The scan-age label is minute-grained: repaint at most every 30 s
         // when nothing else happens (KICKOFF §4: ~0% idle CPU).
         ctx.request_repaint_after(std::time::Duration::from_secs(30));
@@ -188,9 +253,14 @@ impl App {
         self.poll_data();
         let ctx = ui.ctx().clone();
         self.poll_feed(&ctx);
+        self.take_dropped(&ctx);
         let screen = ctx.content_rect();
         let theme = Theme::get(self.theme_kind(&ctx));
         screen::keys(ui, &mut self.model, screen);
+        let now = ctx.input(|i| i.time);
+        if let Some(next) = self.model.advance(now) {
+            ctx.request_repaint_after(std::time::Duration::from_secs_f64((next - now).max(0.0)));
+        }
         let animating = screen::map_input(ui, &mut self.model, screen);
         if animating || self.pending.is_some() {
             ctx.request_repaint();
@@ -202,6 +272,13 @@ impl App {
             (screen.width() * ppp).round().max(1.0) as u32,
             (screen.height() * ppp).round().max(1.0) as u32,
         ];
+        if self.palettes_applied != self.model.palettes.version {
+            for m in hookecho_core::Moment::ALL {
+                let p = self.model.palettes.active(&self.model.config, m).clone();
+                self.renderer.set_palette(gpu.device, gpu.queue, m, &p);
+            }
+            self.palettes_applied = self.model.palettes.version;
+        }
         let changed = self.renderer.ensure_targets(gpu.device, size_px);
         self.register_textures(gpu, egui_renderer, changed);
         // Radar layers: the previous volume's sweep under a sweep that's
@@ -260,15 +337,25 @@ impl App {
         let before = (
             self.model.site.id.clone(),
             self.model.config.favorites.clone(),
+            self.model.palettes.version,
         );
         screen::paint(ui, &mut kit, &mut self.model, scene);
         if before
             != (
                 self.model.site.id.clone(),
                 self.model.config.favorites.clone(),
+                self.model.palettes.version,
             )
         {
             self.save_config();
+        }
+        if let Some((_, until)) = &self.model.notice {
+            if now >= *until {
+                self.model.notice = None;
+                ctx.request_repaint();
+            } else {
+                ctx.request_repaint_after(std::time::Duration::from_secs_f64(until - now));
+            }
         }
     }
 

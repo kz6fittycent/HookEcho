@@ -85,6 +85,58 @@ impl Field {
     pub fn value(&self, raw: u16) -> Option<f32> {
         (raw > 1).then(|| (raw as f32 - self.offset) / self.scale)
     }
+
+    /// Gates whose decoded value passes `keep` (range-folded and
+    /// below-threshold gates never do). `keep` runs once per distinct raw
+    /// value, not per gate.
+    pub fn count_values(&self, keep: impl Fn(f32) -> bool) -> usize {
+        self.raw
+            .histogram()
+            .iter()
+            .enumerate()
+            .filter(|&(raw, &n)| n > 0 && self.value(raw as u16).is_some_and(&keep))
+            .map(|(_, &n)| n as usize)
+            .sum()
+    }
+
+    /// Area (km²) of gates passing `keep` in runs of at least `min_run`
+    /// consecutive gates along a radial: echoes, not isolated speckle.
+    /// Area, not count, because a gate near the radar covers far less
+    /// ground than one far away. `keep` runs once per distinct raw value.
+    pub fn echo_area_km2(
+        &self,
+        keep: impl Fn(f32) -> bool,
+        min_run: usize,
+        azimuth_spacing_deg: f32,
+    ) -> f64 {
+        let pass: Vec<bool> = self
+            .raw
+            .histogram()
+            .iter()
+            .enumerate()
+            .map(|(raw, &n)| n > 0 && self.value(raw as u16).is_some_and(&keep))
+            .collect();
+        let width = (azimuth_spacing_deg as f64).to_radians() * self.gate_km as f64;
+        let area = |g: usize| (self.first_gate_km as f64 + g as f64 * self.gate_km as f64) * width;
+        let mut total = 0.0;
+        for r in 0..self.radials() {
+            let (mut start, mut run) = (0, 0);
+            for g in 0..=self.gates {
+                if g < self.gates && pass[self.raw_at(r, g) as usize] {
+                    if run == 0 {
+                        start = g;
+                    }
+                    run += 1;
+                    continue;
+                }
+                if run >= min_run {
+                    total += (start..start + run).map(area).sum::<f64>();
+                }
+                run = 0;
+            }
+        }
+        total
+    }
 }
 
 /// Operating mode implied by a VCP number. Clear-air VCPs scan slowly for
@@ -260,4 +312,38 @@ fn field(radials: &[Radial], m: Moment) -> Option<Field> {
         offset: first.offset,
         raw,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::moment::RawGates;
+
+    #[test]
+    fn count_values_skips_threshold_and_folded() {
+        // value = (raw - 66) / 2: raw 86 → 10 dBZ, raw 106 → 20 dBZ.
+        let f = Field {
+            gates: 3,
+            first_gate_km: 2.0,
+            gate_km: 0.25,
+            scale: 2.0,
+            offset: 66.0,
+            raw: RawGates::U8(vec![0, 1, 86, 106, 106, 70]),
+        };
+        assert_eq!(f.count_values(|v| v >= 10.0), 3);
+        assert_eq!(f.count_values(|_| true), 4, "raw 0 and 1 are never values");
+        // Radial 1 is [106, 106, 70] (20, 20, 2 dBZ) at 2, 2.25, 2.5 km.
+        // With 1° radials a gate covers range × 1° × 0.25 km.
+        let w = 1f64.to_radians() * 0.25;
+        let near = |a: f64, b: f64| (a - b).abs() < 1e-9;
+        assert!(near(
+            f.echo_area_km2(|v| v >= 10.0, 2, 1.0),
+            (2.0 + 2.25) * w
+        ));
+        assert_eq!(f.echo_area_km2(|v| v >= 10.0, 3, 1.0), 0.0);
+        assert!(near(
+            f.echo_area_km2(|_| true, 3, 1.0),
+            (2.0 + 2.25 + 2.5) * w
+        ));
+    }
 }

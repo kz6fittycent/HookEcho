@@ -43,6 +43,8 @@ apps:
       - opengl
       - network
       - location-observe
+      # Reading imported color tables (.pal) the user drops on the window.
+      - home
 
 parts:
   # The core24 rust plugin's own rustup build snap isn't on the PATH its

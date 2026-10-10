@@ -2,6 +2,7 @@
 //! keys fall back to defaults so old files never break newer versions.
 
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::path::Path;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
@@ -30,6 +31,12 @@ pub struct Config {
     /// Last viewed site; the app reopens on it.
     pub site: Option<String>,
     pub favorites: Vec<String>,
+    /// Frames in the loop, including the live one (10, 30 or 50).
+    pub loop_frames: usize,
+    /// Loop speed multiplier (0.5, 1 or 2).
+    pub loop_speed: f32,
+    /// Chosen palette per product (product code, e.g. "REF" → palette name).
+    pub palettes: BTreeMap<String, String>,
 }
 
 impl Default for Config {
@@ -40,6 +47,9 @@ impl Default for Config {
             reduced_motion: false,
             site: None,
             favorites: Vec::new(),
+            loop_frames: 10,
+            loop_speed: 1.0,
+            palettes: BTreeMap::new(),
         }
     }
 }

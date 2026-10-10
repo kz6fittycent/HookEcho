@@ -21,6 +21,10 @@ pub mod space {
 }
 
 pub mod radius {
+    /// Timeline track and ticks.
+    pub const HAIR: u8 = 1;
+    /// Timeline playhead.
+    pub const XS: u8 = 2;
     pub const SM: u8 = 8;
     pub const MD: u8 = 12;
     pub const LG: u8 = 16;
@@ -35,6 +39,10 @@ pub mod size {
     pub const TIMELINE_MAX_W: f32 = 720.0;
     pub const LEGEND_W: f32 = 248.0;
     pub const LEGEND_H: f32 = 60.0;
+    /// Notice pill (e.g. "Added color palette ...").
+    pub const NOTICE_H: f32 = 36.0;
+    /// Palette picker: the preview bar under each palette's name.
+    pub const PALETTE_PREVIEW_H: f32 = 6.0;
     pub const LEGEND_BAR_H: f32 = 8.0;
     pub const STATUS_DOT: f32 = 7.0;
     pub const COMPACT_BREAKPOINT: f32 = 1000.0;
@@ -45,6 +53,12 @@ pub mod size {
     pub const FIELD_H: f32 = 40.0;
     pub const INSPECTOR_W: f32 = 212.0;
     pub const TILT_CELL_W: f32 = 40.0;
+    pub const TILT_CHIP_W: f32 = 56.0;
+    pub const PRODUCT_ROW_H: f32 = 48.0;
+    /// Half the gap between a product's name and its description line.
+    pub const PRODUCT_LINE_GAP: f32 = 8.0;
+    pub const HINT_H: f32 = 22.0;
+    pub const SELECTION_BAR_W: f32 = 3.0;
     pub const TILT_CELL_H: f32 = 30.0;
     pub const KEYCAP_H: f32 = 20.0;
     pub const FOCUS_RING: f32 = 2.0;
@@ -82,6 +96,15 @@ pub mod size {
     pub const LEGEND_STEPS: usize = 96;
     pub const LEGEND_TICKS: f32 = 5.0;
     pub const LEGEND_BAR_RADIUS: u8 = 2;
+    /// Timeline scrubber (DESIGN §3.3).
+    pub const TICK: [f32; 2] = [2.0, 10.0];
+    pub const PLAYHEAD: [f32; 2] = [4.0, 20.0];
+    pub const TRACK_H: f32 = 2.0;
+    pub const TRACK_INSET: f32 = 4.0;
+    pub const LIVE_BUTTON: [f32; 2] = [64.0, 28.0];
+    pub const SPEED_BUTTON: [f32; 2] = [36.0, 28.0];
+    pub const LIVE_DOT_X: f32 = 14.0;
+    pub const LIVE_TEXT_X: f32 = 24.0;
 }
 
 pub mod motion {

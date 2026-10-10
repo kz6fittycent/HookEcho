@@ -106,6 +106,16 @@ impl RawGates {
         }
     }
 
+    /// How many gates hold each raw value (index = raw value).
+    pub fn histogram(&self) -> Vec<u32> {
+        let mut h = vec![0u32; if self.word_size() == 8 { 256 } else { 65536 }];
+        match self {
+            RawGates::U8(v) => v.iter().for_each(|&r| h[r as usize] += 1),
+            RawGates::U16(v) => v.iter().for_each(|&r| h[r as usize] += 1),
+        }
+        h
+    }
+
     pub fn word_size(&self) -> u8 {
         match self {
             RawGates::U8(_) => 8,

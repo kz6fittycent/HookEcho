@@ -91,7 +91,7 @@ pub fn run(dir: &Path) -> Result<(), String> {
             moment: Moment::Reflectivity,
             size: SIZE,
             km_across: 70.0,
-            picker: Picker::Product { row: 4, col: 0 },
+            picker: Picker::Product,
             inspect: false,
         },
         Shot {
@@ -129,6 +129,15 @@ pub fn run(dir: &Path) -> Result<(), String> {
             km_across: 56.0,
             picker: Picker::None,
             inspect: true,
+        },
+        Shot {
+            name: "10-palettes",
+            theme: ThemeKind::Dark,
+            moment: Moment::Reflectivity,
+            size: SIZE,
+            km_across: 70.0,
+            picker: Picker::Palette,
+            inspect: false,
         },
         Shot {
             name: "9-regional",
@@ -180,15 +189,41 @@ pub fn live(file: &Path, site: Option<&str>) -> Result<(), String> {
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(90);
     while std::time::Instant::now() < deadline {
         o.frame(SIZE, 1.0, Vec::new());
-        if let Some(l) = o.app.model.loaded_here() {
+        // Live data, plus a few loop frames (or 45 s of trying).
+        let frames = o.app.model.looping.frames.len();
+        let waited = 90
+            - deadline
+                .saturating_duration_since(std::time::Instant::now())
+                .as_secs();
+        if let Some(l) = o.app.model.loaded_here()
+            && (frames >= 3 || waited > 45)
+        {
             if let Some(i) = &l.live {
                 eprintln!(
-                    "{}: {} chunks, complete {}, {} sweeps",
+                    "{}: {} chunks, complete {}, {} sweeps, {frames} loop frames",
                     i.prefix,
                     i.chunks,
                     i.complete,
                     l.volume.sweeps.len()
                 );
+            }
+            if let Some(i) = o.app.model.current_sweep()
+                && let Some(f) = l.volume.sweeps[i].field(hookecho_core::Moment::Reflectivity)
+            {
+                let p = o
+                    .app
+                    .model
+                    .palettes
+                    .active(&o.app.model.config, hookecho_core::Moment::Reflectivity);
+                eprintln!(
+                    "live sweep: {:.1} km² of reflectivity echo (under {} reads as no rain)",
+                    crate::model::echo_area_km2(&l.volume.sweeps[i], f, p),
+                    crate::model::QUIET_KM2
+                );
+            }
+            // Show a loop frame so the timeline's playhead isn't at live.
+            if frames >= 2 {
+                o.app.model.show_pos(frames - 2);
             }
             o.app.model.camera = Camera::looking_at(
                 o.app.model.site.lat,
