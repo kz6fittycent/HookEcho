@@ -1,0 +1,50 @@
+# cargo-deny policy (KICKOFF §1). Run: cargo deny check
+[graph]
+all-features = false
+# Only the platforms we ship (KICKOFF §8). Other targets (e.g. Android) pull
+# crates such as webpki-root-certs (CDLA-Permissive-2.0) that never reach
+# our binaries; widen this list, and re-check licenses, if a target is added.
+targets = [
+    "x86_64-unknown-linux-gnu",
+    "x86_64-pc-windows-msvc",
+    "aarch64-apple-darwin",
+]
+
+[licenses]
+# KICKOFF §1 allowlist, plus the single owner-approved exception
+# bzip2-1.0.6 (2026-10-09, docs/DECODER_PLAN.md): every bzip2 decoder,
+# needed for Level II, carries it.
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "MPL-2.0",
+    "OFL-1.1",
+    "Unicode-3.0",
+    "GPL-3.0-or-later",
+    "bzip2-1.0.6",
+]
+confidence-threshold = 0.9
+# OFL-1.1 covers bundled fonts, not crates, so it is never "encountered".
+unused-allowed-license = "allow"
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+allow-wildcard-paths = true
+deny = [
+    # OpenSSL: KICKOFF §2 requires rustls.
+    { crate = "openssl-sys" },
+    # Carries license terms outside the allowlist; use rustls' ring provider.
+    { crate = "aws-lc-sys" },
+]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+
+[advisories]
+yanked = "deny"

@@ -1,0 +1,46 @@
+[workspace]
+resolver = "3"
+members = ["crates/hookecho-core", "crates/hookecho-render", "crates/hookecho-app", "crates/hookecho-data"]
+exclude = ["prototype"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/kz6fittycent/HookEcho"
+rust-version = "1.99"
+
+[workspace.dependencies]
+hookecho-core = { path = "crates/hookecho-core" }
+hookecho-render = { path = "crates/hookecho-render" }
+
+# Level II decoding (see docs/DECODER_PLAN.md). Exact pins: these are release candidates.
+nexrad-model = { version = "=1.0.0-rc.2", default-features = false }
+nexrad-data = { version = "=1.0.0-rc.7", default-features = false, features = ["nexrad-model"] }
+
+eframe = { version = "=0.36.2", default-features = false, features = ["wgpu", "wayland", "x11", "accesskit"] }
+egui-wgpu = "=0.36.2"
+wgpu = "30.0.1"
+glyphon = "0.12.0"
+lyon = "1.0.19"
+bytemuck = { version = "1.25", features = ["derive"] }
+pollster = "1.0"
+image = { version = "0.25.10", default-features = false, features = ["png"] }
+resvg = "0.48.1"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.9.8"
+directories = "6.0.0"
+thiserror = "2.0"
+flate2 = "1.1"
+sha2 = "0.11"
+
+[profile.release]
+lto = "thin"
+codegen-units = 4
+strip = "symbols"
+
+[profile.bench-release]
+inherits = "release"
+debug = 1
+strip = "none"

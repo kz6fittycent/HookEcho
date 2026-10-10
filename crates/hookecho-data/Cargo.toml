@@ -1,0 +1,17 @@
+[package]
+name = "hookecho-data"
+description = "Build-time generator for Hook Echo's bundled site list and basemap"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+hookecho-core.workspace = true
+# rustls with the ring provider only: aws-lc-sys carries licenses outside our allowlist.
+reqwest = { version = "0.13.5", default-features = false, features = ["blocking", "rustls-no-provider"] }
+rustls = { version = "0.23.45", default-features = false, features = ["ring", "std", "tls12"] }
+shapefile = "0.9.0"
+zip = { version = "9.0.0", default-features = false, features = ["deflate"] }

@@ -9,6 +9,8 @@ This file gives a public source for every data format, algorithm and bundled ass
 | NEXRAD Level II (Archive II, Message 31, Message 1 legacy) | NOAA ROC, *Interface Control Document for the RDA/RPG*, ICD 2620002 (latest revision), <https://www.roc.noaa.gov/interface-control-documents.php> | via `nexrad-decode` (MIT) |
 | NEXRAD Level II real-time chunk layout | Unidata, *NEXRAD Level II real-time data on AWS*, <https://registry.opendata.aws/noaa-nexrad/> and the `unidata-nexrad-level2-chunks` bucket README | via `nexrad-data` (MIT) |
 | NEXRAD Level III products | NOAA ROC, *ICD for the RPG to Class 1 User*, ICD 2620001 | `hookecho-core::level3` (planned) |
+| NEXRAD site list | NOAA NCEI HOMR, *nexrad-stations.txt*, <https://www.ncei.noaa.gov/access/homr/file/nexrad-stations.txt> | `hookecho-data sites` → `crates/hookecho-core/data/sites.tsv` |
+| Archive II file layout (volume header, LDM bzip2 records, uncompressed 2432-byte segments) | NOAA ROC ICD 2620010 (Archive II/User); cross-checked against MetPy `metpy/io/nexrad.py` | `tools/trim_level2.py` |
 | GRLevelX color table (`.pal`) | Gibson Ridge Software, *Color Table File Specification* (public), plus the extensions publicly documented in the commercial viewer's help center (Color4, SolidColor4, masks, indexed `???` units) | planned (Phase 2) |
 
 ## Algorithms
@@ -19,6 +21,12 @@ This file gives a public source for every data format, algorithm and bundled ass
 | Storm-relative velocity (subtract the storm-motion component per azimuth) | NWS JetStream, *Storm Relative Velocity*; publicly described in the commercial viewer's SRV help article | planned (Phase 3) |
 | Gaussian backdrop blur (separable, downsampled) | Standard technique; e.g. Rákos, *Efficient Gaussian blur with linear sampling* (2010) | prototype; `hookecho-render` |
 
+## Verification references
+
+| Item | Source | Used in |
+|---|---|---|
+| Level II gate-by-gate reference | MetPy 1.7.1 (BSD-3-Clause), `Level2File`, via `tools/verify/dump_metpy.py` | `tests/data/*.metpy.json`, `crates/hookecho-core/tests/level2_vs_metpy.rs` |
+
 ## Bundled assets
 
 | Asset | License | Source |
@@ -28,4 +36,5 @@ This file gives a public source for every data format, algorithm and bundled ass
 | Lucide icons | ISC | <https://github.com/lucide-icons/lucide> |
 | US state, county and primary-road boundaries | Public domain (US Census Bureau) | Census Cartographic Boundary Files and TIGER/Line, <https://www.census.gov/geographies/mapping-files.html> |
 | Natural Earth (coastlines, lakes, populated places) | Public domain | <https://www.naturalearthdata.com> |
-| Sample Level II volume KTLX 2013-05-20 20:16:43 UTC | Public domain (NOAA) | `s3://unidata-nexrad-level2/2013/05/20/KTLX/KTLX20130520_201643_V06.gz` |
+| Sample Level II volume KTLX 2013-05-20 20:16:43 UTC (first 3 sweeps, `tests/data/`) | Public domain (NOAA) | `s3://unidata-nexrad-level2/2013/05/20/KTLX/KTLX20130520_201643_V06.gz`, trimmed by `tools/trim_level2.py` |
+| Sample Level II volume KTLX 2024-04-28 03:13:12 UTC (first 3 sweeps, `tests/data/`) | Public domain (NOAA) | `s3://unidata-nexrad-level2/2024/04/28/KTLX/KTLX20240428_031312_V06`, trimmed by `tools/trim_level2.py` |

@@ -2,4 +2,5 @@
 /prototype/target
 /prototype/screenshots
 # Large sample volumes are fetched by assets/samples/fetch.sh, not committed.
-/assets/samples/*.gz
+/assets/samples/*
+!/assets/samples/fetch.sh
