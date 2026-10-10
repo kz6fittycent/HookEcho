@@ -90,13 +90,41 @@ pub fn vcp_is_clear_air(vcp: u16) -> bool {
     matches!(vcp, 31 | 32 | 35)
 }
 
+/// Archive II volume header length (ICD 2620010): "AR2V00xx." + volume
+/// number + date + time + ICAO.
+const VOLUME_HEADER_LEN: usize = 24;
+
 /// Decodes an Archive II volume file (gzip-wrapped or not).
+///
+/// Never panics: input shorter than a volume header is rejected up front
+/// (nexrad-data 1.0.0-rc.7 slices past the header unchecked; found by
+/// fuzzing), and any other panic inside the decoder crates is converted to
+/// an error so a corrupt download can't take the app down.
 pub fn decode_volume(bytes: &[u8]) -> Result<Volume, Error> {
-    let file = nexrad_data::volume::File::new(bytes.to_vec())
-        .decompress()
-        .map_err(|e| Error::Decode(e.to_string()))?;
-    let scan = file.scan().map_err(|e| Error::Decode(e.to_string()))?;
-    Ok(convert(&scan))
+    let gzip = bytes.starts_with(&[0x1f, 0x8b]);
+    if !gzip && bytes.len() < VOLUME_HEADER_LEN {
+        return Err(Error::Decode(format!(
+            "{} bytes is shorter than an Archive II header",
+            bytes.len()
+        )));
+    }
+    std::panic::catch_unwind(|| {
+        let file = nexrad_data::volume::File::new(bytes.to_vec())
+            .decompress()
+            .map_err(|e| Error::Decode(e.to_string()))?;
+        if file.data().len() < VOLUME_HEADER_LEN {
+            return Err(Error::Decode(
+                "decompressed volume shorter than an Archive II header".into(),
+            ));
+        }
+        let scan = file.scan().map_err(|e| Error::Decode(e.to_string()))?;
+        Ok(convert(&scan))
+    })
+    .unwrap_or_else(|_| {
+        Err(Error::Decode(
+            "malformed Level II data (decoder panicked)".into(),
+        ))
+    })
 }
 
 fn convert(scan: &Scan) -> Volume {

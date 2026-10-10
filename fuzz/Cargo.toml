@@ -1,0 +1,34 @@
+[package]
+name = "hookecho-fuzz"
+version = "0.0.0"
+edition = "2024"
+license = "GPL-3.0-or-later"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+# Not a member of the main workspace (needs nightly + libFuzzer).
+[workspace]
+
+[dependencies]
+libfuzzer-sys = "0.4"
+hookecho-core = { path = "../crates/hookecho-core" }
+
+[[bin]]
+name = "level2_decode"
+path = "fuzz_targets/level2_decode.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "basemap_decode"
+path = "fuzz_targets/basemap_decode.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "sites_parse"
+path = "fuzz_targets/sites_parse.rs"
+test = false
+doc = false

@@ -68,6 +68,10 @@ pub enum Error {
     Truncated,
     #[error("bad layer kind {0}")]
     Kind(u8),
+    #[error("coordinate out of range")]
+    Range,
+    #[error("text is not UTF-8")]
+    Utf8,
 }
 
 fn q(v: f64) -> i64 {
@@ -186,14 +190,22 @@ impl<'a> Rd<'a> {
         let (mut a, mut b) = (0i64, 0i64);
         (0..n)
             .map(|_| {
-                a += self.zigzag()?;
-                b += self.zigzag()?;
+                // Checked: hostile input must not overflow, and only real
+                // lat/lon is accepted, which also keeps the f64 conversion
+                // exact so decode/encode round-trips (both found by fuzzing).
+                a = a.checked_add(self.zigzag()?).ok_or(Error::Truncated)?;
+                b = b.checked_add(self.zigzag()?).ok_or(Error::Truncated)?;
+                if a.unsigned_abs() > 90 * Q as u64 || b.unsigned_abs() > 180 * Q as u64 {
+                    return Err(Error::Range);
+                }
                 Ok((a as f64 / Q, b as f64 / Q))
             })
             .collect()
     }
     fn string(&mut self, n: usize) -> Result<String, Error> {
-        Ok(String::from_utf8_lossy(self.take(n)?).into_owned())
+        // Strict: lossy replacement would change lengths and break the
+        // decode/encode round trip (found by fuzzing).
+        String::from_utf8(self.take(n)?.to_vec()).map_err(|_| Error::Utf8)
     }
 }
 
@@ -228,7 +240,7 @@ pub fn decode(bytes: &[u8]) -> Result<Basemap, Error> {
                 let mut prev = 0i64;
                 let indices = (0..r.len()?)
                     .map(|_| {
-                        prev += r.zigzag()?;
+                        prev = prev.checked_add(r.zigzag()?).ok_or(Error::Truncated)?;
                         u32::try_from(prev).map_err(|_| Error::Truncated)
                     })
                     .collect::<Result<Vec<u32>, _>>()?;
@@ -250,8 +262,11 @@ pub fn decode(bytes: &[u8]) -> Result<Basemap, Error> {
             let name = r.string(n)?;
             let n = r.u8()? as usize;
             let state = r.string(n)?;
-            let lat = r.zigzag()? as f64 / Q;
-            let lon = r.zigzag()? as f64 / Q;
+            let (lat, lon) = (r.zigzag()?, r.zigzag()?);
+            if lat.unsigned_abs() > 90 * Q as u64 || lon.unsigned_abs() > 180 * Q as u64 {
+                return Err(Error::Range);
+            }
+            let (lat, lon) = (lat as f64 / Q, lon as f64 / Q);
             Ok(Place {
                 name,
                 state,
