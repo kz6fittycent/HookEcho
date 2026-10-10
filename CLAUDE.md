@@ -55,10 +55,10 @@ assets/                  fonts, icons, sample data (large samples are fetched, n
 Phase 2 done:
 - Real-time chunks from `unidata-nexrad-level2-chunks`, progressive sweeps, offline chunk cache, scan-age status (PR #5).
 - Loop and timeline, plain-language product picker, color palettes and GRLevelX `.pal` import (drag and drop; snap `home` plug), a "little or no rain" notice for clear air (PR #7).
-- Side sheet: Layers / Colors / Settings (branch `phase2/side-sheet`).
+- Side sheet: Layers / Colors / Settings (PR #9).
+- Command palette (Ctrl+K, search button) and the `?` shortcuts sheet (branch `phase2/command-palette`).
 
 Phase 2 still to do:
-- Command palette (Ctrl+K) plus the search button top right; the `?` shortcuts sheet.
 - `.pal` masks and indexed units; removing an imported palette; legend hover value.
 - Separate velocity units; font scale.
 - Mask dual-pol products (CC, ZDR, PHI) where reflectivity or SNR is low.

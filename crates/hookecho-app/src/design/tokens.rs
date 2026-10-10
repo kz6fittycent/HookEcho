@@ -104,6 +104,14 @@ pub mod size {
     pub const TRACK_H: f32 = 2.0;
     pub const TRACK_INSET: f32 = 4.0;
     pub const LIVE_BUTTON: [f32; 2] = [64.0, 28.0];
+    /// Command palette (DESIGN.md §3.8).
+    pub const COMMAND_W: f32 = 560.0;
+    pub const COMMAND_MAX_H: f32 = 480.0;
+    pub const COMMAND_FIELD_H: f32 = 48.0;
+    /// Shortcuts sheet (DESIGN.md §3.9).
+    pub const SHORTCUTS_W: f32 = 640.0;
+    pub const SHORTCUT_KEY_COL: f32 = 64.0;
+    pub const SHORTCUT_ROW_H: f32 = 28.0;
     /// Side sheet (DESIGN.md §3.6).
     pub const SHEET_W: f32 = 360.0;
     pub const SEGMENTED_H: f32 = 32.0;

@@ -222,6 +222,14 @@ pub enum Picker {
     Product,
     /// Color palettes for the product on screen (opened from the legend).
     Palette,
+    /// Command palette (Ctrl+K).
+    Command {
+        query: String,
+        selected: usize,
+        scroll: f32,
+    },
+    /// Keyboard shortcuts sheet (`?`).
+    Shortcuts,
 }
 
 /// Side sheet sections (DESIGN.md §3.6).

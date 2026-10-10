@@ -240,4 +240,57 @@ mod tests {
         click(&mut o, egui::Id::new("sheet-button"));
         assert!(o.app.model.sheet.is_none(), "and closes it");
     }
+
+    fn key(o: &mut Offscreen, key: egui::Key, modifiers: egui::Modifiers) {
+        let ev = |pressed| egui::Event::Key {
+            key,
+            physical_key: None,
+            pressed,
+            repeat: false,
+            modifiers,
+        };
+        o.frame(SIZE, 1.0, vec![ev(true), ev(false)]);
+        o.frame(SIZE, 1.0, Vec::new());
+    }
+
+    #[test]
+    fn command_palette_runs_typed_commands() {
+        let Ok(mut o) = Offscreen::new(None, SIZE) else {
+            eprintln!("no GPU adapter; skipped");
+            return;
+        };
+        o.app.wait_for_data();
+        o.frame(SIZE, 1.0, Vec::new());
+        click(&mut o, egui::Id::new("command-button"));
+        assert!(
+            matches!(o.app.model.picker, Picker::Command { .. }),
+            "button opens it"
+        );
+        o.frame(SIZE, 1.0, vec![egui::Event::Text("velocity".into())]);
+        key(&mut o, egui::Key::Enter, Default::default());
+        assert_eq!(
+            o.app.model.moment,
+            Moment::Velocity,
+            "Enter runs the top match"
+        );
+        assert_eq!(o.app.model.picker, Picker::None, "and closes");
+
+        key(&mut o, egui::Key::K, egui::Modifiers::COMMAND);
+        assert!(
+            matches!(o.app.model.picker, Picker::Command { .. }),
+            "Ctrl+K opens it"
+        );
+        o.frame(SIZE, 1.0, vec![egui::Event::Text("kfws".into())]);
+        key(&mut o, egui::Key::Enter, Default::default());
+        assert_eq!(o.app.model.site.id, "KFWS", "sites by ID");
+
+        key(&mut o, egui::Key::Questionmark, Default::default());
+        assert_eq!(
+            o.app.model.picker,
+            Picker::Shortcuts,
+            "? opens the shortcuts"
+        );
+        key(&mut o, egui::Key::Escape, Default::default());
+        assert_eq!(o.app.model.picker, Picker::None);
+    }
 }
