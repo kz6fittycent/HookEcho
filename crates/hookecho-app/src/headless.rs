@@ -93,7 +93,7 @@ impl Offscreen {
             queue: &self.queue,
         };
         let (app, egui_r) = (&mut self.app, &mut self.egui);
-        let out = self.ctx.run_ui(raw, |ui| app.ui(ui, &gpu, egui_r));
+        let mut out = self.ctx.run_ui(raw, |ui| app.ui(ui, &gpu, egui_r));
         for (id, deltas) in &out.textures_delta.set {
             for d in deltas {
                 self.egui.update_texture(&self.device, &self.queue, *id, d);
@@ -144,6 +144,8 @@ impl Offscreen {
         for id in &out.textures_delta.free {
             self.egui.free_texture(id);
         }
+        // Applied above; egui checks (in debug builds) that deltas aren't dropped unhandled.
+        out.textures_delta.clear();
         target
     }
 
@@ -156,5 +158,61 @@ impl Offscreen {
             t.height(),
             capture::read_rgba8(&self.device, &self.queue, &t),
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::model::Picker;
+    use hookecho_core::Moment;
+
+    const SIZE: [f32; 2] = [1280.0, 800.0];
+
+    /// Clicks the widget `id` drew last frame (press and release in one
+    /// frame: the harness advances time 1 s per frame).
+    fn click(o: &mut Offscreen, id: egui::Id) {
+        let r = o
+            .ctx
+            .read_response(id)
+            .unwrap_or_else(|| panic!("{id:?} not drawn"))
+            .rect;
+        let p = r.center();
+        let ev = |pressed| egui::Event::PointerButton {
+            pos: p,
+            button: egui::PointerButton::Primary,
+            pressed,
+            modifiers: Default::default(),
+        };
+        o.frame(SIZE, 1.0, vec![egui::Event::PointerMoved(p)]);
+        o.frame(SIZE, 1.0, vec![ev(true), ev(false)]);
+        o.frame(SIZE, 1.0, Vec::new());
+    }
+
+    #[test]
+    fn pickers_respond_to_clicks() {
+        let Ok(mut o) = Offscreen::new(None, SIZE) else {
+            eprintln!("no GPU adapter; skipped");
+            return;
+        };
+        o.app.wait_for_data();
+        o.frame(SIZE, 1.0, Vec::new());
+        click(&mut o, egui::Id::new("product-chip"));
+        assert_eq!(o.app.model.picker, Picker::Product, "chip opens the picker");
+        click(&mut o, egui::Id::new(("product", Moment::Velocity.code())));
+        assert_eq!(o.app.model.moment, Moment::Velocity, "row click applies");
+        assert_eq!(o.app.model.picker, Picker::None, "and closes");
+
+        click(&mut o, egui::Id::new("legend"));
+        assert_eq!(o.app.model.picker, Picker::Palette);
+        click(&mut o, egui::Id::new(("palette", "VEL", "Grayscale")));
+        assert_eq!(
+            o.app
+                .model
+                .palettes
+                .active(&o.app.model.config, Moment::Velocity)
+                .name,
+            "Grayscale"
+        );
     }
 }

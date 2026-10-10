@@ -314,6 +314,9 @@ pub fn paint(ui: &mut Ui, kit: &mut Kit, model: &mut Model, scene: egui::Texture
     }
     if let Some((text, _)) = &model.notice {
         notice(kit, &painter, screen, m, text);
+    } else if matches!(model.picker, Picker::None) && model.no_precipitation() {
+        let text = format!("Little or no rain or snow near {} right now", model.site.id);
+        notice(kit, &painter, screen, m, &text);
     }
 }
 

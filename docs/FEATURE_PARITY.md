@@ -219,6 +219,7 @@ Requests users raise against other viewers (mainly [Supercell Wx issues][scwx]) 
 | GRLevelX-style placefiles | [scwx] #614, #88 | P5+ | planned | Big ecosystem for chasers |
 | GeoJSON / KML / shapefile overlays | [scwx] #638, #655, #514 | P5+ | planned | |
 | Vertical cross-section tool | [scwx] #403 | P5+ | planned | We have the full L2 volume on the GPU |
+| Says so when there's little or no precipitation in range (clear air), so a blank map doesn't look broken | Owner feedback (CFT #8) | P2 | done | Under 20 km² of drawn reflectivity in runs of 1 km or more, so clutter speckle doesn't count |
 | Rotational velocity / NROT readout in the inspector | [scwx] #160, #206 | P5+ | planned | |
 | VAD wind profile (VWP) display | [scwx] #383 | P5+ | planned | Level III product 48 |
 | Audible alerts / TTS for new warnings near me; "follow" an alert | [scwx] #352, #637, #617, #581 | P5+ | planned | Local only, no push service |

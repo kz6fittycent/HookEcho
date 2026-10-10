@@ -207,6 +207,20 @@ pub fn live(file: &Path, site: Option<&str>) -> Result<(), String> {
                     l.volume.sweeps.len()
                 );
             }
+            if let Some(i) = o.app.model.current_sweep()
+                && let Some(f) = l.volume.sweeps[i].field(hookecho_core::Moment::Reflectivity)
+            {
+                let p = o
+                    .app
+                    .model
+                    .palettes
+                    .active(&o.app.model.config, hookecho_core::Moment::Reflectivity);
+                eprintln!(
+                    "live sweep: {:.1} km² of reflectivity echo (under {} reads as no rain)",
+                    crate::model::echo_area_km2(&l.volume.sweeps[i], f, p),
+                    crate::model::QUIET_KM2
+                );
+            }
             // Show a loop frame so the timeline's playhead isn't at live.
             if frames >= 2 {
                 o.app.model.show_pos(frames - 2);

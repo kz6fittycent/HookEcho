@@ -210,7 +210,7 @@ pub struct Probe {
     pub height_km: f64,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub enum Picker {
     #[default]
     None,
@@ -263,6 +263,8 @@ pub struct Model {
     pub palettes: crate::palettes::Library,
     /// A short message and the UI time (s) it disappears.
     pub notice: Option<(String, f64)>,
+    /// Cached `no_precipitation` answer, keyed by (generation, sweep, palette version).
+    quiet: Option<((u64, usize, u64), bool)>,
     generation: u64,
 }
 
@@ -283,9 +285,25 @@ pub struct Loop {
 /// Seconds per frame at 1× speed; the newest frame holds three times longer
 /// so the loop reads as "...and this is now".
 pub const FRAME_DWELL_S: f64 = 0.45;
+pub const LIVE_DWELL_FACTOR: f64 = 3.0;
+
 /// How long a notice stays up, seconds.
 pub const NOTICE_S: f64 = 4.0;
-pub const LIVE_DWELL_FACTOR: f64 = 3.0;
+
+/// Less echo than this (km², about a 5 km shower) reads as "little or no
+/// rain or snow".
+pub const QUIET_KM2: f64 = 20.0;
+
+/// Area the palette clearly draws, in runs of at least 1 km (four
+/// quarter-km gates) along a radial, so clear-air speckle doesn't count.
+pub fn echo_area_km2(
+    sweep: &Sweep,
+    f: &hookecho_core::level2::Field,
+    p: &hookecho_render::palette::Palette,
+) -> f64 {
+    let spacing = sweep.radials.first().map_or(1.0, |r| r.azimuth_spacing_deg);
+    f.echo_area_km2(|v| p.sample(v)[3] >= 128, 4, spacing)
+}
 
 /// GPU sweeps kept resident (Phase 2 replaces this with the frame LRU).
 pub const UPLOAD_CACHE: usize = 24;
@@ -314,6 +332,7 @@ impl Model {
             looping: Loop::default(),
             palettes: crate::palettes::Library::load(None),
             notice: None,
+            quiet: None,
             generation: 0,
         }
     }
@@ -479,6 +498,38 @@ impl Model {
     }
 
     /// The sweep index currently shown, if any.
+    /// True when the shown live reflectivity sweep is complete and has
+    /// (almost) nothing the palette draws, as in clear air. A blank map
+    /// otherwise looks broken. The bar is low: a single small shower is
+    /// a few hundred gates, so it never hides real weather.
+    pub fn no_precipitation(&mut self) -> bool {
+        if self.moment != Moment::Reflectivity {
+            return false;
+        }
+        let Some(i) = self.current_sweep() else {
+            return false;
+        };
+        let version = self.palettes.version;
+        let Some(l) = self.shown() else { return false };
+        if l.archived || l.live.is_none() {
+            return false;
+        }
+        let key = (l.generation, i, version);
+        if let Some((k, v)) = self.quiet
+            && k == key
+        {
+            return v;
+        }
+        let sweep = &l.volume.sweeps[i];
+        let palette = self.palettes.active(&self.config, Moment::Reflectivity);
+        let quiet = sweep.complete
+            && sweep
+                .field(Moment::Reflectivity)
+                .is_some_and(|f| echo_area_km2(sweep, f, palette) < QUIET_KM2);
+        self.quiet = Some((key, quiet));
+        quiet
+    }
+
     pub fn current_sweep(&self) -> Option<usize> {
         let l = self.shown()?;
         l.sweep_for(self.moment, self.tilt_deg).or_else(|| {
