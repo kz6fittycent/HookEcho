@@ -53,6 +53,13 @@ fn main() -> ExitCode {
         Ok(())
     } else if has("--smoke-test") {
         smoke::run()
+    } else if has("--live-screenshot") {
+        let i = args.iter().position(|a| a == "--live-screenshot").unwrap();
+        let file = args
+            .get(i + 1)
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("live.png"));
+        shots::live(&file, args.get(i + 2).map(String::as_str))
     } else if has("--screenshots") {
         shots::run(
             &arg_value(&args, "--screenshots").unwrap_or_else(|| PathBuf::from("screenshots")),

@@ -16,6 +16,9 @@ pub struct Volume {
     /// ICAO identifier from the radial data, e.g. "KTLX", when present.
     pub site: Option<String>,
     pub vcp: u16,
+    /// Commanded elevation of every cut in the VCP, in scan order, so a
+    /// partial volume knows which tilts are still to come.
+    pub vcp_cuts_deg: Vec<f32>,
     pub sweeps: Vec<Sweep>,
 }
 
@@ -176,6 +179,7 @@ fn convert(scan: &Scan) -> Volume {
     Volume {
         site: scan.site().map(|s| s.identifier_string()),
         vcp: scan.coverage_pattern_number().number(),
+        vcp_cuts_deg: cuts,
         sweeps,
     }
 }

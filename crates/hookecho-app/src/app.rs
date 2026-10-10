@@ -20,8 +20,24 @@ pub struct Gpu<'a> {
     pub queue: &'a wgpu::Queue,
 }
 
+/// Where radar data comes from.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Source {
+    /// The bundled sample volume, offline and deterministic (screenshots,
+    /// smoke test, bench).
+    Sample,
+    /// NOAA's real-time feed (the windowed app).
+    Live,
+}
+
+/// Lets the feed thread wake the UI once egui's context exists.
+type Waker = std::sync::Arc<std::sync::OnceLock<egui::Context>>;
+
 pub struct App {
     pub model: Model,
+    feed: Option<hookecho_core::live::Feed>,
+    waker: Waker,
+    watching: Option<String>,
     pub renderer: Renderer,
     icons: IconCache,
     textures: Option<(TextureId, TextureId)>,
@@ -35,7 +51,7 @@ pub struct App {
 impl App {
     /// Builds the app on an existing device. Decoding of the bundled sample
     /// starts on a background thread; the map is usable immediately.
-    pub fn new(gpu: &Gpu, dirs: Option<Dirs>, size: [f64; 2]) -> App {
+    pub fn new(gpu: &Gpu, dirs: Option<Dirs>, size: [f64; 2], source: Source) -> App {
         let config = dirs
             .as_ref()
             .map(|d| Config::load(&d.config_file()))
@@ -50,22 +66,44 @@ impl App {
         let renderer = Renderer::new(gpu.device, gpu.queue, &map, design::map_label_fonts());
         drop(map);
         crate::bench::trace("renderer");
-        let (tx, rx) = mpsc::channel();
-        std::thread::Builder::new()
-            .name("decode".into())
-            .spawn(move || {
-                let _ = tx.send(
-                    hookecho_core::level2::decode_volume(assets::SAMPLE_VOLUME)
-                        .map_err(|e| e.to_string()),
+        let waker: Waker = Default::default();
+        let (pending, feed) = match source {
+            Source::Sample => {
+                let (tx, rx) = mpsc::channel();
+                std::thread::Builder::new()
+                    .name("decode".into())
+                    .spawn(move || {
+                        let _ = tx.send(
+                            hookecho_core::level2::decode_volume(assets::SAMPLE_VOLUME)
+                                .map_err(|e| e.to_string()),
+                        );
+                    })
+                    .expect("spawn decoder");
+                (Some(rx), None)
+            }
+            Source::Live => {
+                let cache = dirs.as_ref().map_or_else(
+                    || std::env::temp_dir().join("hookecho"),
+                    |d| d.cache.clone(),
                 );
-            })
-            .expect("spawn decoder");
+                let w = waker.clone();
+                let wake = std::sync::Arc::new(move || {
+                    if let Some(ctx) = w.get() {
+                        ctx.request_repaint();
+                    }
+                });
+                (None, Some(hookecho_core::live::Feed::start(cache, wake)))
+            }
+        };
         App {
             model: Model::new(config, initial, size),
+            feed,
+            waker,
+            watching: None,
             renderer,
             icons: IconCache::default(),
             textures: None,
-            pending: Some(rx),
+            pending,
             dirs,
             theme_override: None,
             first_radar_frame: false,
@@ -121,9 +159,35 @@ impl App {
 
     /// One frame: input → scene render → UI. `egui_renderer` is where the
     /// scene textures get registered for the UI to draw.
+    /// Follows the selected site and takes the feed's news.
+    fn poll_feed(&mut self, ctx: &egui::Context) {
+        let Some(feed) = &self.feed else { return };
+        let _ = self.waker.set(ctx.clone());
+        if self.watching.as_deref() != Some(self.model.site.id.as_str()) {
+            feed.watch(&self.model.site.id);
+            self.watching = Some(self.model.site.id.clone());
+            self.model.feed = Some(hookecho_core::live::FeedState::Connecting);
+        }
+        while let Ok(e) = feed.events.try_recv() {
+            match e {
+                hookecho_core::live::FeedEvent::Update(u) => self.model.accept_live(u),
+                hookecho_core::live::FeedEvent::State { site, state }
+                    if site == self.model.site.id =>
+                {
+                    self.model.feed = Some(state);
+                }
+                _ => {}
+            }
+        }
+        // The scan-age label is minute-grained: repaint at most every 30 s
+        // when nothing else happens (KICKOFF §4: ~0% idle CPU).
+        ctx.request_repaint_after(std::time::Duration::from_secs(30));
+    }
+
     pub fn ui(&mut self, ui: &mut egui::Ui, gpu: &Gpu, egui_renderer: &mut egui_wgpu::Renderer) {
         self.poll_data();
         let ctx = ui.ctx().clone();
+        self.poll_feed(&ctx);
         let screen = ctx.content_rect();
         let theme = Theme::get(self.theme_kind(&ctx));
         screen::keys(ui, &mut self.model, screen);
@@ -140,22 +204,30 @@ impl App {
         ];
         let changed = self.renderer.ensure_targets(gpu.device, size_px);
         self.register_textures(gpu, egui_renderer, changed);
-        let radar = match self.model.current_sweep() {
-            Some(i) => {
-                let m = self.model.moment;
-                model::ensure_upload(
+        // Radar layers: the previous volume's sweep under a sweep that's
+        // still arriving, so new data sweeps over old instead of a blank wedge.
+        let site = (self.model.site.lat, self.model.site.lon);
+        let m = self.model.moment;
+        let mut radar = Vec::new();
+        for (which, sweep) in [
+            (model::Which::Previous, self.model.underlay_sweep()),
+            (model::Which::Current, self.model.current_sweep()),
+        ] {
+            if let Some(i) = sweep
+                && let Some(id) = model::ensure_upload(
                     &mut self.model,
                     &mut self.renderer,
                     gpu.device,
                     gpu.queue,
+                    which,
                     i,
                     m,
                 )
-                .map(|id| (id, (self.model.site.lat, self.model.site.lon)))
+            {
+                radar.push((id, site));
             }
-            None => None,
-        };
-        if radar.is_some() {
+        }
+        if !radar.is_empty() {
             self.first_radar_frame = true;
         }
         let style = theme.scene_style();
@@ -169,7 +241,7 @@ impl App {
                 size_px,
                 ppp,
                 camera: self.model.camera,
-                radar,
+                radar: &radar,
                 style: &style,
                 label_exclusions: &exclusions,
             },
@@ -257,6 +329,7 @@ impl eframe::App for Windowed {
                 &gpu,
                 Dirs::resolve(),
                 [r.width() as f64, r.height() as f64],
+                Source::Live,
             ));
         }
         let app = self.app.as_mut().unwrap();

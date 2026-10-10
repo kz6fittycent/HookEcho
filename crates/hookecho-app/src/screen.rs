@@ -363,20 +363,16 @@ fn site_chip(
             size::CHIP_TEXT_GAP,
         ),
     ];
-    let (status, dot) = match model.loaded_here() {
-        Some(l) if l.archived => {
-            let mode = if hookecho_core::level2::vcp_is_clear_air(l.volume.vcp) {
-                "Clear air"
-            } else {
-                "Precipitation"
-            };
-            (
-                format!("Archived scan · VCP {} · {mode}", l.volume.vcp),
-                t.accent,
-            )
-        }
-        Some(_) => ("Live".to_string(), t.status_fresh),
-        None => ("No data loaded".to_string(), t.text_tertiary),
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_millis() as i64);
+    let (status, kind) = model.status_line(now_ms);
+    let dot = match kind {
+        model::StatusKind::Fresh => t.status_fresh,
+        model::StatusKind::Aging => t.status_aging,
+        model::StatusKind::Stale => t.status_stale,
+        model::StatusKind::Archive => t.accent,
+        model::StatusKind::Muted => t.text_tertiary,
     };
     let line2 = vec![(
         status,
@@ -667,8 +663,21 @@ fn scan_time(
 ) {
     let t = kit.theme.clone();
     let Some(l) = model.loaded_here() else { return };
-    let Some(ms) = l.time_ms() else { return };
-    let text = model::archive_time(ms);
+    // The time of the sweep on screen (live: its last radial, local time;
+    // archive: the scan start, explicit UTC date).
+    let sweep_end = model
+        .current_sweep()
+        .and_then(|i| l.volume.sweeps[i].time_range_ms())
+        .map(|r| r.1);
+    let text = if l.archived {
+        let Some(ms) = l.time_ms() else { return };
+        model::archive_time(ms)
+    } else {
+        let Some(ms) = sweep_end.or(l.newest_ms()) else {
+            return;
+        };
+        model::local_time(ms)
+    };
     let g = kit.galley(painter, text.clone(), Type::LabelTab, t.accent);
     let w = space::S3 + size::ICON_SM + space::S2 + g.size().x + space::S4;
     let h = size::TIMELINE_H - space::S2;

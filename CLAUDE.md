@@ -45,21 +45,33 @@ assets/                  fonts, icons, sample data (large samples are fetched, n
 
 ## Status (keep this current)
 
-**Phase 1 is complete locally (2026-10-10), except the snap build and GPU test, which are waiting on CI.** Nothing has been pushed, and the repo has no GitHub remote yet.
+**Phase 1 is complete (2026-10-10).** Public repo: https://github.com/kz6fittycent/HookEcho. CI is green on `main` (PR #3 merged as `fdffb93`).
 
-Phase 0 was approved: design, the `bzip2-1.0.6` exception, and KDP from Level III. (`BSL-1.0` was approved on 2026-10-10, then dropped with Windows the same day.)
+- Phase 0 was approved: design, the `bzip2-1.0.6` exception, and KDP from Level III.
+- `BSL-1.0` was approved on 2026-10-10, then dropped the same day along with Windows.
+- **Linux only** (owner, 2026-10-10). The Windows/macOS test releases, their issues, screenshots and the `desktop-testing` label were all removed from GitHub.
 
-Phase 1 checklist:
-- [x] Read every Desktop-Scriptures workflow and comment. The lessons are in `docs/CI_NOTES.md`.
-- [x] Workspace; cargo-deny (`deny.toml`, scoped to shipping targets; `ttf-parser` advisory ignored with a reason)
-- [x] hookecho-core: Level II for all moments, matching MetPy exactly; fuzzed (`fuzz/`, regressions in `tests/data/fuzz-regressions/`)
-- [x] hookecho-data: `sites` and `basemap`
-- [x] hookecho-render, hookecho-app (main screen, pickers, inspector, `--smoke-test`, `--screenshots`, `--bench`)
-- [x] THIRD_PARTY_LICENSES.md (`scripts/gen-licenses.sh`), `bench/baseline.json` (RTX 2080 and llvmpipe on the dev machine)
-- [x] `snap/snapcraft.yaml`, six workflows, `packaging/`, README with the owner's one-time setup
-- [x] FEATURE_PARITY.md updated for Phase 1
-- [ ] **Snap build and strict-install GPU test (Vulkan + GL fallback): deferred to CI** (owner's choice). The local build is blocked because Docker's iptables `FORWARD DROP` cuts off LXD's network. The owner declined the DOCKER-USER rule change. Do this once the repo is on GitHub.
-- [ ] After the first green CI run: add the CI adapter's `bench-result.json` to `bench/baseline.json`.
+Phase 1 results:
+- Level II decoding matches MetPy exactly. The fuzz targets run clean (4 bugs found and fixed). The pinned toolchain is `rust-toolchain.toml` (1.99).
+- Snap: 24 MB, review-tools pass, all linters clean. It gets Rust through a `rust-deps` part with `rust-channel: none`; the core24 rust plugin's own rustup handling is broken for us.
+- **Strict install, tested 2026-10-10 on the dev machine with a CI-built snap:**
+  - Vulkan on the RTX 2080: OK, windowed and offscreen.
+  - llvmpipe (snap Mesa): OK.
+  - GL through Mesa EGL: OK, windowed and offscreen.
+  - GL through NVIDIA's EGL driver: fails ("gl not compatible with provided surface"), in and out of the snap. Harmless, since NVIDIA always has Vulkan and wgpu picks it first.
+  - The local `snapcraft pack` is blocked by Docker's iptables `FORWARD DROP` (no LXD network). The owner declined the firewall change, so test PR snaps from the `hookecho-snap` workflow artifact with `snap install --dangerous`.
+- Bench baselines: dev machine (median of 3) and GitHub runner `llvmpipe (LLVM 20.1.2)` (worst of 4, because runners vary 5–14%).
+
+Owner to-do (README "One-time setup"):
+- `snapcraft register hookecho`
+- the `SNAPCRAFT_STORE_CREDENTIALS` secret
+- the `promote-stable` environment
+
+Until those exist, call-for-testing fails at the upload step, which is expected.
+
+Next: **Phase 2** (real-time chunks, progressive sweeps, loop, palettes and `.pal` import, command palette, side sheet, themes, shortcuts). Per KICKOFF, start by sending the owner the Phase 1 end-of-phase screenshots.
+
+Working practice: iterate on branches with PRs. On a PR only Snap Builds runs; pushes to `main` trigger the candidate pipeline. **Ask before pushing.**
 
 Phase 2 follow-ups found during the Phase 1 review:
 - Mask dual-pol products (CC, ZDR, PHI) where reflectivity or SNR is low; clear-air noise is chaotic on CC.
