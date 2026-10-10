@@ -48,7 +48,9 @@ pub struct Frame<'a> {
     pub size_px: [u32; 2],
     pub ppp: f32,
     pub camera: Camera,
-    pub radar: Option<(SweepId, (f64, f64))>,
+    /// Radar layers drawn bottom to top (a partial live sweep goes over the
+    /// previous complete one), each with its site (lat, lon).
+    pub radar: &'a [(SweepId, (f64, f64))],
     pub style: &'a SceneStyle,
     /// Screen areas (logical px, [x0, y0, x1, y1]) kept free of labels.
     pub label_exclusions: &'a [[f32; 4]],
@@ -648,9 +650,10 @@ impl Renderer {
                 queue.write_buffer(&l.uniform, 0, bytemuck::bytes_of(&u));
             }
         }
-        if let Some((id, site)) = f.radar
-            && let Some(s) = self.sweeps.get(&id)
-        {
+        for &(id, site) in f.radar {
+            let Some(s) = self.sweeps.get(&id) else {
+                continue;
+            };
             let lut = &self.luts[&s.moment];
             let rm = to_mercator(site.0, site.1);
             let rp = to_px(rm);
@@ -741,7 +744,7 @@ impl Renderer {
             for l in self.layers.iter().filter(|l| over(&l.name) == Some(false)) {
                 draw(&mut pass, l);
             }
-            if let Some(s) = f.radar.and_then(|(id, _)| self.sweeps.get(&id)) {
+            for s in f.radar.iter().filter_map(|(id, _)| self.sweeps.get(id)) {
                 pass.set_pipeline(&self.radar_pipe);
                 pass.set_bind_group(0, &s.bind, &[]);
                 pass.draw(0..3, 0..1);

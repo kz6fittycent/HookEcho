@@ -163,3 +163,53 @@ pub fn run(dir: &Path) -> Result<(), String> {
     }
     Ok(())
 }
+
+/// `--live-screenshot FILE [SITE]` (developer check): the real live feed,
+/// offscreen. Waits up to 90 s for network data, then saves one PNG.
+pub fn live(file: &Path, site: Option<&str>) -> Result<(), String> {
+    let dir = std::env::temp_dir().join(format!("hookecho-live-{}", std::process::id()));
+    let dirs = hookecho_core::paths::Dirs {
+        config: dir.join("config"),
+        cache: dir.join("cache"),
+    };
+    let mut o = Offscreen::with_source(Some(dirs), SIZE, crate::app::Source::Live)?;
+    o.app.model.reduced_motion = true;
+    if let Some(s) = site.and_then(hookecho_core::sites::by_id) {
+        o.app.model.select_site(s, [SIZE[0] as f64, SIZE[1] as f64]);
+    }
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(90);
+    while std::time::Instant::now() < deadline {
+        o.frame(SIZE, 1.0, Vec::new());
+        if let Some(l) = o.app.model.loaded_here() {
+            if let Some(i) = &l.live {
+                eprintln!(
+                    "{}: {} chunks, complete {}, {} sweeps",
+                    i.prefix,
+                    i.chunks,
+                    i.complete,
+                    l.volume.sweeps.len()
+                );
+            }
+            o.app.model.camera = Camera::looking_at(
+                o.app.model.site.lat,
+                o.app.model.site.lon,
+                460.0,
+                SIZE[0] as f64,
+            );
+            o.app.model.motion.zoom_target = o.app.model.camera.scale;
+            let (w, h, px) = o.capture(SIZE, PPP);
+            image::RgbaImage::from_raw(w, h, px)
+                .ok_or("bad image")?
+                .save(file)
+                .map_err(|e| e.to_string())?;
+            println!("wrote {}", file.display());
+            let _ = std::fs::remove_dir_all(&dir);
+            return Ok(());
+        }
+        std::thread::sleep(std::time::Duration::from_millis(250));
+    }
+    Err(format!(
+        "no live data within 90 s (feed state {:?})",
+        o.app.model.feed
+    ))
+}

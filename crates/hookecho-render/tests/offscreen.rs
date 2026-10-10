@@ -70,7 +70,7 @@ fn renders_moore_sweep_offscreen() {
             size_px: size,
             ppp: 1.0,
             camera,
-            radar: Some((id, ktlx)),
+            radar: &[(id, ktlx)],
             style: &s,
             label_exclusions: &[],
         },

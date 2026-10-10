@@ -22,6 +22,14 @@ pub struct Offscreen {
 
 impl Offscreen {
     pub fn new(dirs: Option<Dirs>, size_pts: [f32; 2]) -> Result<Offscreen, String> {
+        Self::with_source(dirs, size_pts, crate::app::Source::Sample)
+    }
+
+    pub fn with_source(
+        dirs: Option<Dirs>,
+        size_pts: [f32; 2],
+        source: crate::app::Source,
+    ) -> Result<Offscreen, String> {
         crate::bench::trace("process");
         let (adapter, device, queue) = capture::headless_device()?;
         crate::bench::trace("gpu device");
@@ -36,6 +44,7 @@ impl Offscreen {
             },
             dirs,
             [size_pts[0] as f64, size_pts[1] as f64],
+            source,
         );
         Ok(Offscreen {
             adapter,

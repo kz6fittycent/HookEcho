@@ -7,7 +7,8 @@ This file gives a public source for every data format, algorithm and bundled ass
 | Item | Source | Used in |
 |---|---|---|
 | NEXRAD Level II (Archive II, Message 31, Message 1 legacy) | NOAA ROC, *Interface Control Document for the RDA/RPG*, ICD 2620002 (latest revision), <https://www.roc.noaa.gov/interface-control-documents.php> | via `nexrad-decode` (MIT) |
-| NEXRAD Level II real-time chunk layout | Unidata, *NEXRAD Level II real-time data on AWS*, <https://registry.opendata.aws/noaa-nexrad/> and the `unidata-nexrad-level2-chunks` bucket README | via `nexrad-data` (MIT) |
+| NEXRAD Level II real-time chunk layout (`SITE/vol/YYYYMMDD-HHMMSS-seq-S/I/E`, volumes 1–999 in a ring; S = volume header + metadata record, I/E = one LDM record) | Unidata, *NEXRAD Level II real-time data on AWS*, <https://registry.opendata.aws/noaa-nexrad/>; verified against the live bucket 2026-10-10 | `hookecho-core::realtime`, `hookecho-core::live` |
+| S3 ListObjectsV2 (anonymous) | AWS S3 API reference, *ListObjectsV2*, <https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectsV2.html> | `hookecho-core::s3` |
 | NEXRAD Level III products | NOAA ROC, *ICD for the RPG to Class 1 User*, ICD 2620001 | `hookecho-core::level3` (planned) |
 | NEXRAD site list | NOAA NCEI HOMR, *nexrad-stations.txt*, <https://www.ncei.noaa.gov/access/homr/file/nexrad-stations.txt> | `hookecho-data sites` → `crates/hookecho-core/data/sites.tsv` |
 | Archive II file layout (volume header, LDM bzip2 records, uncompressed 2432-byte segments) | NOAA ROC ICD 2620010 (Archive II/User); cross-checked against MetPy `metpy/io/nexrad.py` | `tools/trim_level2.py` |
