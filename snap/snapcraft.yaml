@@ -65,6 +65,11 @@ parts:
     after: [rust-deps]
     plugin: rust
     source: .
+    # "none": the plugin runs no rustup commands of its own. They'd run in
+    # the pull step, which happens for every part before rust-deps is built.
+    # cargo comes from ~/.cargo/bin (rust-deps), and rust-toolchain.toml
+    # selects the pinned version.
+    rust-channel: none
     rust-path: [crates/hookecho-app]
     stage-packages:
       # wgpu loads the Vulkan loader at runtime; the GPU drivers themselves
