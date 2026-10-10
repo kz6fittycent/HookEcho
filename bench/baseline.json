@@ -1,5 +1,5 @@
 {
-  "_comment": "Per-adapter bench baselines (median of 3 runs). CI fails if a metric regresses >10% vs the entry for its adapter; record new entries from a run's --bench-out (see README).",
+  "_comment": "Per-adapter bench baselines. CI fails if a metric is >10% worse than the entry for its adapter. Dev-machine entries are the median of 3 local runs. The GitHub runner entry (llvmpipe, LLVM 20.1.2) is the worst of 4 CI runs (2026-10-10), because shared runners vary 5-14% run to run. Record new adapters from a run's --bench-out (README).",
   "adapters": {
     "NVIDIA GeForce RTX 2080 (Vulkan)": {
       "cold_start_ms": 598.7,
@@ -20,6 +20,16 @@
       "memory_20_frames_mb": 591.0,
       "new_sweep_ms": 187.0,
       "switch_ms": 176.9
+    },
+    "llvmpipe (LLVM 20.1.2, 256 bits) (Vulkan)": {
+      "cold_start_ms": 736.7,
+      "decode_volume_ms": 130.0,
+      "frame_p50_ms": 475.1,
+      "frame_p99_ms": 483.2,
+      "gpu_20_frames_mb": 108.6,
+      "memory_20_frames_mb": 606.5,
+      "new_sweep_ms": 210.4,
+      "switch_ms": 203.4
     }
   }
 }
