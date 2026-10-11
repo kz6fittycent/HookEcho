@@ -57,12 +57,11 @@ Phase 2 done:
 - Loop and timeline, plain-language product picker, color palettes and GRLevelX `.pal` import (drag and drop; snap `home` plug), a "little or no rain" notice for clear air (PR #7).
 - Side sheet: Layers / Colors / Settings (PR #9).
 - Command palette (Ctrl+K, search button) and the `?` shortcuts sheet (PR #12).
-- Wind speed units, legend hover value, dual-pol noise mask (branch `phase2/units-and-masks`).
+- Wind speed units, legend hover value, dual-pol noise mask, place labels ranked by population (PR #13).
 
 Phase 2 still to do:
 - `.pal` masks and indexed units (need Level III hydrometeor classes); removing an imported palette.
 - Font scale for map labels.
-- Rank place labels by Census population estimates instead of land area.
 - Upstream: nexrad-data rc.7 panics on input shorter than 24 bytes (our adapter guards it). **Ask the owner before filing an issue.**
 
 Strict-snap results (2026-10-10): Vulkan, llvmpipe and Mesa EGL GL work; NVIDIA EGL GL fails, which is harmless because wgpu picks Vulkan first. Local `snapcraft pack` is blocked by Docker's iptables rules (the owner declined the change), so test PR snaps from the `hookecho-snap` workflow artifact.
@@ -72,7 +71,6 @@ Working practice: iterate on branches with PRs. CI runs only on PRs into `main`,
 Known issues and notes:
 - Memory with a 20-frame loop is about 435 MB against a 300 MB budget: about 150 MB is the GPU driver, about 95 MB the decoded full volume, about 32 MB basemap decode transients. This is Phase 4 work. Use `HOOKECHO_MEM_TRACE=1` for a stage breakdown.
 - Bench on the RTX 2080: cold start about 0.5 s, switch about 2 ms, 4K frame p99 about 2.7 ms.
-- Place labels rank by land area, so large rural places outrank towns. Switch to Census population estimates (a free file).
 - Always run manual smoke tests with `HOOKECHO_HOME=<scratch dir>`. Without it they write `~/.config/hookecho`.
 - The contrast test models egui's gamma-space blending. Accent text is used only on plain glass.
 - App screenshots: `./target/release/hookecho --screenshots target/shots`.

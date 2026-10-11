@@ -48,7 +48,8 @@ pub struct Place {
     pub state: String,
     pub lat: f64,
     pub lon: f64,
-    /// Larger = more important (land area in hectares, as a size proxy).
+    /// Larger = more important: the Census population estimate, or for
+    /// census-designated places a conservative guess from land area.
     pub rank: u64,
 }
 

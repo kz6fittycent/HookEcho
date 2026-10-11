@@ -127,7 +127,7 @@ Sources (all public, read 2026-10-09):
 | Feature | Tier | Source | Phase | Status | Notes |
 |---|---|---|---|---|---|
 | Base map: states, counties, coastlines | Base | [layers] | P1 | done | Bundled Natural Earth + TIGER, lyon-tessellated |
-| Cities and towns (≈25k), decluttered by zoom | Base | [layers] | P1 | done | Census places; label collision on the GPU (glyphon) |
+| Cities and towns (≈32k), decluttered by zoom | Base | [layers] | P1 | done | Census places ranked by 2024 population estimates (census-designated places: a low guess from land area); label collision on the GPU (glyphon) |
 | Roads: interstates and US highways | Base | [layers] | P1 | in progress | TIGER primary roads (interstates and other limited-access highways) bundled; the rest of the US highways need TIGER secondary roads |
 | Detailed roads and road labels | T2 | [layers] [providers] | P5 | planned | Paid (Mapbox) in the original. Substitute: TIGER secondary roads bundled at higher zoom |
 | Satellite imagery base map | T2 | [layers] | P5 | planned | Paid (Mapbox) in the original. Free option needs a tile source, which conflicts with "no tile server". **Ask first** |

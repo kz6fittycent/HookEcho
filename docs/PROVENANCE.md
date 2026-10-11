@@ -39,6 +39,8 @@ This file gives a public source for every data format, algorithm and bundled ass
 | Inter Tabular (derived: `tnum` frozen as default) | OFL-1.1 | Generated from Inter with `opentype-feature-freezer` (Apache-2.0) |
 | Lucide icons | ISC | <https://github.com/lucide-icons/lucide> |
 | US state, county and primary-road boundaries | Public domain (US Census Bureau) | Census Cartographic Boundary Files and TIGER/Line, <https://www.census.gov/geographies/mapping-files.html> |
+| US places (names, locations, land area) | Public domain (US Census Bureau) | 2024 Gazetteer Files, places, <https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_Gaz_place_national.zip> |
+| US place population (label ranking) | Public domain (US Census Bureau) | Vintage 2024 population estimates, incorporated places (SUMLEV 162), <https://www2.census.gov/programs-surveys/popest/datasets/2020-2024/cities/totals/sub-est2024.csv>; build-time only (`hookecho-data basemap`), never fetched by the app |
 | Natural Earth (coastlines, lakes, populated places) | Public domain | <https://www.naturalearthdata.com> |
 | Sample Level II volume KTLX 2013-05-20 20:16:43 UTC (first 3 sweeps, `tests/data/`) | Public domain (NOAA) | `s3://unidata-nexrad-level2/2013/05/20/KTLX/KTLX20130520_201643_V06.gz`, trimmed by `tools/trim_level2.py` |
 | Sample Level II volume KTLX 2024-04-28 03:13:12 UTC (first 3 sweeps, `tests/data/`) | Public domain (NOAA) | `s3://unidata-nexrad-level2/2024/04/28/KTLX/KTLX20240428_031312_V06`, trimmed by `tools/trim_level2.py` |
