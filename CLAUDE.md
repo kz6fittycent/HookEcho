@@ -45,7 +45,7 @@ assets/                  fonts, icons, sample data (large samples are fetched, n
 
 ## Status (keep this current)
 
-**Phase 2 in progress (2026-10-10).** Public repo: https://github.com/kz6fittycent/HookEcho. Phase 1 is complete.
+**Phase 2 complete; awaiting owner sign-off before Phase 3 (2026-10-10).** Public repo: https://github.com/kz6fittycent/HookEcho. Phases 0–2 are merged (last merge: PR #15, `aefa23d`).
 
 - Phase 0 was approved: design, the `bzip2-1.0.6` exception, and KDP from Level III.
 - `BSL-1.0` was approved on 2026-10-10, then dropped the same day along with Windows.
@@ -58,14 +58,18 @@ Phase 2 done:
 - Side sheet: Layers / Colors / Settings (PR #9).
 - Command palette (Ctrl+K, search button) and the `?` shortcuts sheet (PR #12).
 - Wind speed units, legend hover value, dual-pol noise mask, place labels ranked by population (PR #13).
-- Removing imported palettes, map text size (branch `phase2/finish`).
+- Removing imported palettes, map text size (PR #15).
 
 Owner requests for later: a full "command center" with surface obs (temperature, dewpoint, pressure and trend, wind, visibility). P5 in FEATURE_PARITY; needs approval for each new data endpoint.
 
-Phase 2 still to do:
-- Nothing open. `.pal` masks and indexed units moved to Phase 3 (they need Level III hydrometeor classes and echo tops).
-- End-of-phase screenshots for the owner (KICKOFF).
+Where to pick up next session:
+- **Get the owner's Phase 2 sign-off first** (KICKOFF gate). End-of-phase screenshots: `target/shots/phase2/` (20 PNGs, gitignored; regenerate with `--screenshots`).
+- **Call-for-testing issues:** revision 7 (PR #15) opens a new CFT issue; close #16 (revision 6) as superseded when it appears. Close each older CFT once its replacement exists.
+- **Phase 3 needs endpoint approval before any code:** NWS alerts API (warnings/watches), SPC outlooks, GOES GLM (lightning). Present options and ask; don't add them unasked.
+- **Command center** (owner request, P5): surface obs (temperature, dewpoint, pressure and trend, wind, visibility), e.g. METARs or NWS station observations. Also new endpoints, so ask first.
+- Moved to Phase 3: `.pal` rain/snow/mix/topped masks and indexed units (need Level III hydrometeor classes and echo tops).
 - Upstream: nexrad-data rc.7 panics on input shorter than 24 bytes (our adapter guards it). **Ask the owner before filing an issue.**
+- Each merge to `main` needs its own explicit approval; approval of one PR never covers the next.
 
 Strict-snap results (2026-10-10): Vulkan, llvmpipe and Mesa EGL GL work; NVIDIA EGL GL fails, which is harmless because wgpu picks Vulkan first. Local `snapcraft pack` is blocked by Docker's iptables rules (the owner declined the change), so test PR snaps from the `hookecho-snap` workflow artifact.
 
