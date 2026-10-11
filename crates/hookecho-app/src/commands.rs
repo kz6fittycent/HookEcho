@@ -59,6 +59,7 @@ pub enum Action {
     Palette(String),
     RestoreColors,
     MaskDualPol(bool),
+    LabelScale(f32),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -412,6 +413,21 @@ pub fn all(model: &Model, query: &str) -> Vec<Command> {
             Action::Palette(name.clone()),
         ));
     }
+    for (s, name) in [
+        (0.85, "small"),
+        (1.0, "medium"),
+        (1.15, "large"),
+        (1.3, "extra large"),
+    ] {
+        v.push(cmd(
+            Group::Settings,
+            format!("Map text: {name}"),
+            current((c.label_scale - s).abs() < 0.01),
+            None,
+            "font size labels place names",
+            Action::LabelScale(s),
+        ));
+    }
     v.push(cmd(
         Group::Settings,
         "Restore default colors",
@@ -563,6 +579,7 @@ pub fn run(model: &mut Model, action: &Action, view: [f64; 2], now: f64) {
         }
         Action::RestoreColors => model.palettes.restore_defaults(&mut model.config),
         Action::MaskDualPol(on) => model.config.mask_dualpol = *on,
+        Action::LabelScale(s) => model.config.label_scale = *s,
     }
 }
 

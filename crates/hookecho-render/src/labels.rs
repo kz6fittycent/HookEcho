@@ -37,6 +37,8 @@ pub struct Labels {
     places: Vec<(Place, [f64; 2])>,
     cache: HashMap<usize, Entry>,
     cache_ppp: f32,
+    /// Label size the cached buffers were shaped at.
+    cache_size: f32,
 }
 
 /// The most labels drawn at once; more than this reads as clutter.
@@ -79,6 +81,7 @@ impl Labels {
             places,
             cache: HashMap::new(),
             cache_ppp: 0.0,
+            cache_size: 0.0,
         }
     }
 
@@ -94,7 +97,10 @@ impl Labels {
         style: &LabelStyle,
         exclude: &[[f32; 4]],
     ) {
-        if (ppp - self.cache_ppp).abs() > f32::EPSILON {
+        if (ppp - self.cache_ppp).abs() > f32::EPSILON
+            || (style.size - self.cache_size).abs() > f32::EPSILON
+        {
+            self.cache_size = style.size;
             self.cache.clear();
             self.cache_ppp = ppp;
         }

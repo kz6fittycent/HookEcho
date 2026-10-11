@@ -280,6 +280,21 @@ pub fn run(dir: &Path) -> Result<(), String> {
         .save(&path)
         .map_err(|e| e.to_string())?;
     println!("wrote {}", path.display());
+    // Extra-large map text, regional view.
+    o.frame(SIZE, PPP, vec![eframe::egui::Event::PointerGone]);
+    let m = &mut o.app.model;
+    m.moment = Moment::Reflectivity;
+    m.config.label_scale = 1.3;
+    m.camera = Camera::looking_at(35.29, -97.42, 520.0, SIZE[0] as f64);
+    m.motion.zoom_target = m.camera.scale;
+    let (w, h, px) = o.capture(SIZE, PPP);
+    let path = dir.join("19-map-text-xl.png");
+    image::RgbaImage::from_raw(w, h, px)
+        .ok_or("bad image")?
+        .save(&path)
+        .map_err(|e| e.to_string())?;
+    println!("wrote {}", path.display());
+    o.app.model.config.label_scale = 1.0;
     Ok(())
 }
 

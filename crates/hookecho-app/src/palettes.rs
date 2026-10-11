@@ -19,6 +19,8 @@ pub struct Library {
     choices: HashMap<Moment, Vec<Choice>>,
     /// Bumped on every change, so the app knows to re-upload LUTs.
     pub version: u64,
+    /// The config directory imports are saved in (None: not persisted).
+    config_dir: Option<PathBuf>,
 }
 
 /// Longest imported file accepted (real tables are a few KB).
@@ -69,6 +71,7 @@ impl Library {
                 })
                 .collect(),
             version: 0,
+            config_dir: config_dir.map(Path::to_path_buf),
         };
         let Some(rd) = config_dir.and_then(|d| std::fs::read_dir(dir(d)).ok()) else {
             return lib;
@@ -123,6 +126,31 @@ impl Library {
             config.palettes.insert(m.code().into(), name.into());
             self.version += 1;
         }
+    }
+
+    /// Removes an imported palette (and its saved file). A product using it
+    /// goes back to its default.
+    pub fn remove(&mut self, config: &mut Config, m: Moment, name: &str) -> Result<(), String> {
+        let v = self.choices.entry(m).or_default();
+        let before = v.len();
+        v.retain(|c| !(c.imported && c.palette.name == name));
+        if v.len() == before {
+            return Err(format!("no imported palette named {name}"));
+        }
+        if config.palettes.get(m.code()).is_some_and(|n| n == name) {
+            config.palettes.remove(m.code());
+        }
+        self.version += 1;
+        if let (Some(d), Some(code)) = (&self.config_dir, pal::product_code(m)) {
+            let f = dir(d).join(format!("{code}-{name}.pal"));
+            match std::fs::remove_file(&f) {
+                Err(e) if e.kind() != std::io::ErrorKind::NotFound => {
+                    return Err(format!("{}: {e}", f.display()));
+                }
+                _ => {}
+            }
+        }
+        Ok(())
     }
 
     /// Every product back to its built-in default (imports stay listed).
@@ -203,6 +231,34 @@ mod tests {
         assert_eq!(lib.version, v, "re-selecting the same palette is no change");
 
         let reloaded = Library::load(Some(&base));
+        {
+            // Removing deletes the file and falls back to the default.
+            let mut c = config.clone();
+            let mut l = Library::load(Some(&base));
+            l.remove(&mut c, m, "My Vel_").unwrap();
+            assert_eq!(l.active(&c, m), &Palette::default_for(Moment::Velocity));
+            assert!(
+                l.remove(&mut c, m, "Hook Echo Diverging").is_err(),
+                "built-ins stay"
+            );
+            assert_eq!(
+                Library::load(Some(&base))
+                    .choices(m)
+                    .iter()
+                    .filter(|c| c.imported)
+                    .count(),
+                0
+            );
+            // Put it back for the checks below.
+            lib.import(
+                &mut config,
+                Some(&base),
+                "/home/x/My Vel!.pal",
+                b"Units: KTS\nColor: -50 0 0 255\nColor: 50 255 0 0\n",
+                Moment::Velocity,
+            )
+            .unwrap();
+        }
         let mut restored = (config.clone(), Library::load(None));
         restored.1.restore_defaults(&mut restored.0);
         assert_eq!(

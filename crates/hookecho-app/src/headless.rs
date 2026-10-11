@@ -217,6 +217,44 @@ mod tests {
     }
 
     #[test]
+    fn imported_palette_can_be_removed() {
+        let Ok(mut o) = Offscreen::new(None, SIZE) else {
+            eprintln!("no GPU adapter; skipped");
+            return;
+        };
+        o.app.wait_for_data();
+        let m = &mut o.app.model;
+        m.palettes
+            .import(
+                &mut m.config,
+                None,
+                "Mine.pal",
+                b"Product: BR\nColor: 0 0 0 0\nColor: 70 255 255 255\n",
+                Moment::Reflectivity,
+            )
+            .unwrap();
+        assert_eq!(
+            m.palettes.active(&m.config, Moment::Reflectivity).name,
+            "Mine"
+        );
+        o.frame(SIZE, 1.0, Vec::new());
+        click(&mut o, egui::Id::new("legend"));
+        click(&mut o, egui::Id::new(("palette-remove", "REF", "Mine")));
+        let m = &o.app.model;
+        assert!(
+            m.palettes
+                .choices(Moment::Reflectivity)
+                .iter()
+                .all(|c| !c.imported)
+        );
+        assert_eq!(
+            m.palettes.active(&m.config, Moment::Reflectivity).name,
+            "Hook Echo Standard",
+            "back to the default"
+        );
+    }
+
+    #[test]
     fn side_sheet_controls_respond() {
         let Ok(mut o) = Offscreen::new(None, SIZE) else {
             eprintln!("no GPU adapter; skipped");

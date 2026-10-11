@@ -118,7 +118,7 @@ Sources (all public, read 2026-10-09):
 | MRMS national mosaic products | T2 | [upgrading] [whatsnew57] | P5 | planned | `noaa-mrms-pds` on AWS (free) |
 | GOES satellite layers | T2 | [upgrading] | P5 | planned | `noaa-goes18/19` on AWS (free) |
 | RTMA surface analysis | T2 | [appstore] | P5 | planned | NODD (free) |
-| Surface observations | T2 | [appstore] | P5 | planned | aviationweather.gov METAR API (free) |
+| Surface observations | T2 | [appstore] | P5 | planned | aviationweather.gov METAR API (free). Owner request (2026-10-10): part of a full "command center" (see §7). **Ask first** (new endpoint) |
 | ProbSevere | T2 | [appstore] | P5 | planned | NOAA/CIMSS public feed; confirm terms |
 | Soundings and hodographs | T2 | [upgrading] [appstore] | P5 | planned | Model soundings from NODD GRIB2; RAOB from a free NOAA source |
 
@@ -189,10 +189,10 @@ Sources (all public, read 2026-10-09):
 | Feature | Tier | Source | Phase | Status | Notes |
 |---|---|---|---|---|---|
 | Built-in alternate palettes per product, incl. colorblind-friendly ones | Base | [palettes] | P2 | done | Our own originals: Standard (default, colorblind-aware), Classic, Classic red/green velocity, Grayscale. Click the legend to choose; the choice persists per product |
-| Import custom palettes in the GRLevelX `.pal` format with extensions (Color, Color4, SolidColor, SolidColor4, RF, Scale, Units, masks RAIN/MIX/SNOW/TOPPED, indexed `???` units) | T1 | [pal-tech] [pal-import] | P2 | in progress | Drop a `.pal` on the window. Done: Product, Units (speed units imply Scale), Scale, Offset, RF, Color/Color4 (with second color), SolidColor/SolidColor4; parser fuzzed (`pal_parse`); unknown statements ignored. Still to do: masks RAIN/MIX/SNOW/TOPPED, indexed `???` units, removing an imported palette |
+| Import custom palettes in the GRLevelX `.pal` format with extensions (Color, Color4, SolidColor, SolidColor4, RF, Scale, Units, masks RAIN/MIX/SNOW/TOPPED, indexed `???` units) | T1 | [pal-tech] [pal-import] | P2 / P3 | in progress | Drop a `.pal` on the window. Done: Product, Units (speed units imply Scale), Scale, Offset, RF, Color/Color4 (with second color), SolidColor/SolidColor4; parser fuzzed (`pal_parse`); unknown statements ignored. Imported palettes can be removed (✕ in the palette list). Moved to P3: masks RAIN/MIX/SNOW/TOPPED and indexed `???` units, which need Level III hydrometeor classes and echo tops |
 | Restore default palettes | Base | [palettes] | P2 | done | Pick "Hook Echo Standard" in the legend's palette list |
 | Theme: dark (default), light, follow system | Base | [advanced] | P2 | done | Side sheet → Settings → Appearance (saved) |
-| Font scale for map labels | Base | [advanced] | P2 | planned | |
+| Font scale for map labels | Base | [advanced] | P2 | done | Side sheet → Settings → Map text: S / M / L / XL (saved); also in the command palette |
 | Metric units toggle | Base | [advanced] | P2 | done | Side sheet → Settings: distance (mi/ft or km/m) and wind speed (kt, mph, km/h, m/s) separately; also in the command palette (saved) |
 | UTC time display mode | Base | [appstore] | P2 | done | Side sheet → Settings → Clock: Local or UTC (archived scans always show the UTC date) |
 | Prevent the screen from sleeping while open | Base | [advanced] | P4 | planned | Desktop: the idle-inhibit portal (snap `desktop` plug) |
@@ -220,6 +220,7 @@ Requests users raise against other viewers (mainly [Supercell Wx issues][scwx]) 
 | GeoJSON / KML / shapefile overlays | [scwx] #638, #655, #514 | P5+ | planned | |
 | Vertical cross-section tool | [scwx] #403 | P5+ | planned | We have the full L2 volume on the GPU |
 | Hide dual-pol noise: CC, ZDR and PHI only where there's echo (on by default; side sheet → Layers, command palette) | Owner review (Phase 1 follow-up) | P2 | done | Co-located reflectivity ≥ 5 dBZ; the inspector follows the same rule |
+| "Command center": a station panel beside the radar with temperature, dewpoint, pressure and its trend, wind and gusts, visibility, plus nearby observations on the map | Owner request (2026-10-10) | P5 | planned | Free, no-account sources only (e.g. METARs, NWS station observations, RTMA); each new endpoint needs the owner's approval first |
 | Command palette (Ctrl+K or the search button): every site, product, layer, action, setting and palette by typing, fuzzy matched and grouped | KICKOFF §5 | P2 | done | Enter runs the top match; arrows move; Esc closes |
 | Says so when there's little or no precipitation in range (clear air), so a blank map doesn't look broken | Owner feedback (CFT #8) | P2 | done | Under 20 km² of drawn reflectivity in runs of 1 km or more, so clutter speckle doesn't count |
 | Rotational velocity / NROT readout in the inspector | [scwx] #160, #206 | P5+ | planned | |
