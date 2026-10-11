@@ -43,6 +43,47 @@ impl Sweep {
         self.moments.iter().find(|(k, _)| *k == m).map(|(_, f)| f)
     }
 
+    /// A copy of `m`'s field with gates hidden (raw 0, below threshold)
+    /// where the reflectivity at the same radial and range is under
+    /// `min_dbz` or missing. Dual-pol estimates are noise without real
+    /// echo; Level II carries no SNR, so co-located reflectivity stands in.
+    /// None if the sweep lacks `m` or reflectivity.
+    pub fn masked_by_reflectivity(&self, m: Moment, min_dbz: f32) -> Option<Field> {
+        let f = self.field(m)?;
+        let r = self.field(Moment::Reflectivity)?;
+        let raw_values = if r.raw.word_size() == 8 { 256 } else { 65536 };
+        let pass: Vec<bool> = (0..raw_values)
+            .map(|raw| r.value(raw as u16).is_some_and(|v| v >= min_dbz))
+            .collect();
+        // Reflectivity gate index for each of `m`'s gates (same range).
+        let map: Vec<Option<usize>> = (0..f.gates)
+            .map(|g| {
+                let km = f.first_gate_km + g as f32 * f.gate_km;
+                let rg = ((km - r.first_gate_km) / r.gate_km).round();
+                (rg >= 0.0 && (rg as usize) < r.gates).then_some(rg as usize)
+            })
+            .collect();
+        let radials = f.radials().min(r.radials());
+        let keep = |row: usize, g: usize| {
+            row < radials && map[g].is_some_and(|rg| pass[r.raw_at(row, rg) as usize])
+        };
+        let raw = match &f.raw {
+            crate::moment::RawGates::U8(v) => crate::moment::RawGates::U8(
+                v.iter()
+                    .enumerate()
+                    .map(|(i, &x)| if keep(i / f.gates, i % f.gates) { x } else { 0 })
+                    .collect(),
+            ),
+            crate::moment::RawGates::U16(v) => crate::moment::RawGates::U16(
+                v.iter()
+                    .enumerate()
+                    .map(|(i, &x)| if keep(i / f.gates, i % f.gates) { x } else { 0 })
+                    .collect(),
+            ),
+        };
+        Some(Field { raw, ..f.clone() })
+    }
+
     /// Start and end collection times, ms since the Unix epoch.
     pub fn time_range_ms(&self) -> Option<(i64, i64)> {
         Some((self.radials.first()?.time_ms, self.radials.last()?.time_ms))
@@ -318,6 +359,50 @@ fn field(radials: &[Radial], m: Moment) -> Option<Field> {
 mod tests {
     use super::*;
     use crate::moment::RawGates;
+
+    #[test]
+    fn mask_by_reflectivity_maps_range() {
+        // Reflectivity: 2 radials × 4 gates of 0.25 km from 2.0 km;
+        // value = (raw - 66) / 2, so 86 = 10 dBZ, 70 = 2 dBZ.
+        let r = Field {
+            gates: 4,
+            first_gate_km: 2.0,
+            gate_km: 0.25,
+            scale: 2.0,
+            offset: 66.0,
+            raw: RawGates::U8(vec![86, 86, 70, 0, 86, 1, 86, 86]),
+        };
+        // CC: 2 radials × 2 gates of 0.5 km from 2.0 km (gates 0 and 2 of REF).
+        let cc = Field {
+            gates: 2,
+            first_gate_km: 2.0,
+            gate_km: 0.5,
+            scale: 300.0,
+            offset: -60.0,
+            raw: RawGates::U16(vec![300, 300, 300, 300]),
+        };
+        let s = Sweep {
+            elevation_number: 1,
+            elevation_deg: 0.5,
+            nominal_elevation_deg: Some(0.5),
+            radials: Vec::new(),
+            moments: vec![
+                (Moment::Reflectivity, r),
+                (Moment::CorrelationCoefficient, cc),
+            ],
+            complete: true,
+        };
+        let m = s
+            .masked_by_reflectivity(Moment::CorrelationCoefficient, 5.0)
+            .unwrap();
+        // Radial 0: REF gate 0 = 10 dBZ (keep), gate 2 = 2 dBZ (hide).
+        // Radial 1: REF gate 0 = 10 dBZ (keep), gate 2 = 10 dBZ (keep).
+        assert_eq!(m.raw_at(0, 0), 300);
+        assert_eq!(m.raw_at(0, 1), 0);
+        assert_eq!(m.raw_at(1, 0), 300);
+        assert_eq!(m.raw_at(1, 1), 300);
+        assert!(s.masked_by_reflectivity(Moment::Velocity, 5.0).is_none());
+    }
 
     #[test]
     fn count_values_skips_threshold_and_folded() {

@@ -315,6 +315,8 @@ pub struct Model {
     /// Cached `no_precipitation` answer, keyed by (generation, sweep, palette version).
     quiet: Option<((u64, usize, u64), bool)>,
     pub sheet: Option<Sheet>,
+    /// Last frame's glass panels (logical px, [x0, y0, x1, y1]).
+    pub chrome: Vec<[f32; 4]>,
     generation: u64,
 }
 
@@ -339,6 +341,20 @@ pub const LIVE_DWELL_FACTOR: f64 = 3.0;
 
 /// How long a notice stays up, seconds.
 pub const NOTICE_S: f64 = 4.0;
+
+/// Dual-pol gates show only where the reflectivity at the same range is
+/// at least this (dBZ) while `mask_dualpol` is on.
+pub const DUALPOL_MIN_DBZ: f32 = 5.0;
+
+/// Moments the dual-pol mask applies to.
+pub fn is_dualpol(m: Moment) -> bool {
+    matches!(
+        m,
+        Moment::DifferentialReflectivity
+            | Moment::DifferentialPhase
+            | Moment::CorrelationCoefficient
+    )
+}
 
 /// Less echo than this (km², about a 5 km shower) reads as "little or no
 /// rain or snow".
@@ -384,6 +400,7 @@ impl Model {
             notice: None,
             quiet: None,
             sheet: None,
+            chrome: Vec::new(),
             generation: 0,
         }
     }
@@ -747,9 +764,13 @@ pub fn site_list(query: &str, favorites: &[String]) -> Vec<(&'static Site, bool)
 }
 
 /// Display formatting by unit system.
-pub struct Fmt(pub Units);
+pub struct Fmt(pub Units, pub hookecho_core::config::Speed);
 
 impl Fmt {
+    pub fn of(c: &Config) -> Fmt {
+        Fmt(c.units, c.speed)
+    }
+
     pub fn distance(&self, km: f64) -> String {
         match self.0 {
             Units::Imperial => format!("{:.1} mi", km * 0.621_371),
@@ -766,10 +787,8 @@ impl Fmt {
 
     /// (value text, unit text) for a decoded moment value.
     pub fn value(&self, m: Moment, v: f32) -> (String, &'static str) {
-        let speed = |v: f32| match self.0 {
-            Units::Imperial => (v * 1.943_844, "kt"),
-            Units::Metric => (v, "m/s"),
-        };
+        let (unit, k) = self.1.resolve(self.0);
+        let speed = |v: f32| (v * k, unit);
         match m {
             Moment::Reflectivity => (format!("{v:.1}"), "dBZ"),
             Moment::Velocity => {
@@ -789,10 +808,9 @@ impl Fmt {
 
     /// Legend unit label and the factor from native units.
     pub fn legend_unit(&self, m: Moment) -> (&'static str, f32) {
-        match (m, self.0) {
-            (Moment::Velocity | Moment::SpectrumWidth, Units::Imperial) => ("kt", 1.943_844),
-            (Moment::Velocity | Moment::SpectrumWidth, Units::Metric) => ("m/s", 1.0),
-            (m, _) => (m.unit(), 1.0),
+        match m {
+            Moment::Velocity | Moment::SpectrumWidth => self.1.resolve(self.0),
+            m => (m.unit(), 1.0),
         }
     }
 }
@@ -944,7 +962,18 @@ pub fn ensure_upload(
         model.uploads.push(e);
         return Some(id);
     }
-    let id = renderer.upload_sweep(device, queue, &l.volume.sweeps[sweep], m)?;
+    let s = &l.volume.sweeps[sweep];
+    let id = if model.config.mask_dualpol && is_dualpol(m) {
+        // Upload a masked copy of just this moment.
+        let masked = Sweep {
+            radials: s.radials.clone(),
+            moments: vec![(m, s.masked_by_reflectivity(m, DUALPOL_MIN_DBZ)?)],
+            ..*s
+        };
+        renderer.upload_sweep(device, queue, &masked, m)?
+    } else {
+        renderer.upload_sweep(device, queue, s, m)?
+    };
     model.uploads.push((key, id));
     while model.uploads.len() > UPLOAD_CACHE {
         let (_, old) = model.uploads.remove(0);

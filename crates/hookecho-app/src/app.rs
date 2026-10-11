@@ -49,6 +49,8 @@ pub struct App {
     pub first_radar_frame: bool,
     /// Palette library version last uploaded to the renderer.
     palettes_applied: u64,
+    /// The dual-pol mask setting the uploaded sweeps were made with.
+    mask_applied: bool,
 }
 
 impl App {
@@ -129,6 +131,7 @@ impl App {
             first_radar_frame: false,
             // Built-in defaults are already on the GPU; anything else isn't.
             palettes_applied: u64::MAX,
+            mask_applied: true,
         }
     }
 
@@ -298,6 +301,18 @@ impl App {
             }
             self.palettes_applied = self.model.palettes.version;
         }
+        if self.mask_applied != self.model.config.mask_dualpol {
+            // Re-upload dual-pol sweeps with or without the mask.
+            let renderer = &mut self.renderer;
+            self.model.uploads.retain(|((_, _, m), id)| {
+                let keep = !model::is_dualpol(*m);
+                if !keep {
+                    renderer.remove_sweep(*id);
+                }
+                keep
+            });
+            self.mask_applied = self.model.config.mask_dualpol;
+        }
         let changed = self.renderer.ensure_targets(gpu.device, size_px);
         self.register_textures(gpu, egui_renderer, changed);
         // Radar layers: the previous volume's sweep under a sweep that's
@@ -356,6 +371,7 @@ impl App {
         // UI.
         let (scene, blur) = self.textures.expect("registered");
         let mut kit = Kit {
+            panels: Default::default(),
             theme: &theme,
             icons: &mut self.icons,
             blur,
@@ -363,6 +379,12 @@ impl App {
         };
         let before = self.model.config.clone();
         screen::paint(ui, &mut kit, &mut self.model, scene);
+        self.model.chrome = kit
+            .panels
+            .take()
+            .iter()
+            .map(|r| [r.min.x, r.min.y, r.max.x, r.max.y])
+            .collect();
         if before != self.model.config {
             self.save_config();
         }

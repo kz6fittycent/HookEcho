@@ -19,6 +19,9 @@ This file gives a public source for every data format, algorithm and bundled ass
 | Algorithm | Source | Used in |
 |---|---|---|
 | Beam height (4/3 effective-earth model) | Doviak & Zrnić, *Doppler Radar and Weather Observations*, 2nd ed., eq. 2.28b | prototype inspector; `hookecho-core` (planned) |
+| Dual-pol noise mask: hide ZDR, PHI and CC where the co-located reflectivity is under 5 dBZ or missing | Original (Hook Echo). Rationale: dual-pol estimates degrade at low signal-to-noise ratio (Doviak & Zrnić, *Doppler Radar and Weather Observations*, 2nd ed., on estimator variance vs. SNR); Level II carries no SNR field, so reflectivity stands in | `Sweep::masked_by_reflectivity`, `model::ensure_upload` |
+| "Little or no precipitation" test: drawn reflectivity area (km²) in runs of ≥ 4 gates along a radial | Original (Hook Echo); gate area from range × azimuth spacing × gate length | `Field::echo_area_km2`, `Model::no_precipitation` |
+| Command palette fuzzy matching (in-order subsequence; word-start and run bonuses) | Original (Hook Echo) | `commands::fuzzy` |
 | Storm-relative velocity (subtract the storm-motion component per azimuth) | NWS JetStream, *Storm Relative Velocity*; publicly described in the commercial viewer's SRV help article | planned (Phase 3) |
 | Gaussian backdrop blur (separable, downsampled) | Standard technique; e.g. Rákos, *Efficient Gaussian blur with linear sampling* (2010) | prototype; `hookecho-render` |
 
@@ -36,6 +39,8 @@ This file gives a public source for every data format, algorithm and bundled ass
 | Inter Tabular (derived: `tnum` frozen as default) | OFL-1.1 | Generated from Inter with `opentype-feature-freezer` (Apache-2.0) |
 | Lucide icons | ISC | <https://github.com/lucide-icons/lucide> |
 | US state, county and primary-road boundaries | Public domain (US Census Bureau) | Census Cartographic Boundary Files and TIGER/Line, <https://www.census.gov/geographies/mapping-files.html> |
+| US places (names, locations, land area) | Public domain (US Census Bureau) | 2024 Gazetteer Files, places, <https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_Gaz_place_national.zip> |
+| US place population (label ranking) | Public domain (US Census Bureau) | Vintage 2024 population estimates, incorporated places (SUMLEV 162), <https://www2.census.gov/programs-surveys/popest/datasets/2020-2024/cities/totals/sub-est2024.csv>; build-time only (`hookecho-data basemap`), never fetched by the app |
 | Natural Earth (coastlines, lakes, populated places) | Public domain | <https://www.naturalearthdata.com> |
 | Sample Level II volume KTLX 2013-05-20 20:16:43 UTC (first 3 sweeps, `tests/data/`) | Public domain (NOAA) | `s3://unidata-nexrad-level2/2013/05/20/KTLX/KTLX20130520_201643_V06.gz`, trimmed by `tools/trim_level2.py` |
 | Sample Level II volume KTLX 2024-04-28 03:13:12 UTC (first 3 sweeps, `tests/data/`) | Public domain (NOAA) | `s3://unidata-nexrad-level2/2024/04/28/KTLX/KTLX20240428_031312_V06`, trimmed by `tools/trim_level2.py` |

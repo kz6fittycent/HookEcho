@@ -18,6 +18,7 @@ struct Sources {
     counties: String,
     roads: String,
     places: String,
+    population: String,
     land: String,
     lakes: String,
     countries: String,
@@ -30,6 +31,7 @@ fn sources() -> Sources {
         counties: format!("{CENSUS}/GENZ2024/shp/cb_2024_us_county_500k.zip"),
         roads: format!("{CENSUS}/TIGER2024/PRIMARYROADS/tl_2024_us_primaryroads.zip"),
         places: "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_Gaz_place_national.zip".into(),
+        population: "https://www2.census.gov/programs-surveys/popest/datasets/2020-2024/cities/totals/sub-est2024.csv".into(),
         land: format!("{NE}/physical/ne_10m_land.zip"),
         lakes: format!("{NE}/physical/ne_10m_lakes.zip"),
         countries: format!("{NE}/cultural/ne_10m_admin_0_boundary_lines_land.zip"),
@@ -89,7 +91,7 @@ pub fn run(out: &Path, cache: &Path, baseline: Option<&Path>) -> Result<String, 
                 lines: arcs(&states, TOL_BOUNDARY),
             },
         ],
-        places: places(&get(&src.places)?)?,
+        places: places(&get(&src.places)?, &population(&get(&src.population)?)?)?,
     };
     let bytes = basemap::encode(&map);
     // Encoding quantizes to 1e-5°, so check idempotence instead: what we
@@ -246,7 +248,57 @@ fn polylines(zip: &Path, filter: Option<(&str, &[&str])>) -> Result<Vec<Ring>, S
     Ok(out)
 }
 
-fn places(zip_path: &Path) -> Result<Vec<Place>, String> {
+/// Census-designated places have no population estimate; guess one person
+/// per this many hectares of land. Deliberately low: most CDPs are large
+/// and rural (eastern Oklahoma's are 20-60 km² with ~100 people).
+const CDP_HECTARES_PER_PERSON: u64 = 2;
+
+/// 2024 population estimates of incorporated places (SUMLEV 162), keyed by
+/// the 7-digit place GEOID (state FIPS + place FIPS).
+fn population(csv_path: &Path) -> Result<std::collections::HashMap<String, u64>, String> {
+    let raw = std::fs::read(csv_path).map_err(|e| e.to_string())?;
+    // Latin-1, like the gazetteer.
+    let text: String = raw.iter().map(|&b| b as char).collect();
+    let mut lines = text.lines();
+    let header: Vec<&str> = lines.next().ok_or("popest: empty")?.split(',').collect();
+    let col = |n: &str| {
+        header
+            .iter()
+            .position(|h| h.trim() == n)
+            .ok_or(format!("popest: no {n} column"))
+    };
+    let (sumlev, state, place, pop) = (
+        col("SUMLEV")?,
+        col("STATE")?,
+        col("PLACE")?,
+        col("POPESTIMATE2024")?,
+    );
+    let mut out = std::collections::HashMap::new();
+    for l in lines {
+        // Names (quoted, with commas) sit before the numbers, so split from
+        // the right for the population and from the left for the codes.
+        let f: Vec<&str> = l.split(',').collect();
+        if f.len() < header.len() || f[sumlev] != "162" {
+            continue;
+        }
+        let p = f[f.len() - (header.len() - pop)];
+        if let Ok(p) = p.trim().parse::<u64>() {
+            out.insert(format!("{}{}", f[state], f[place]), p);
+        }
+    }
+    if out.len() < 15_000 {
+        return Err(format!(
+            "popest: only {} places parsed; refusing",
+            out.len()
+        ));
+    }
+    Ok(out)
+}
+
+fn places(
+    zip_path: &Path,
+    population: &std::collections::HashMap<String, u64>,
+) -> Result<Vec<Place>, String> {
     let file = std::fs::File::open(zip_path).map_err(|e| e.to_string())?;
     let mut zip = zip::ZipArchive::new(file).map_err(|e| e.to_string())?;
     let name = names(&zip)
@@ -273,7 +325,8 @@ fn places(zip_path: &Path) -> Result<Vec<Place>, String> {
             .position(|h| *h == n)
             .ok_or(format!("gazetteer: no {n} column"))
     };
-    let (usps, nm, funcstat, aland, lat, lon) = (
+    let (geoid, usps, nm, funcstat, aland, lat, lon) = (
+        col("GEOID")?,
         col("USPS")?,
         col("NAME")?,
         col("FUNCSTAT")?,
@@ -301,13 +354,18 @@ fn places(zip_path: &Path) -> Result<Vec<Place>, String> {
             continue;
         };
         let hectares = area / 10_000;
+        // Population where the Census estimates it; otherwise a
+        // conservative guess from land area.
+        let rank = match population.get(f[geoid]) {
+            Some(&p) if !cdp => p,
+            _ => hectares / CDP_HECTARES_PER_PERSON,
+        };
         out.push(Place {
             name: strip_lsad(f[nm]).to_string(),
             state: f[usps].to_string(),
             lat: la,
             lon: lo,
-            // Unincorporated places rank below incorporated ones of the same size.
-            rank: if cdp { hectares / 2 } else { hectares },
+            rank,
         });
     }
     if out.len() < 20_000 {

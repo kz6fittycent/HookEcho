@@ -127,7 +127,7 @@ Sources (all public, read 2026-10-09):
 | Feature | Tier | Source | Phase | Status | Notes |
 |---|---|---|---|---|---|
 | Base map: states, counties, coastlines | Base | [layers] | P1 | done | Bundled Natural Earth + TIGER, lyon-tessellated |
-| Cities and towns (≈25k), decluttered by zoom | Base | [layers] | P1 | done | Census places; label collision on the GPU (glyphon) |
+| Cities and towns (≈32k), decluttered by zoom | Base | [layers] | P1 | done | Census places ranked by 2024 population estimates (census-designated places: a low guess from land area); label collision on the GPU (glyphon) |
 | Roads: interstates and US highways | Base | [layers] | P1 | in progress | TIGER primary roads (interstates and other limited-access highways) bundled; the rest of the US highways need TIGER secondary roads |
 | Detailed roads and road labels | T2 | [layers] [providers] | P5 | planned | Paid (Mapbox) in the original. Substitute: TIGER secondary roads bundled at higher zoom |
 | Satellite imagery base map | T2 | [layers] | P5 | planned | Paid (Mapbox) in the original. Free option needs a tile source, which conflicts with "no tile server". **Ask first** |
@@ -172,7 +172,7 @@ Sources (all public, read 2026-10-09):
 | Previous/next frame; jump to first/last | Base | [getting-started] | P2 | done | `,` `.` step; Shift+`,`/Home first; Shift+`.`/End live |
 | Loop scrubber | Base | [shortcuts] | P2 | done | Ticks spaced by real scan time; click or drag to scrub |
 | Loop speed | Base | [advanced] | P2 | done | ½× / 1× / 2× on the timeline (saved) |
-| Color bar with value on hover | Base | [product-legend] | P2 | planned | Legend inside the product chip's expansion |
+| Color bar with value on hover | Base | [product-legend] | P2 | done | Hover the legend: the value and units under the pointer, with a marker on the bar |
 | Product time plus "updated" time; red when stale | Base | [product-legend] | P2 | in progress | Scan age + green/amber/red dot vs the VCP volume time, local sweep time, offline notice; the explicit "updated at" time comes with the timeline |
 | Radar legend: VCP number and clear-air / precipitation mode | Base | [radar-legend] | P2 | planned | In the site chip detail |
 | Dual-pane (2 products side by side) | T1 | [upgrading] [getting-started] | P3 | planned | Shared camera |
@@ -193,7 +193,7 @@ Sources (all public, read 2026-10-09):
 | Restore default palettes | Base | [palettes] | P2 | done | Pick "Hook Echo Standard" in the legend's palette list |
 | Theme: dark (default), light, follow system | Base | [advanced] | P2 | done | Side sheet → Settings → Appearance (saved) |
 | Font scale for map labels | Base | [advanced] | P2 | planned | |
-| Metric units toggle | Base | [advanced] | P2 | in progress | Side sheet → Settings: mi/mph or km/m/s (saved). Still to do: separate velocity units (kt/mph/m/s) |
+| Metric units toggle | Base | [advanced] | P2 | done | Side sheet → Settings: distance (mi/ft or km/m) and wind speed (kt, mph, km/h, m/s) separately; also in the command palette (saved) |
 | UTC time display mode | Base | [appstore] | P2 | done | Side sheet → Settings → Clock: Local or UTC (archived scans always show the UTC date) |
 | Prevent the screen from sleeping while open | Base | [advanced] | P4 | planned | Desktop: the idle-inhibit portal (snap `desktop` plug) |
 | International products: choose countries | Base | [advanced] | P5 | planned | |
@@ -219,6 +219,7 @@ Requests users raise against other viewers (mainly [Supercell Wx issues][scwx]) 
 | GRLevelX-style placefiles | [scwx] #614, #88 | P5+ | planned | Big ecosystem for chasers |
 | GeoJSON / KML / shapefile overlays | [scwx] #638, #655, #514 | P5+ | planned | |
 | Vertical cross-section tool | [scwx] #403 | P5+ | planned | We have the full L2 volume on the GPU |
+| Hide dual-pol noise: CC, ZDR and PHI only where there's echo (on by default; side sheet → Layers, command palette) | Owner review (Phase 1 follow-up) | P2 | done | Co-located reflectivity ≥ 5 dBZ; the inspector follows the same rule |
 | Command palette (Ctrl+K or the search button): every site, product, layer, action, setting and palette by typing, fuzzy matched and grouped | KICKOFF §5 | P2 | done | Enter runs the top match; arrows move; Esc closes |
 | Says so when there's little or no precipitation in range (clear air), so a blank map doesn't look broken | Owner feedback (CFT #8) | P2 | done | Under 20 km² of drawn reflectivity in runs of 1 km or more, so clutter speckle doesn't count |
 | Rotational velocity / NROT readout in the inspector | [scwx] #160, #206 | P5+ | planned | |

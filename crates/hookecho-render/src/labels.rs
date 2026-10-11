@@ -102,9 +102,10 @@ impl Labels {
             size_px[0] as f64 / ppp as f64,
             size_px[1] as f64 / ppp as f64,
         ];
-        // Hide small towns as you zoom out (land area as a size proxy).
+        // Hide small towns as you zoom out (rank = population): about 500
+        // people zoomed in, ~3,000 regionally, ~25,000 across several states.
         let km = camera.km_per_px();
-        let min_rank = (km * km * 4000.0).max(300.0) as u64;
+        let min_rank = (km * km * 20_000.0).max(500.0) as u64;
         let mut taken: Vec<[f32; 4]> = exclude.to_vec();
         let mut chosen: Vec<(usize, [f32; 2])> = Vec::new();
         let mut examined = 0;
@@ -119,7 +120,7 @@ impl Labels {
                 continue;
             }
             examined += 1;
-            let major = p.rank > 30_000;
+            let major = p.rank > 100_000;
             let entry = self.cache.entry(i).or_insert_with(|| {
                 let font_px = (style.size + if major { 1.0 } else { 0.0 }) * ppp;
                 let mut buffer =
