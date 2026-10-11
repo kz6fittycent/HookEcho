@@ -219,6 +219,7 @@ Requests users raise against other viewers (mainly [Supercell Wx issues][scwx]) 
 | GRLevelX-style placefiles | [scwx] #614, #88 | P5+ | planned | Big ecosystem for chasers |
 | GeoJSON / KML / shapefile overlays | [scwx] #638, #655, #514 | P5+ | planned | |
 | Vertical cross-section tool | [scwx] #403 | P5+ | planned | We have the full L2 volume on the GPU |
+| Hide dual-pol noise: CC, ZDR and PHI only where there's echo (on by default; side sheet → Layers, command palette) | Owner review (Phase 1 follow-up) | P2 | done | Co-located reflectivity ≥ 5 dBZ; the inspector follows the same rule |
 | Command palette (Ctrl+K or the search button): every site, product, layer, action, setting and palette by typing, fuzzy matched and grouped | KICKOFF §5 | P2 | done | Enter runs the top match; arrows move; Esc closes |
 | Says so when there's little or no precipitation in range (clear air), so a blank map doesn't look broken | Owner feedback (CFT #8) | P2 | done | Under 20 km² of drawn reflectivity in runs of 1 km or more, so clutter speckle doesn't count |
 | Rotational velocity / NROT readout in the inspector | [scwx] #160, #206 | P5+ | planned | |

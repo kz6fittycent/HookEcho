@@ -58,6 +58,7 @@ pub enum Action {
     ReducedMotion(bool),
     Palette(String),
     RestoreColors,
+    MaskDualPol(bool),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -211,6 +212,18 @@ pub fn all(model: &Model, query: &str) -> Vec<Command> {
             Action::Layer(layer),
         ));
     }
+    v.push(cmd(
+        Group::Layers,
+        "Hide dual-pol noise",
+        if model.config.mask_dualpol {
+            "On"
+        } else {
+            "Off"
+        },
+        None,
+        "mask cc zdr phi clutter",
+        Action::MaskDualPol(!model.config.mask_dualpol),
+    ));
     let playing = model.looping.playing;
     v.extend([
         cmd(
@@ -549,6 +562,7 @@ pub fn run(model: &mut Model, action: &Action, view: [f64; 2], now: f64) {
             model.palettes.select(&mut model.config, m, name);
         }
         Action::RestoreColors => model.palettes.restore_defaults(&mut model.config),
+        Action::MaskDualPol(on) => model.config.mask_dualpol = *on,
     }
 }
 

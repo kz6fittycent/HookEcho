@@ -342,6 +342,20 @@ pub const LIVE_DWELL_FACTOR: f64 = 3.0;
 /// How long a notice stays up, seconds.
 pub const NOTICE_S: f64 = 4.0;
 
+/// Dual-pol gates show only where the reflectivity at the same range is
+/// at least this (dBZ) while `mask_dualpol` is on.
+pub const DUALPOL_MIN_DBZ: f32 = 5.0;
+
+/// Moments the dual-pol mask applies to.
+pub fn is_dualpol(m: Moment) -> bool {
+    matches!(
+        m,
+        Moment::DifferentialReflectivity
+            | Moment::DifferentialPhase
+            | Moment::CorrelationCoefficient
+    )
+}
+
 /// Less echo than this (km², about a 5 km shower) reads as "little or no
 /// rain or snow".
 pub const QUIET_KM2: f64 = 20.0;
@@ -948,7 +962,18 @@ pub fn ensure_upload(
         model.uploads.push(e);
         return Some(id);
     }
-    let id = renderer.upload_sweep(device, queue, &l.volume.sweeps[sweep], m)?;
+    let s = &l.volume.sweeps[sweep];
+    let id = if model.config.mask_dualpol && is_dualpol(m) {
+        // Upload a masked copy of just this moment.
+        let masked = Sweep {
+            radials: s.radials.clone(),
+            moments: vec![(m, s.masked_by_reflectivity(m, DUALPOL_MIN_DBZ)?)],
+            ..*s
+        };
+        renderer.upload_sweep(device, queue, &masked, m)?
+    } else {
+        renderer.upload_sweep(device, queue, s, m)?
+    };
     model.uploads.push((key, id));
     while model.uploads.len() > UPLOAD_CACHE {
         let (_, old) = model.uploads.remove(0);

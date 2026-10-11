@@ -56,12 +56,12 @@ Phase 2 done:
 - Real-time chunks from `unidata-nexrad-level2-chunks`, progressive sweeps, offline chunk cache, scan-age status (PR #5).
 - Loop and timeline, plain-language product picker, color palettes and GRLevelX `.pal` import (drag and drop; snap `home` plug), a "little or no rain" notice for clear air (PR #7).
 - Side sheet: Layers / Colors / Settings (PR #9).
-- Command palette (Ctrl+K, search button) and the `?` shortcuts sheet (branch `phase2/command-palette`).
+- Command palette (Ctrl+K, search button) and the `?` shortcuts sheet (PR #12).
+- Wind speed units, legend hover value, dual-pol noise mask (branch `phase2/units-and-masks`).
 
 Phase 2 still to do:
-- `.pal` masks and indexed units; removing an imported palette; legend hover value.
-- Separate velocity units; font scale.
-- Mask dual-pol products (CC, ZDR, PHI) where reflectivity or SNR is low.
+- `.pal` masks and indexed units (need Level III hydrometeor classes); removing an imported palette.
+- Font scale for map labels.
 - Rank place labels by Census population estimates instead of land area.
 - Upstream: nexrad-data rc.7 panics on input shorter than 24 bytes (our adapter guards it). **Ask the owner before filing an issue.**
 

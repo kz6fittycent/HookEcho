@@ -19,6 +19,9 @@ This file gives a public source for every data format, algorithm and bundled ass
 | Algorithm | Source | Used in |
 |---|---|---|
 | Beam height (4/3 effective-earth model) | Doviak & Zrnić, *Doppler Radar and Weather Observations*, 2nd ed., eq. 2.28b | prototype inspector; `hookecho-core` (planned) |
+| Dual-pol noise mask: hide ZDR, PHI and CC where the co-located reflectivity is under 5 dBZ or missing | Original (Hook Echo). Rationale: dual-pol estimates degrade at low signal-to-noise ratio (Doviak & Zrnić, *Doppler Radar and Weather Observations*, 2nd ed., on estimator variance vs. SNR); Level II carries no SNR field, so reflectivity stands in | `Sweep::masked_by_reflectivity`, `model::ensure_upload` |
+| "Little or no precipitation" test: drawn reflectivity area (km²) in runs of ≥ 4 gates along a radial | Original (Hook Echo); gate area from range × azimuth spacing × gate length | `Field::echo_area_km2`, `Model::no_precipitation` |
+| Command palette fuzzy matching (in-order subsequence; word-start and run bonuses) | Original (Hook Echo) | `commands::fuzzy` |
 | Storm-relative velocity (subtract the storm-motion component per azimuth) | NWS JetStream, *Storm Relative Velocity*; publicly described in the commercial viewer's SRV help article | planned (Phase 3) |
 | Gaussian backdrop blur (separable, downsampled) | Standard technique; e.g. Rákos, *Efficient Gaussian blur with linear sampling* (2010) | prototype; `hookecho-render` |
 

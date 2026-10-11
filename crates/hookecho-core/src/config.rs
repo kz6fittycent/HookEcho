@@ -86,6 +86,8 @@ pub struct Config {
     pub utc: bool,
     pub map: MapLayers,
     pub speed: Speed,
+    /// Hide CC, ZDR and PHI where there's no real echo (clear-air noise).
+    pub mask_dualpol: bool,
 }
 
 impl Default for Config {
@@ -102,6 +104,7 @@ impl Default for Config {
             utc: false,
             map: MapLayers::default(),
             speed: Speed::Auto,
+            mask_dualpol: true,
         }
     }
 }

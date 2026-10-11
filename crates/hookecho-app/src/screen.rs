@@ -1101,7 +1101,16 @@ fn inspector(kit: &mut Kit, model: &Model, painter: &egui::Painter, at: (f64, f6
     let size = view_size(kit.screen);
     let p = model.camera.latlon_to_screen(at.0, at.1, size);
     let p = pos2(p[0] as f32, p[1] as f32);
-    let probe = l.probe(sweep, model.moment, at);
+    let mut probe = l.probe(sweep, model.moment, at);
+    // Same rule as the map: no dual-pol value where the mask hides it.
+    if model.config.mask_dualpol
+        && model::is_dualpol(model.moment)
+        && l.probe(sweep, hookecho_core::Moment::Reflectivity, at)
+            .value
+            .is_none_or(|v| v < model::DUALPOL_MIN_DBZ)
+    {
+        (probe.raw, probe.value) = (None, None);
+    }
     let fmt = Fmt::of(&model.config);
     let (value, unit, note) = match (probe.raw, probe.value) {
         (Some(1), _) => ("RF".to_string(), "", Some("Range folded")),

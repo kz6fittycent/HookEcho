@@ -197,6 +197,11 @@ fn layers(ui: &mut Ui, kit: &mut Kit, model: &mut Model, b: &mut Body) {
     map.roads = b.toggle(ui, kit, "roads", "Highways", map.roads);
     map.labels = b.toggle(ui, kit, "labels", "Place names", map.labels);
     b.gap();
+    b.eyebrow(kit, "RADAR");
+    let c = &mut model.config;
+    c.mask_dualpol = b.toggle(ui, kit, "mask", "Hide dual-pol noise", c.mask_dualpol);
+    b.hint(kit, "CC, ZDR and PHI only where there's echo");
+    b.gap();
     b.hint(kit, "Warnings, outlooks and lightning come in a");
     b.hint(kit, "later update.");
 }
