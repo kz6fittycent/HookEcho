@@ -195,9 +195,17 @@ pub fn map_input(ui: &mut Ui, model: &mut Model, screen: Rect) -> bool {
 }
 
 /// Keyboard shortcuts (shown in tooltips).
+/// A key press whose own modifiers pass `f` (the event's modifiers, not
+/// the frame's held state, so a quick chord isn't missed).
+fn pressed_with(i: &egui::InputState, key: Key, f: impl Fn(egui::Modifiers) -> bool) -> bool {
+    i.events.iter().any(|e| {
+        matches!(e, egui::Event::Key { key: k, pressed: true, modifiers, .. } if *k == key && f(*modifiers))
+    })
+}
+
 pub fn keys(ui: &Ui, model: &mut Model, screen: Rect) {
     let size = view_size(screen);
-    let typing = matches!(model.picker, Picker::Site { .. });
+    let typing = matches!(model.picker, Picker::Site { .. } | Picker::Command { .. });
     ui.input(|i| {
         if i.key_pressed(Key::Escape) {
             // One layer at a time: a picker first, then the sheet.
@@ -209,7 +217,22 @@ pub fn keys(ui: &Ui, model: &mut Model, screen: Rect) {
                 model.inspect = Inspect::Off;
             }
         }
+        if pressed_with(i, Key::K, |m| m.command) {
+            if matches!(model.picker, Picker::Command { .. }) {
+                model.picker = Picker::None;
+            } else {
+                crate::overlays::open_command(model);
+            }
+            return;
+        }
         if typing {
+            return;
+        }
+        if i.key_pressed(Key::Questionmark) || pressed_with(i, Key::Slash, |m| m.shift) {
+            model.picker = match model.picker {
+                Picker::Shortcuts => Picker::None,
+                _ => Picker::Shortcuts,
+            };
             return;
         }
         if i.key_pressed(Key::S) {
@@ -317,12 +340,16 @@ pub fn paint(ui: &mut Ui, kit: &mut Kit, model: &mut Model, scene: egui::Texture
     if let Inspect::Hover(at) | Inspect::Pinned(at) = model.inspect {
         inspector(kit, model, &painter, at);
     }
-    sheet_button(ui, kit, model, &painter, screen, m);
+    let search_rect = top_right(ui, kit, model, &painter, screen, m);
     crate::sheet::side_sheet(ui, kit, model, crate::sheet::sheet_rect(screen, m));
     match model.picker {
         Picker::Site { .. } => pickers::site_picker(ui, kit, model, site_rect),
         Picker::Product => pickers::product_picker(ui, kit, model, product_rect),
         Picker::Palette => pickers::palette_picker(ui, kit, model, legend_rect),
+        Picker::Command { .. } => {
+            crate::overlays::command_palette(ui, kit, model, view_size(screen), search_rect)
+        }
+        Picker::Shortcuts => crate::overlays::shortcuts_sheet(ui, kit, model, search_rect),
         Picker::None => {}
     }
     if let Some((text, _)) = &model.notice {
@@ -333,21 +360,43 @@ pub fn paint(ui: &mut Ui, kit: &mut Kit, model: &mut Model, scene: egui::Texture
     }
 }
 
-/// Top-right cluster (DESIGN.md §3.2): the side sheet button. The command
-/// palette's search button joins it when the palette exists.
-fn sheet_button(
+/// Top-right cluster (DESIGN.md §3.2): command palette and side sheet
+/// buttons on one glass chip. Returns the search button's rect (the
+/// palette's anchor).
+fn top_right(
     ui: &mut Ui,
     kit: &mut Kit,
     model: &mut Model,
     painter: &egui::Painter,
     screen: Rect,
     m: f32,
-) {
+) -> Rect {
     let h = size::CHIP_H;
-    let rect = Rect::from_min_size(pos2(screen.max.x - m - h, screen.min.y + m), vec2(h, h));
-    kit.glass(painter, rect, radius::MD, 1);
     let b = size::ICON_BUTTON;
-    let button = Rect::from_center_size(rect.center(), vec2(b, b));
+    let inset = (h - b) / 2.0;
+    let w = 2.0 * b + space::S1 + 2.0 * inset;
+    let rect = Rect::from_min_size(pos2(screen.max.x - m - w, screen.min.y + m), vec2(w, h));
+    kit.glass(painter, rect, radius::MD, 1);
+    let search = Rect::from_min_size(rect.min + vec2(inset, inset), vec2(b, b));
+    let resp = components::icon_button(
+        ui,
+        kit,
+        painter,
+        search,
+        Id::new("command-button"),
+        Icon::Search,
+        "Search everything",
+        Some("Ctrl K"),
+        matches!(model.picker, Picker::Command { .. }),
+    );
+    if resp.clicked() {
+        if matches!(model.picker, Picker::Command { .. }) {
+            model.picker = Picker::None;
+        } else {
+            crate::overlays::open_command(model);
+        }
+    }
+    let button = Rect::from_min_size(search.min + vec2(b + space::S1, 0.0), vec2(b, b));
     let resp = components::icon_button(
         ui,
         kit,
@@ -362,6 +411,7 @@ fn sheet_button(
     if resp.clicked() {
         model.toggle_sheet();
     }
+    search
 }
 
 /// A short message centered above the bottom chrome (palette imports).

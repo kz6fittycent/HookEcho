@@ -199,6 +199,44 @@ pub fn run(dir: &Path) -> Result<(), String> {
             inspect: false,
             sheet: Some(SheetTab::Settings),
         },
+        Shot {
+            name: "15-command",
+            theme: ThemeKind::Dark,
+            moment: Moment::Reflectivity,
+            size: SIZE,
+            km_across: 70.0,
+            picker: Picker::Command {
+                query: String::new(),
+                selected: 0,
+                scroll: 0.0,
+            },
+            inspect: false,
+            sheet: None,
+        },
+        Shot {
+            name: "16-command-query",
+            theme: ThemeKind::Dark,
+            moment: Moment::Reflectivity,
+            size: SIZE,
+            km_across: 70.0,
+            picker: Picker::Command {
+                query: "vel".into(),
+                selected: 0,
+                scroll: 0.0,
+            },
+            inspect: false,
+            sheet: None,
+        },
+        Shot {
+            name: "17-shortcuts",
+            theme: ThemeKind::Dark,
+            moment: Moment::Reflectivity,
+            size: SIZE,
+            km_across: 70.0,
+            picker: Picker::Shortcuts,
+            inspect: false,
+            sheet: None,
+        },
     ];
     for s in shots {
         let m = &mut o.app.model;

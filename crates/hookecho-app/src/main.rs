@@ -8,12 +8,14 @@
 mod app;
 mod assets;
 mod bench;
+mod commands;
 // The design system defines the full DESIGN.md token and component set;
 // some pieces are first used by Phase 2 screens (side sheet, palette, timeline).
 #[allow(dead_code)]
 mod design;
 mod headless;
 mod model;
+mod overlays;
 mod palettes;
 mod pickers;
 mod screen;

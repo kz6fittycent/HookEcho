@@ -21,6 +21,10 @@ pub enum Icon {
     Clock,
     Crosshair,
     MapPin,
+    Palette,
+    Settings,
+    Gauge,
+    Zap,
 }
 
 impl Icon {
@@ -38,6 +42,10 @@ impl Icon {
             Icon::Clock => asset_str!("icons/clock.svg"),
             Icon::Crosshair => asset_str!("icons/crosshair.svg"),
             Icon::MapPin => asset_str!("icons/map-pin.svg"),
+            Icon::Palette => asset_str!("icons/palette.svg"),
+            Icon::Settings => asset_str!("icons/settings-2.svg"),
+            Icon::Gauge => asset_str!("icons/gauge.svg"),
+            Icon::Zap => asset_str!("icons/zap.svg"),
         }
     }
 }

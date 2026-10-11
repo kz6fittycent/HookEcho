@@ -153,7 +153,7 @@ Sources (all public, read 2026-10-09):
 | WeatherOps enterprise assets layer | 3P | [layers] [accounts] | — | won't do | Enterprise service. Substitute: placefile/GeoJSON import (beyond parity) |
 | Notification badge: count of active bulletins, colored by highest priority | Base | [bulletins] | P3 | planned | Shown in the top-left cluster; opens the bulletins list |
 | Bulletin list and detail, with raw-text toggle | Base | [bulletins] [appstore] | P3 | planned | |
-| Layer quick-toggle grid | Base | [shortcuts] | P2 | in progress | Side sheet (`L`) → Layers: county lines, highways, place names (saved). Bulletin/outlook/lightning layers join in P3; command palette next |
+| Layer quick-toggle grid | Base | [shortcuts] | P2 | in progress | Side sheet (`L`) → Layers: county lines, highways, place names (saved). Also toggled from the command palette. Bulletin/outlook/lightning layers join in P3 |
 
 ## 4. Tools and interaction
 
@@ -177,7 +177,7 @@ Sources (all public, read 2026-10-09):
 | Radar legend: VCP number and clear-air / precipitation mode | Base | [radar-legend] | P2 | planned | In the site chip detail |
 | Dual-pane (2 products side by side) | T1 | [upgrading] [getting-started] | P3 | planned | Shared camera |
 | Quad-pane | T1 | [getting-started] [appstore] | P3 | planned | |
-| Keyboard shortcuts | Base | [shortcuts] | P2 | planned | `?` cheat sheet; Ctrl+K palette |
+| Keyboard shortcuts | Base | [shortcuts] | P2 | done | `?` opens a grouped cheat sheet (built from the same table as the command palette's keycaps); tooltips show keys |
 | Share/export a still image, with default caption text | Base | [sharing] [advanced] | P4 | planned | PNG export + copy to clipboard; caption = site/product/time |
 | Share/export the loop as GIF/video | Base | [sharing] [scwx] #414 | P5 | planned | GIF/APNG first; video needs an encoder license check |
 | Submit mPING report | Base | [sharing] | P5 | planned | **Ask first** (outbound) |
@@ -219,6 +219,7 @@ Requests users raise against other viewers (mainly [Supercell Wx issues][scwx]) 
 | GRLevelX-style placefiles | [scwx] #614, #88 | P5+ | planned | Big ecosystem for chasers |
 | GeoJSON / KML / shapefile overlays | [scwx] #638, #655, #514 | P5+ | planned | |
 | Vertical cross-section tool | [scwx] #403 | P5+ | planned | We have the full L2 volume on the GPU |
+| Command palette (Ctrl+K or the search button): every site, product, layer, action, setting and palette by typing, fuzzy matched and grouped | KICKOFF §5 | P2 | done | Enter runs the top match; arrows move; Esc closes |
 | Says so when there's little or no precipitation in range (clear air), so a blank map doesn't look broken | Owner feedback (CFT #8) | P2 | done | Under 20 km² of drawn reflectivity in runs of 1 km or more, so clutter speckle doesn't count |
 | Rotational velocity / NROT readout in the inspector | [scwx] #160, #206 | P5+ | planned | |
 | VAD wind profile (VWP) display | [scwx] #383 | P5+ | planned | Level III product 48 |

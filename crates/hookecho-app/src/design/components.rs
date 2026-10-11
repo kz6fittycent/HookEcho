@@ -130,7 +130,9 @@ impl Kit<'_> {
 
     pub fn keycap(&self, painter: &Painter, pos: Pos2, label: &str) -> Rect {
         let g = self.galley(painter, label, Type::Caption, self.theme.text_secondary);
-        let rect = Rect::from_min_size(pos, vec2(g.size().x + space::S2 + 2.0, size::KEYCAP_H));
+        // At least square, so one-letter keys read as keys.
+        let w = (g.size().x + space::S2 + 2.0).max(size::KEYCAP_H);
+        let rect = Rect::from_min_size(pos, vec2(w, size::KEYCAP_H));
         painter.rect(
             rect,
             CornerRadius::same(6),
