@@ -734,6 +734,7 @@ pub fn palette_rows(
     let choices = model.palettes.choices(m).to_vec();
     let active = model.palettes.active(&model.config, m).name.clone();
     let mut chosen = false;
+    let mut remove = None;
     for c in &choices {
         let row = Rect::from_min_size(pos2(x0, *y), vec2(x1 - x0, size::PRODUCT_ROW_H));
         *y += size::PRODUCT_ROW_H;
@@ -762,9 +763,29 @@ pub fn palette_rows(
             t.text_primary,
         );
         if c.imported {
+            // A remove button, then the "Imported" tag left of it.
+            let x = Rect::from_center_size(
+                pos2(tx1 - size::ICON_SM / 2.0, line1),
+                vec2(size::ICON_MD, size::ICON_MD),
+            );
+            let label = format!("Remove {}", p.name);
+            let rm = components::icon_button(
+                ui,
+                kit,
+                painter,
+                x,
+                Id::new(("palette-remove", m.code(), &p.name)),
+                Icon::X,
+                &label,
+                None,
+                false,
+            );
+            if rm.clicked() {
+                remove = Some(p.name.clone());
+            }
             kit.text(
                 painter,
-                pos2(tx1, line1),
+                pos2(x.min.x - space::S2, line1),
                 Align2::RIGHT_CENTER,
                 "Imported",
                 Type::Caption,
@@ -783,6 +804,12 @@ pub fn palette_rows(
         if resp.clicked() {
             model.palettes.select(&mut model.config, m, &p.name);
             chosen = true;
+        }
+    }
+    if let Some(name) = remove {
+        let r = model.palettes.remove(&mut model.config, m, &name);
+        if let Err(e) = r {
+            eprintln!("hookecho: removing palette: {e}");
         }
     }
     chosen

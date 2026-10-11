@@ -349,6 +349,7 @@ impl App {
             _ => true,
         });
         style.labels.visible = layers.labels;
+        style.labels.size *= self.model.config.label_scale.clamp(0.5, 2.0);
         self.sheet_data();
         let exclusions = screen::label_exclusions(&self.model, screen);
         let mut enc = gpu.device.create_command_encoder(&Default::default());

@@ -58,10 +58,13 @@ Phase 2 done:
 - Side sheet: Layers / Colors / Settings (PR #9).
 - Command palette (Ctrl+K, search button) and the `?` shortcuts sheet (PR #12).
 - Wind speed units, legend hover value, dual-pol noise mask, place labels ranked by population (PR #13).
+- Removing imported palettes, map text size (branch `phase2/finish`).
+
+Owner requests for later: a full "command center" with surface obs (temperature, dewpoint, pressure and trend, wind, visibility). P5 in FEATURE_PARITY; needs approval for each new data endpoint.
 
 Phase 2 still to do:
-- `.pal` masks and indexed units (need Level III hydrometeor classes); removing an imported palette.
-- Font scale for map labels.
+- Nothing open. `.pal` masks and indexed units moved to Phase 3 (they need Level III hydrometeor classes and echo tops).
+- End-of-phase screenshots for the owner (KICKOFF).
 - Upstream: nexrad-data rc.7 panics on input shorter than 24 bytes (our adapter guards it). **Ask the owner before filing an issue.**
 
 Strict-snap results (2026-10-10): Vulkan, llvmpipe and Mesa EGL GL work; NVIDIA EGL GL fails, which is harmless because wgpu picks Vulkan first. Local `snapcraft pack` is blocked by Docker's iptables rules (the owner declined the change), so test PR snaps from the `hookecho-snap` workflow artifact.

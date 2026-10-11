@@ -88,6 +88,8 @@ pub struct Config {
     pub speed: Speed,
     /// Hide CC, ZDR and PHI where there's no real echo (clear-air noise).
     pub mask_dualpol: bool,
+    /// Map label size multiplier (0.85, 1, 1.15 or 1.3).
+    pub label_scale: f32,
 }
 
 impl Default for Config {
@@ -105,6 +107,7 @@ impl Default for Config {
             map: MapLayers::default(),
             speed: Speed::Auto,
             mask_dualpol: true,
+            label_scale: 1.0,
         }
     }
 }

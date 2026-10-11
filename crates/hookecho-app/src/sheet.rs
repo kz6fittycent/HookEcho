@@ -235,6 +235,21 @@ fn settings(
     if let Some(i) = b.choice(ui, kit, "theme", "Theme", &["Dark", "Light", "System"], i) {
         c.theme = themes[i];
     }
+    let scales = [0.85, 1.0, 1.15, 1.3];
+    let i = scales
+        .iter()
+        .position(|&x| (x - c.label_scale).abs() < 0.01)
+        .unwrap_or(usize::MAX);
+    if let Some(i) = b.choice(
+        ui,
+        kit,
+        "label-scale",
+        "Map text",
+        &["S", "M", "L", "XL"],
+        i,
+    ) {
+        c.label_scale = scales[i];
+    }
     c.reduced_motion = b.toggle(ui, kit, "motion", "Reduce motion", c.reduced_motion);
     model.reduced_motion = c.reduced_motion;
     b.gap();
