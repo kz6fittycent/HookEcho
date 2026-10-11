@@ -172,7 +172,7 @@ Sources (all public, read 2026-10-09):
 | Previous/next frame; jump to first/last | Base | [getting-started] | P2 | done | `,` `.` step; Shift+`,`/Home first; Shift+`.`/End live |
 | Loop scrubber | Base | [shortcuts] | P2 | done | Ticks spaced by real scan time; click or drag to scrub |
 | Loop speed | Base | [advanced] | P2 | done | ½× / 1× / 2× on the timeline (saved) |
-| Color bar with value on hover | Base | [product-legend] | P2 | planned | Legend inside the product chip's expansion |
+| Color bar with value on hover | Base | [product-legend] | P2 | done | Hover the legend: the value and units under the pointer, with a marker on the bar |
 | Product time plus "updated" time; red when stale | Base | [product-legend] | P2 | in progress | Scan age + green/amber/red dot vs the VCP volume time, local sweep time, offline notice; the explicit "updated at" time comes with the timeline |
 | Radar legend: VCP number and clear-air / precipitation mode | Base | [radar-legend] | P2 | planned | In the site chip detail |
 | Dual-pane (2 products side by side) | T1 | [upgrading] [getting-started] | P3 | planned | Shared camera |
@@ -193,7 +193,7 @@ Sources (all public, read 2026-10-09):
 | Restore default palettes | Base | [palettes] | P2 | done | Pick "Hook Echo Standard" in the legend's palette list |
 | Theme: dark (default), light, follow system | Base | [advanced] | P2 | done | Side sheet → Settings → Appearance (saved) |
 | Font scale for map labels | Base | [advanced] | P2 | planned | |
-| Metric units toggle | Base | [advanced] | P2 | in progress | Side sheet → Settings: mi/mph or km/m/s (saved). Still to do: separate velocity units (kt/mph/m/s) |
+| Metric units toggle | Base | [advanced] | P2 | done | Side sheet → Settings: distance (mi/ft or km/m) and wind speed (kt, mph, km/h, m/s) separately; also in the command palette (saved) |
 | UTC time display mode | Base | [appstore] | P2 | done | Side sheet → Settings → Clock: Local or UTC (archived scans always show the UTC date) |
 | Prevent the screen from sleeping while open | Base | [advanced] | P4 | planned | Desktop: the idle-inhibit portal (snap `desktop` plug) |
 | International products: choose countries | Base | [advanced] | P5 | planned | |

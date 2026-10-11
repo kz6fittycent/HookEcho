@@ -356,6 +356,7 @@ impl App {
         // UI.
         let (scene, blur) = self.textures.expect("registered");
         let mut kit = Kit {
+            panels: Default::default(),
             theme: &theme,
             icons: &mut self.icons,
             blur,
@@ -363,6 +364,12 @@ impl App {
         };
         let before = self.model.config.clone();
         screen::paint(ui, &mut kit, &mut self.model, scene);
+        self.model.chrome = kit
+            .panels
+            .take()
+            .iter()
+            .map(|r| [r.min.x, r.min.y, r.max.x, r.max.y])
+            .collect();
         if before != self.model.config {
             self.save_config();
         }

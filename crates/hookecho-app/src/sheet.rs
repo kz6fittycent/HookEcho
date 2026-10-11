@@ -6,7 +6,7 @@ use crate::design::tokens::{Type, radius, size, space};
 use crate::model::{Model, SheetTab};
 use crate::pickers;
 use eframe::egui::{self, Align2, Id, LayerId, Order, Rect, Ui, WidgetType, pos2, vec2};
-use hookecho_core::config::{ThemePref, Units};
+use hookecho_core::config::{Speed, ThemePref, Units};
 
 /// Where the sheet goes: right edge, under the top chips, to the bottom margin.
 pub fn sheet_rect(screen: Rect, m: f32) -> Rect {
@@ -237,8 +237,28 @@ fn settings(
     b.eyebrow(kit, "UNITS AND TIME");
     let units = [Units::Imperial, Units::Metric];
     let i = units.iter().position(|&x| x == c.units).unwrap_or(0);
-    if let Some(i) = b.choice(ui, kit, "units", "Units", &["mi, mph", "km, m/s"], i) {
+    if let Some(i) = b.choice(ui, kit, "units", "Distance", &["mi, ft", "km, m"], i) {
         c.units = units[i];
+    }
+    let speeds = [Speed::Knots, Speed::Mph, Speed::Kmh, Speed::Ms];
+    // Auto shows as whatever it resolves to.
+    let shown = match c.speed {
+        Speed::Auto => match c.units {
+            Units::Imperial => Speed::Knots,
+            Units::Metric => Speed::Ms,
+        },
+        s => s,
+    };
+    let i = speeds.iter().position(|&x| x == shown).unwrap_or(0);
+    if let Some(i) = b.choice(
+        ui,
+        kit,
+        "speed-units",
+        "Wind",
+        &["kt", "mph", "km/h", "m/s"],
+        i,
+    ) {
+        c.speed = speeds[i];
     }
     if let Some(i) = b.choice(ui, kit, "utc", "Clock", &["Local", "UTC"], c.utc as usize) {
         c.utc = i == 1;

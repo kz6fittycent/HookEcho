@@ -98,6 +98,8 @@ pub mod size {
     pub const LEGEND_STEPS: usize = 96;
     pub const LEGEND_TICKS: f32 = 5.0;
     pub const LEGEND_BAR_RADIUS: u8 = 2;
+    pub const LEGEND_MARKER_W: f32 = 2.0;
+    pub const LEGEND_MARKER_OVERHANG: f32 = 3.0;
     /// Timeline scrubber (DESIGN §3.3).
     pub const TICK: [f32; 2] = [2.0, 10.0];
     pub const PLAYHEAD: [f32; 2] = [4.0, 20.0];

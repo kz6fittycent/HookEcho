@@ -4,7 +4,7 @@
 
 use crate::model::{self, Model, PRODUCTS, Picker, SheetTab};
 use hookecho_core::Moment;
-use hookecho_core::config::{ThemePref, Units};
+use hookecho_core::config::{Speed, ThemePref, Units};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Group {
@@ -51,6 +51,7 @@ pub enum Action {
     ZoomOut,
     Theme(ThemePref),
     Units(Units),
+    Speed(Speed),
     Utc(bool),
     LoopFrames(usize),
     LoopSpeed(f32),
@@ -304,20 +305,36 @@ pub fn all(model: &Model, query: &str) -> Vec<Command> {
     }
     v.push(cmd(
         Group::Settings,
-        "Units: miles and mph",
+        "Distance: miles and feet",
         current(c.units == Units::Imperial),
         None,
-        "imperial feet",
+        "units imperial",
         Action::Units(Units::Imperial),
     ));
     v.push(cmd(
         Group::Settings,
-        "Units: kilometers and m/s",
+        "Distance: kilometers and meters",
         current(c.units == Units::Metric),
         None,
-        "metric km meters",
+        "units metric km",
         Action::Units(Units::Metric),
     ));
+    let (unit_now, _) = c.speed.resolve(c.units);
+    for (sp, label, kw) in [
+        (Speed::Knots, "kt", "knots"),
+        (Speed::Mph, "mph", "miles per hour"),
+        (Speed::Kmh, "km/h", "kilometers per hour kph"),
+        (Speed::Ms, "m/s", "meters per second"),
+    ] {
+        v.push(cmd(
+            Group::Settings,
+            format!("Wind speed: {label}"),
+            current(unit_now == sp.resolve(c.units).0),
+            None,
+            kw,
+            Action::Speed(sp),
+        ));
+    }
     v.push(cmd(
         Group::Settings,
         "Clock: local time",
@@ -519,6 +536,7 @@ pub fn run(model: &mut Model, action: &Action, view: [f64; 2], now: f64) {
         }
         Action::Theme(t) => c.theme = *t,
         Action::Units(u) => c.units = *u,
+        Action::Speed(sp) => c.speed = *sp,
         Action::Utc(on) => c.utc = *on,
         Action::LoopFrames(n) => c.loop_frames = *n,
         Action::LoopSpeed(s) => c.loop_speed = *s,
@@ -562,6 +580,8 @@ mod tests {
         assert_eq!(first("velocity"), Some(Action::Product(Moment::Velocity)));
         assert_eq!(first("dark mode"), Some(Action::Theme(ThemePref::Dark)));
         assert_eq!(first("utc"), Some(Action::Utc(true)));
+        assert_eq!(first("knots"), Some(Action::Speed(Speed::Knots)));
+        assert_eq!(first("mph"), Some(Action::Speed(Speed::Mph)));
         assert_eq!(first("kfws"), Some(Action::Site("KFWS")));
         assert_eq!(first("roads"), Some(Action::Layer(Layer::Roads)));
         // An empty query lists commands but no (non-favorite) sites.

@@ -315,6 +315,8 @@ pub struct Model {
     /// Cached `no_precipitation` answer, keyed by (generation, sweep, palette version).
     quiet: Option<((u64, usize, u64), bool)>,
     pub sheet: Option<Sheet>,
+    /// Last frame's glass panels (logical px, [x0, y0, x1, y1]).
+    pub chrome: Vec<[f32; 4]>,
     generation: u64,
 }
 
@@ -384,6 +386,7 @@ impl Model {
             notice: None,
             quiet: None,
             sheet: None,
+            chrome: Vec::new(),
             generation: 0,
         }
     }
@@ -747,9 +750,13 @@ pub fn site_list(query: &str, favorites: &[String]) -> Vec<(&'static Site, bool)
 }
 
 /// Display formatting by unit system.
-pub struct Fmt(pub Units);
+pub struct Fmt(pub Units, pub hookecho_core::config::Speed);
 
 impl Fmt {
+    pub fn of(c: &Config) -> Fmt {
+        Fmt(c.units, c.speed)
+    }
+
     pub fn distance(&self, km: f64) -> String {
         match self.0 {
             Units::Imperial => format!("{:.1} mi", km * 0.621_371),
@@ -766,10 +773,8 @@ impl Fmt {
 
     /// (value text, unit text) for a decoded moment value.
     pub fn value(&self, m: Moment, v: f32) -> (String, &'static str) {
-        let speed = |v: f32| match self.0 {
-            Units::Imperial => (v * 1.943_844, "kt"),
-            Units::Metric => (v, "m/s"),
-        };
+        let (unit, k) = self.1.resolve(self.0);
+        let speed = |v: f32| (v * k, unit);
         match m {
             Moment::Reflectivity => (format!("{v:.1}"), "dBZ"),
             Moment::Velocity => {
@@ -789,10 +794,9 @@ impl Fmt {
 
     /// Legend unit label and the factor from native units.
     pub fn legend_unit(&self, m: Moment) -> (&'static str, f32) {
-        match (m, self.0) {
-            (Moment::Velocity | Moment::SpectrumWidth, Units::Imperial) => ("kt", 1.943_844),
-            (Moment::Velocity | Moment::SpectrumWidth, Units::Metric) => ("m/s", 1.0),
-            (m, _) => (m.unit(), 1.0),
+        match m {
+            Moment::Velocity | Moment::SpectrumWidth => self.1.resolve(self.0),
+            m => (m.unit(), 1.0),
         }
     }
 }

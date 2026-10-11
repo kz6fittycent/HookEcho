@@ -22,6 +22,32 @@ pub enum Units {
     Metric,
 }
 
+/// Wind speed units for velocity and spectrum width. `Auto` follows the
+/// distance units: knots with miles (as chasers read velocity), m/s with
+/// kilometers.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Speed {
+    #[default]
+    Auto,
+    Knots,
+    Mph,
+    Kmh,
+    Ms,
+}
+
+impl Speed {
+    /// (label, factor from m/s) with `Auto` resolved against `units`.
+    pub fn resolve(self, units: Units) -> (&'static str, f32) {
+        match (self, units) {
+            (Speed::Knots, _) | (Speed::Auto, Units::Imperial) => ("kt", 1.943_844),
+            (Speed::Mph, _) => ("mph", 2.236_936),
+            (Speed::Kmh, _) => ("km/h", 3.6),
+            (Speed::Ms, _) | (Speed::Auto, Units::Metric) => ("m/s", 1.0),
+        }
+    }
+}
+
 /// Basemap layers the user can hide (side sheet → Layers).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
@@ -59,6 +85,7 @@ pub struct Config {
     /// Show times in UTC instead of local time.
     pub utc: bool,
     pub map: MapLayers,
+    pub speed: Speed,
 }
 
 impl Default for Config {
@@ -74,6 +101,7 @@ impl Default for Config {
             palettes: BTreeMap::new(),
             utc: false,
             map: MapLayers::default(),
+            speed: Speed::Auto,
         }
     }
 }
@@ -99,6 +127,13 @@ impl Config {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn speed_units() {
+        assert_eq!(Speed::Auto.resolve(Units::Imperial).0, "kt");
+        assert_eq!(Speed::Auto.resolve(Units::Metric).0, "m/s");
+        assert_eq!(Speed::Mph.resolve(Units::Metric), ("mph", 2.236_936));
+    }
 
     #[test]
     fn round_trip_and_partial_files() {

@@ -264,6 +264,22 @@ pub fn run(dir: &Path) -> Result<(), String> {
             .map_err(|e| e.to_string())?;
         println!("wrote {}", path.display());
     }
+    // The legend's hover readout: velocity, pointer at 70% along the bar.
+    let m = &mut o.app.model;
+    (m.moment, m.picker, m.sheet, m.inspect) = (Moment::Velocity, Picker::None, None, Inspect::Off);
+    o.app.theme_override = Some(ThemeKind::Dark);
+    o.frame(SIZE, PPP, Vec::new());
+    if let Some(r) = o.ctx.read_response(eframe::egui::Id::new("legend")) {
+        let p = r.rect.lerp_inside(eframe::egui::vec2(0.7, 0.5)); // design-ok: a fraction of the rect, not a size
+        o.frame(SIZE, PPP, vec![eframe::egui::Event::PointerMoved(p)]);
+    }
+    let (w, h, px) = o.capture(SIZE, PPP);
+    let path = dir.join("18-legend-hover.png");
+    image::RgbaImage::from_raw(w, h, px)
+        .ok_or("bad image")?
+        .save(&path)
+        .map_err(|e| e.to_string())?;
+    println!("wrote {}", path.display());
     Ok(())
 }
 

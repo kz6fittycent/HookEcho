@@ -118,10 +118,16 @@ pub fn map_input(ui: &mut Ui, model: &mut Model, screen: Rect) -> bool {
             i.pointer.velocity(),
         )
     });
+    // Over the map itself: not over a floating layer, and not over the
+    // chrome painted on the map's own layer (last frame's glass panels).
     let over_map = pointer.is_some_and(|p| {
         ui.ctx()
             .layer_id_at(p)
             .is_none_or(|l| l.order == egui::Order::Background)
+            && !model
+                .chrome
+                .iter()
+                .any(|r| p.x >= r[0] && p.x <= r[2] && p.y >= r[1] && p.y <= r[3])
     });
     if resp.dragged() {
         let d = resp.drag_delta();
@@ -194,7 +200,6 @@ pub fn map_input(ui: &mut Ui, model: &mut Model, screen: Rect) -> bool {
     animating
 }
 
-/// Keyboard shortcuts (shown in tooltips).
 /// A key press whose own modifiers pass `f` (the event's modifiers, not
 /// the frame's held state, so a quick chord isn't missed).
 fn pressed_with(i: &egui::InputState, key: Key, f: impl Fn(egui::Modifiers) -> bool) -> bool {
@@ -203,6 +208,7 @@ fn pressed_with(i: &egui::InputState, key: Key, f: impl Fn(egui::Modifiers) -> b
     })
 }
 
+/// Keyboard shortcuts (shown in tooltips and the `?` sheet).
 pub fn keys(ui: &Ui, model: &mut Model, screen: Rect) {
     let size = view_size(screen);
     let typing = matches!(model.picker, Picker::Site { .. } | Picker::Command { .. });
@@ -744,7 +750,7 @@ fn legend(
         };
     }
     let pad = space::S3;
-    let fmt = Fmt(model.config.units);
+    let fmt = Fmt::of(&model.config);
     let (unit, factor) = fmt.legend_unit(model.moment);
     let palette = model.palettes.active(&model.config, model.moment).clone();
     let (lo, hi) = (palette.min(), palette.max());
@@ -756,14 +762,6 @@ fn legend(
         Type::Caption,
         t.text_secondary,
     );
-    kit.text(
-        painter,
-        pos2(rect.max.x - pad, rect.min.y + size::LEGEND_TITLE_Y),
-        Align2::RIGHT_CENTER,
-        unit,
-        Type::Caption,
-        t.text_tertiary,
-    );
     let bar = Rect::from_min_max(
         pos2(rect.min.x + pad, rect.min.y + size::LEGEND_BAR_Y),
         pos2(
@@ -771,7 +769,28 @@ fn legend(
             rect.min.y + size::LEGEND_BAR_Y + size::LEGEND_BAR_H,
         ),
     );
+    // Hovering the legend reads out the value under the pointer (DESIGN §3.4).
+    let hover_x = resp.hover_pos().map(|p| p.x.clamp(bar.min.x, bar.max.x));
+    let header = match hover_x {
+        Some(x) => {
+            let v = lo + (hi - lo) * (x - bar.min.x) / bar.width();
+            let (text, u) = fmt.value(model.moment, v);
+            (format!("{text} {u}").trim().to_string(), t.text_primary)
+        }
+        None => (unit.to_string(), t.text_tertiary),
+    };
+    kit.text(
+        painter,
+        pos2(rect.max.x - pad, rect.min.y + size::LEGEND_TITLE_Y),
+        Align2::RIGHT_CENTER,
+        header.0,
+        Type::CaptionTab,
+        header.1,
+    );
     kit.color_bar(painter, bar, |f| palette.sample(lo + (hi - lo) * f));
+    if let Some(x) = hover_x {
+        kit.bar_marker(painter, bar, x);
+    }
     // About five evenly spaced, round-numbered ticks in display units.
     let (dlo, dhi) = (lo * factor, hi * factor);
     let step = nice_step((dhi - dlo) / size::LEGEND_TICKS);
@@ -1083,7 +1102,7 @@ fn inspector(kit: &mut Kit, model: &Model, painter: &egui::Painter, at: (f64, f6
     let p = model.camera.latlon_to_screen(at.0, at.1, size);
     let p = pos2(p[0] as f32, p[1] as f32);
     let probe = l.probe(sweep, model.moment, at);
-    let fmt = Fmt(model.config.units);
+    let fmt = Fmt::of(&model.config);
     let (value, unit, note) = match (probe.raw, probe.value) {
         (Some(1), _) => ("RF".to_string(), "", Some("Range folded")),
         (_, Some(v)) => {

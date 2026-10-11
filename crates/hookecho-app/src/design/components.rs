@@ -18,6 +18,9 @@ pub struct Kit<'a> {
     pub blur: TextureId,
     /// The rect the blur texture covers (the whole viewport).
     pub screen: Rect,
+    /// Every glass panel drawn this frame; the map ignores the pointer over
+    /// them next frame (chrome shares the map's layer).
+    pub panels: std::cell::RefCell<Vec<Rect>>,
 }
 
 impl Kit<'_> {
@@ -46,6 +49,7 @@ impl Kit<'_> {
     /// Floating glass: shadow, blurred backdrop, tint, hairline, and the 1 px
     /// "lit" top edge.
     pub fn glass(&self, painter: &Painter, rect: Rect, r: u8, elevation: u8) {
+        self.panels.borrow_mut().push(rect);
         let cr = CornerRadius::same(r);
         painter.add(self.theme.shadow(elevation).as_shape(rect, cr));
         let s = self.screen;
@@ -302,6 +306,15 @@ impl Kit<'_> {
             CornerRadius::same(size::LEGEND_BAR_RADIUS),
             Stroke::new(hairline(painter.ctx()), self.theme.glass_stroke),
             StrokeKind::Outside,
+        );
+    }
+
+    /// The legend's hover marker: a short vertical rule across the bar.
+    pub fn bar_marker(&self, painter: &Painter, bar: Rect, x: f32) {
+        let over = size::LEGEND_MARKER_OVERHANG;
+        painter.line_segment(
+            [pos2(x, bar.min.y - over), pos2(x, bar.max.y + over)],
+            Stroke::new(size::LEGEND_MARKER_W, self.theme.text_primary),
         );
     }
 
