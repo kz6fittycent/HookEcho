@@ -1,5 +1,8 @@
 {
- "format": 1,
- "generated": "2026-10-09T00:00:00Z",
- "sha256": {}
+  "format": 1,
+  "generated": "2026-10-12T14:43:25Z",
+  "sha256": {
+    "sites.tsv": "952d38f4e42d6909bc8c4bd11e32d7cc9d5fe472ad32b101d2f8de02bacc66f4",
+    "basemap.bin": "1df88b104e142b6e6a52f732d39ceefd278423c224563e3705a65deb03464a91"
+  }
 }
