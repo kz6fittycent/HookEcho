@@ -162,6 +162,27 @@ pub fn all(model: &Model, query: &str) -> Vec<Command> {
             Action::Site(s.id.as_str()),
         ));
     }
+    // Always on top, so a first-time user sees how to start near home.
+    v.push(cmd(
+        Group::Sites,
+        "Nearest radar",
+        if model.config.home.is_some() {
+            "Closest to home"
+        } else {
+            "Closest to the middle of the map"
+        },
+        None,
+        "local closest my area",
+        Action::NearestRadar,
+    ));
+    v.push(cmd(
+        Group::Sites,
+        "Set home to the map center",
+        "Opens and measures from here",
+        None,
+        "location house my area",
+        Action::SetHome,
+    ));
     for m in PRODUCTS {
         let (name, what) = model::product_label(m);
         let key = match m {
@@ -252,26 +273,6 @@ pub fn all(model: &Model, query: &str) -> Vec<Command> {
             Some("S"),
             "site",
             Action::SitePicker,
-        ),
-        cmd(
-            Group::Actions,
-            "Nearest radar",
-            if model.config.home.is_some() {
-                "Closest to home"
-            } else {
-                "Closest to the middle of the map"
-            },
-            None,
-            "local closest my area",
-            Action::NearestRadar,
-        ),
-        cmd(
-            Group::Actions,
-            "Set home to the map center",
-            "Opens and measures from here",
-            None,
-            "location house my area",
-            Action::SetHome,
         ),
         cmd(
             Group::Actions,
@@ -617,6 +618,18 @@ mod tests {
         Model::new(Config::default(), site, [1280.0, 800.0])
     }
 
+    /// The location commands lead the empty palette, where a first-time
+    /// user will see them, and a search for "home" finds them.
+    #[test]
+    fn location_commands_first() {
+        let m = model();
+        let empty = search(all(&m, ""), "");
+        assert_eq!(empty[0].action, Action::NearestRadar);
+        assert_eq!(empty[1].action, Action::SetHome);
+        let found = search(all(&m, "home"), "home");
+        assert_eq!(found[0].action, Action::SetHome);
+    }
+
     #[test]
     fn fuzzy_prefers_word_starts() {
         assert!(fuzzy("vel", "Velocity").is_some());
@@ -641,7 +654,7 @@ mod tests {
         assert_eq!(first("roads"), Some(Action::Layer(Layer::Roads)));
         // An empty query lists commands but no (non-favorite) sites.
         let empty = search(all(&m, ""), "");
-        assert!(empty.iter().all(|c| c.group != Group::Sites));
+        assert!(empty.iter().all(|c| !matches!(c.action, Action::Site(_))));
         assert!(empty.len() > 20);
         // Grouped in order when nothing is typed.
         let groups: Vec<Group> = empty.iter().map(|c| c.group).collect();
