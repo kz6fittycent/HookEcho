@@ -312,6 +312,8 @@ pub struct Model {
     pub palettes: crate::palettes::Library,
     /// A short message and the UI time (s) it disappears.
     pub notice: Option<(String, f64)>,
+    /// "Set home" is waiting for a click on the map.
+    pub placing_home: bool,
     /// Cached `no_precipitation` answer, keyed by (generation, sweep, palette version).
     quiet: Option<((u64, usize, u64), bool)>,
     pub sheet: Option<Sheet>,
@@ -398,6 +400,7 @@ impl Model {
             looping: Loop::default(),
             palettes: crate::palettes::Library::load(None),
             notice: None,
+            placing_home: false,
             quiet: None,
             sheet: None,
             chrome: Vec::new(),
@@ -720,9 +723,10 @@ impl Model {
         hookecho_core::geo::from_mercator(self.camera.center)
     }
 
-    /// Makes the map center the home point.
-    pub fn set_home_here(&mut self) {
-        self.config.home = Some(self.map_center());
+    /// Makes `at` (lat, lon) the home point and ends "Set home" placing.
+    pub fn set_home(&mut self, at: (f64, f64)) {
+        self.config.home = Some(at);
+        self.placing_home = false;
     }
 
     /// Switches to the NEXRAD nearest home, or to the map center if no home
@@ -1099,12 +1103,9 @@ mod tests {
         m.camera = hookecho_core::geo::Camera::looking_at(33.1, -96.75, 300.0, size[0]);
         m.go_to_nearest(size);
         assert_eq!(m.site.id, "KFWS", "no home: nearest to the map center");
-        m.set_home_here();
-        let (lat, lon) = m.config.home.unwrap();
-        assert!(
-            (lat - 32.57).abs() < 0.1 && (lon + 97.30).abs() < 0.1,
-            "home at KFWS"
-        );
+        m.placing_home = true;
+        m.set_home((33.1, -96.75));
+        assert!(!m.placing_home, "placing ends once home is set");
         m.camera = hookecho_core::geo::Camera::looking_at(40.0, -100.0, 300.0, size[0]);
         m.go_to_nearest(size);
         assert_eq!(m.site.id, "KFWS", "home wins over the map center");

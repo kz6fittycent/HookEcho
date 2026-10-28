@@ -177,7 +177,7 @@ Reduced motion (an `org.gnome.desktop.interface enable-animations=false` / `pref
 
 ### 3.2 Top-right cluster
 
-Two icon buttons: **side sheet** (`layers` icon, key `L`) and **command palette** (`search`, Ctrl+K). In multi-pane mode a **pane layout** button joins them.
+Two buttons: a labeled **Menu** button (`menu` icon plus the word "Menu", Ctrl+K), which opens the command palette, and the **side sheet** icon button (`layers` icon, key `L`). The palette's button carries a label because a bare magnifier didn't read as the app's menu (owner, 2026-10-28). In multi-pane mode a **pane layout** button joins them.
 
 ### 3.3 Bottom: timeline
 

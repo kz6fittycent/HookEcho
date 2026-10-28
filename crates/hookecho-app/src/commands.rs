@@ -101,7 +101,7 @@ pub const SHORTCUTS: &[ShortcutGroup] = &[
     (
         "GENERAL",
         &[
-            ("Ctrl K", "Command palette"),
+            ("Ctrl K", "Menu (search everything)"),
             ("S", "Change radar"),
             ("P", "Change product or angle"),
             ("L", "Layers, colors and settings"),
@@ -177,8 +177,8 @@ pub fn all(model: &Model, query: &str) -> Vec<Command> {
     ));
     v.push(cmd(
         Group::Sites,
-        "Set home to the map center",
-        "Opens and measures from here",
+        "Set home",
+        "Click the map to choose the spot",
         None,
         "location house my area",
         Action::SetHome,
@@ -574,7 +574,7 @@ pub fn run(model: &mut Model, action: &Action, view: [f64; 2], now: f64) {
             }
         }
         Action::NearestRadar => model.go_to_nearest(view),
-        Action::SetHome => model.set_home_here(),
+        Action::SetHome => model.placing_home = true,
         Action::ProductPicker => model.picker = Picker::Product,
         Action::Sheet(tab) => model.sheet = Some(model::Sheet::new(*tab)),
         Action::Shortcuts => model.picker = Picker::Shortcuts,

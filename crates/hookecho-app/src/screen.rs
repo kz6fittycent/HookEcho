@@ -150,6 +150,18 @@ pub fn map_input(ui: &mut Ui, model: &mut Model, screen: Rect) -> bool {
             model.motion.zoom_anchor = anchor;
         }
     }
+    // "Set home" (command palette): the next click on the map places it.
+    if model.placing_home && over_map {
+        ui.ctx().set_cursor_icon(egui::CursorIcon::Crosshair);
+        if resp.clicked()
+            && let Some(p) = pointer
+        {
+            let at = model
+                .camera
+                .screen_to_latlon([p.x as f64, p.y as f64], size);
+            model.set_home(at);
+        }
+    }
     // Double-click zooms in on the point (DESIGN §3, parity: map interaction).
     if resp.double_clicked()
         && let Some(p) = pointer
@@ -222,6 +234,7 @@ pub fn keys(ui: &Ui, model: &mut Model, screen: Rect) {
             if matches!(model.inspect, Inspect::Pinned(_)) {
                 model.inspect = Inspect::Off;
             }
+            model.placing_home = false;
         }
         if pressed_with(i, Key::K, |m| m.command) {
             if matches!(model.picker, Picker::Command { .. }) {
@@ -359,7 +372,15 @@ pub fn paint(ui: &mut Ui, kit: &mut Kit, model: &mut Model, scene: egui::Texture
         Picker::Shortcuts => crate::overlays::shortcuts_sheet(ui, kit, model, search_rect),
         Picker::None => {}
     }
-    if let Some((text, _)) = &model.notice {
+    if model.placing_home {
+        notice(
+            kit,
+            &painter,
+            screen,
+            m,
+            "Click the map to set home · Esc to cancel",
+        );
+    } else if let Some((text, _)) = &model.notice {
         notice(kit, &painter, screen, m, text);
     } else if matches!(model.picker, Picker::None) && model.no_precipitation() {
         let text = format!("Little or no rain or snow near {} right now", model.site.id);
@@ -367,8 +388,8 @@ pub fn paint(ui: &mut Ui, kit: &mut Kit, model: &mut Model, scene: egui::Texture
     }
 }
 
-/// Top-right cluster (DESIGN.md §3.2): command palette and side sheet
-/// buttons on one glass chip. Returns the search button's rect (the
+/// Top-right cluster (DESIGN.md §3.2): the Menu (command palette) and side
+/// sheet buttons on one glass chip. Returns the Menu button's rect (the
 /// palette's anchor).
 fn top_right(
     ui: &mut Ui,
@@ -381,18 +402,20 @@ fn top_right(
     let h = size::CHIP_H;
     let b = size::ICON_BUTTON;
     let inset = (h - b) / 2.0;
-    let w = 2.0 * b + space::S1 + 2.0 * inset;
+    let menu_w = components::labeled_button_width(kit, painter, "Menu");
+    let w = menu_w + b + space::S1 + 2.0 * inset;
     let rect = Rect::from_min_size(pos2(screen.max.x - m - w, screen.min.y + m), vec2(w, h));
     kit.glass(painter, rect, radius::MD, 1);
-    let search = Rect::from_min_size(rect.min + vec2(inset, inset), vec2(b, b));
-    let resp = components::icon_button(
+    let search = Rect::from_min_size(rect.min + vec2(inset, inset), vec2(menu_w, b));
+    let resp = components::labeled_button(
         ui,
         kit,
         painter,
         search,
         Id::new("command-button"),
-        Icon::Search,
-        "Search everything",
+        Icon::Menu,
+        "Menu",
+        "Menu: radars, products, layers and settings",
         Some("Ctrl K"),
         matches!(model.picker, Picker::Command { .. }),
     );
@@ -403,7 +426,7 @@ fn top_right(
             crate::overlays::open_command(model);
         }
     }
-    let button = Rect::from_min_size(search.min + vec2(b + space::S1, 0.0), vec2(b, b));
+    let button = Rect::from_min_size(pos2(search.max.x + space::S1, search.min.y), vec2(b, b));
     let resp = components::icon_button(
         ui,
         kit,
@@ -446,7 +469,7 @@ fn notice(kit: &Kit, painter: &egui::Painter, screen: Rect, m: f32, text: &str) 
     );
 }
 
-/// The home point (set from the command palette), as a pin whose tip sits
+/// The home point ("Set home" in the command palette), as a pin whose tip sits
 /// on the spot. Hidden under the chrome like the site markers.
 fn home_marker(kit: &mut Kit, model: &Model, painter: &egui::Painter) {
     let Some((lat, lon)) = model.config.home else {
