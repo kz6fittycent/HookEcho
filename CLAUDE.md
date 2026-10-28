@@ -45,7 +45,7 @@ assets/                  fonts, icons, sample data (large samples are fetched, n
 
 ## Status (keep this current)
 
-**Phase 2 in progress (2026-10-10).** Public repo: https://github.com/kz6fittycent/HookEcho. Phase 1 is complete.
+**Phase 2 complete; awaiting owner sign-off before Phase 3 (2026-10-10).** Public repo: https://github.com/kz6fittycent/HookEcho. Phases 0–2 are merged (last merge: PR #15, `aefa23d`).
 
 - Phase 0 was approved: design, the `bzip2-1.0.6` exception, and KDP from Level III.
 - `BSL-1.0` was approved on 2026-10-10, then dropped the same day along with Windows.
@@ -58,14 +58,25 @@ Phase 2 done:
 - Side sheet: Layers / Colors / Settings (PR #9).
 - Command palette (Ctrl+K, search button) and the `?` shortcuts sheet (PR #12).
 - Wind speed units, legend hover value, dual-pol noise mask, place labels ranked by population (PR #13).
-- Removing imported palettes, map text size (branch `phase2/finish`).
+- Removing imported palettes, map text size (PR #15).
 
 Owner requests for later: a full "command center" with surface obs (temperature, dewpoint, pressure and trend, wind, visibility). P5 in FEATURE_PARITY; needs approval for each new data endpoint.
 
-Phase 2 still to do:
-- Nothing open. `.pal` masks and indexed units moved to Phase 3 (they need Level III hydrometeor classes and echo tops).
-- End-of-phase screenshots for the owner (KICKOFF).
+**Owner fixes before Phase 3 (2026-10-28), in this order, one PR each:**
+1. New app icon: a red/green velocity-couplet swirl in a counter-clockwise arrow (Northern Hemisphere rotation: green left, red right, with the radar to the south; the arrow must stay counter-clockwise). The old banded hook echo read as something else.
+2. Start near the user. Today the app opens on KTLX (the sample) and the picker sorts by state, so a Dallas user lands in Oklahoma. Plan: sort the picker by distance from the map center, "Use my location" via GeoClue (snap `location-observe`, connected by hand), set home by clicking the map, open on the nearest radar. No new endpoints.
+3. TDWR (TDAL and TDFW are 16–28 km from north Dallas; KFWS is 78 km): a Level III reader for TZ0/TZL/TV0. These come from the already-approved `unidata-nexrad-level3` bucket (checked 2026-10-28: about 180 files per site per day), so no new endpoint. Pulls the Level III decoder forward from Phase 3/P5.
+
+Daily workflow failures to fix (seen 2026-10-28): Security Rebuild fails because `latest/stable` is empty (it should skip quietly until the first stable release); Refresh Radar Data can't open its PR because the repo doesn't let Actions create pull requests (an owner setting).
+
+Where to pick up next session:
+- **Get the owner's Phase 2 sign-off first** (KICKOFF gate). End-of-phase screenshots: `target/shots/phase2/` (20 PNGs, gitignored; regenerate with `--screenshots`).
+- **Call-for-testing issues:** revision 7 (PR #15) opens a new CFT issue; close #16 (revision 6) as superseded when it appears. Close each older CFT once its replacement exists.
+- **Phase 3 needs endpoint approval before any code:** NWS alerts API (warnings/watches), SPC outlooks, GOES GLM (lightning). Present options and ask; don't add them unasked.
+- **Command center** (owner request, P5): surface obs (temperature, dewpoint, pressure and trend, wind, visibility), e.g. METARs or NWS station observations. Also new endpoints, so ask first.
+- Moved to Phase 3: `.pal` rain/snow/mix/topped masks and indexed units (need Level III hydrometeor classes and echo tops).
 - Upstream: nexrad-data rc.7 panics on input shorter than 24 bytes (our adapter guards it). **Ask the owner before filing an issue.**
+- Each merge to `main` needs its own explicit approval; approval of one PR never covers the next.
 
 Strict-snap results (2026-10-10): Vulkan, llvmpipe and Mesa EGL GL work; NVIDIA EGL GL fails, which is harmless because wgpu picks Vulkan first. Local `snapcraft pack` is blocked by Docker's iptables rules (the owner declined the change), so test PR snaps from the `hookecho-snap` workflow artifact.
 

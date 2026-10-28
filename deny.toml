@@ -55,4 +55,10 @@ ignore = [
     # cosmic-text -> fontdb, and no maintained release exists yet. Drop this
     # once cosmic-text moves off ttf-parser.
     { id = "RUSTSEC-2026-0192", reason = "ttf-parser unmaintained; no upgrade path via cosmic-text yet" },
+    # Unmaintained notices, not vulnerabilities (zbus issue #2043); reached via
+    # eframe -> egui-winit -> accesskit (screen reader support), which pins
+    # zbus 5. Drop these once accesskit moves on.
+    { id = "RUSTSEC-2026-0370", reason = "zvariant unmaintained; pinned by accesskit (a11y) via eframe" },
+    { id = "RUSTSEC-2026-0371", reason = "zbus_names unmaintained; pinned by accesskit (a11y) via eframe" },
+    { id = "RUSTSEC-2026-0372", reason = "zvariant_derive unmaintained; pinned by accesskit (a11y) via eframe" },
 ]
