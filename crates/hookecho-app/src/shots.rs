@@ -90,6 +90,20 @@ pub fn run(dir: &Path) -> Result<(), String> {
             sheet: None,
         },
         Shot {
+            name: "3b-site-picker-nearest",
+            theme: ThemeKind::Dark,
+            moment: Moment::Reflectivity,
+            size: SIZE,
+            km_across: 1400.0,
+            picker: Picker::Site {
+                query: String::new(),
+                selected: 0,
+                scroll: 0.0,
+            },
+            inspect: false,
+            sheet: None,
+        },
+        Shot {
             name: "4-product-picker",
             theme: ThemeKind::Dark,
             moment: Moment::Reflectivity,

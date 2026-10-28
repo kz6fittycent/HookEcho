@@ -312,6 +312,8 @@ pub struct Model {
     pub palettes: crate::palettes::Library,
     /// A short message and the UI time (s) it disappears.
     pub notice: Option<(String, f64)>,
+    /// "Set home" is waiting for a click on the map.
+    pub placing_home: bool,
     /// Cached `no_precipitation` answer, keyed by (generation, sweep, palette version).
     quiet: Option<((u64, usize, u64), bool)>,
     pub sheet: Option<Sheet>,
@@ -398,6 +400,7 @@ impl Model {
             looping: Loop::default(),
             palettes: crate::palettes::Library::load(None),
             notice: None,
+            placing_home: false,
             quiet: None,
             sheet: None,
             chrome: Vec::new(),
@@ -714,6 +717,40 @@ impl Model {
             self.config.favorites.push(id.to_string());
         }
     }
+
+    /// The (lat, lon) at the middle of the map.
+    pub fn map_center(&self) -> (f64, f64) {
+        hookecho_core::geo::from_mercator(self.camera.center)
+    }
+
+    /// Makes `at` (lat, lon) the home point and ends "Set home" placing.
+    pub fn set_home(&mut self, at: (f64, f64)) {
+        self.config.home = Some(at);
+        self.placing_home = false;
+    }
+
+    /// Switches to the NEXRAD nearest home, or to the map center if no home
+    /// is set.
+    pub fn go_to_nearest(&mut self, size: [f64; 2]) {
+        let (lat, lon) = self.config.home.unwrap_or_else(|| self.map_center());
+        if let Some((s, _)) = sites::nearest(lat, lon, SiteKind::Nexrad) {
+            self.select_site(s, size);
+        }
+    }
+}
+
+/// The site to open on: the last one viewed; on a first run, the NEXRAD
+/// nearest home; otherwise the bundled sample's site.
+pub fn initial_site(config: &hookecho_core::config::Config, fallback: &str) -> &'static Site {
+    config
+        .site
+        .as_deref()
+        .and_then(sites::by_id)
+        .or_else(|| {
+            let (lat, lon) = config.home?;
+            sites::nearest(lat, lon, SiteKind::Nexrad).map(|(s, _)| s)
+        })
+        .unwrap_or_else(|| sites::by_id(fallback).expect("fallback site"))
 }
 
 /// How well a site matches the query: lower is better, `None` = no match.
@@ -739,8 +776,14 @@ fn match_rank(s: &Site, q: &str) -> Option<u8> {
 }
 
 /// Sites the picker offers, filtered by `query` (state, ID, or name).
-/// Favorites first, then operational NEXRADs by match quality, state, ID.
-pub fn site_list(query: &str, favorites: &[String]) -> Vec<(&'static Site, bool)> {
+/// Favorites first, then operational NEXRADs: nearest to `near` first when
+/// there's no query (so the radars around the map come up top), otherwise
+/// by match quality, state, ID.
+pub fn site_list(
+    query: &str,
+    favorites: &[String],
+    near: Option<(f64, f64)>,
+) -> Vec<(&'static Site, bool)> {
     let q = query.trim().to_ascii_lowercase();
     let matches = |s: &Site| match_rank(s, &q).is_some();
     let mut fav: Vec<(&'static Site, bool)> = favorites
@@ -753,12 +796,18 @@ pub fn site_list(query: &str, favorites: &[String]) -> Vec<(&'static Site, bool)
         .iter()
         .filter(|s| s.kind == SiteKind::Nexrad && matches(s) && !favorites.contains(&s.id))
         .collect();
-    rest.sort_by(|a, b| {
-        match_rank(a, &q)
-            .cmp(&match_rank(b, &q))
-            .then(a.state.cmp(&b.state))
-            .then(a.id.cmp(&b.id))
-    });
+    match near {
+        Some(p) if q.is_empty() => {
+            let km = |s: &Site| hookecho_core::geo::range_bearing(p, (s.lat, s.lon)).0;
+            rest.sort_by(|a, b| km(a).total_cmp(&km(b)));
+        }
+        _ => rest.sort_by(|a, b| {
+            match_rank(a, &q)
+                .cmp(&match_rank(b, &q))
+                .then(a.state.cmp(&b.state))
+                .then(a.id.cmp(&b.id))
+        }),
+    }
     fav.extend(rest.into_iter().map(|s| (s, false)));
     fav
 }
@@ -988,25 +1037,78 @@ mod tests {
 
     #[test]
     fn site_search() {
-        let all = site_list("", &[]);
+        let all = site_list("", &[], None);
         assert!(all.len() >= 155);
-        let ok = site_list("ok", &[]);
+        let ok = site_list("ok", &[], None);
         assert!(
             ok.iter().take(4).all(|(s, _)| s.state == "OK"),
             "state matches rank first"
         );
         assert!(ok.iter().any(|(s, _)| s.id == "KTLX"));
-        let tul = site_list("tul", &[]);
+        let tul = site_list("tul", &[], None);
         assert_eq!(tul[0].0.id, "KINX", "name word prefix (Tulsa)");
-        let t = site_list("ktlx", &[]);
+        let t = site_list("ktlx", &[], None);
         assert_eq!(t[0].0.id, "KTLX", "exact ID first");
         assert!(
-            site_list("tlx", &[]).iter().any(|(s, _)| s.id == "KTLX"),
+            site_list("tlx", &[], None)
+                .iter()
+                .any(|(s, _)| s.id == "KTLX"),
             "ID without the K"
         );
-        let fav = site_list("", &["KFWS".into()]);
+        let fav = site_list("", &["KFWS".into()], None);
         assert!(fav[0].1 && fav[0].0.id == "KFWS", "favorites first");
-        assert!(site_list("koun", &[]).is_empty(), "research radars hidden");
+        assert!(
+            site_list("koun", &[], None).is_empty(),
+            "research radars hidden"
+        );
+    }
+
+    /// North of Dallas: the picker's unfiltered list starts with the local
+    /// radar, not with Alaska; a query still ranks by match.
+    #[test]
+    fn site_list_nearest_first() {
+        let plano = Some((33.1, -96.75));
+        let near = site_list("", &[], plano);
+        assert_eq!(near[0].0.id, "KFWS");
+        let fav = site_list("", &["KTLX".into()], plano);
+        assert_eq!(
+            (fav[0].0.id.as_str(), fav[1].0.id.as_str()),
+            ("KTLX", "KFWS")
+        );
+        assert_eq!(site_list("ok", &[], plano)[0].0.state, "OK");
+    }
+
+    #[test]
+    fn home_and_nearest() {
+        use hookecho_core::config::Config;
+        let first_run = Config::default();
+        assert_eq!(initial_site(&first_run, "KTLX").id, "KTLX");
+        let with_home = Config {
+            home: Some((33.1, -96.75)),
+            ..Default::default()
+        };
+        assert_eq!(initial_site(&with_home, "KTLX").id, "KFWS");
+        let returning = Config {
+            site: Some("KINX".into()),
+            ..with_home.clone()
+        };
+        assert_eq!(
+            initial_site(&returning, "KTLX").id,
+            "KINX",
+            "last site wins"
+        );
+
+        let size = [1280.0, 800.0];
+        let mut m = Model::new(Config::default(), sites::by_id("KTLX").unwrap(), size);
+        m.camera = hookecho_core::geo::Camera::looking_at(33.1, -96.75, 300.0, size[0]);
+        m.go_to_nearest(size);
+        assert_eq!(m.site.id, "KFWS", "no home: nearest to the map center");
+        m.placing_home = true;
+        m.set_home((33.1, -96.75));
+        assert!(!m.placing_home, "placing ends once home is set");
+        m.camera = hookecho_core::geo::Camera::looking_at(40.0, -100.0, 300.0, size[0]);
+        m.go_to_nearest(size);
+        assert_eq!(m.site.id, "KFWS", "home wins over the map center");
     }
 
     #[test]

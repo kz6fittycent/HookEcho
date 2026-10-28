@@ -71,7 +71,7 @@ Sources (all public, read 2026-10-09):
 | Favorite radars (add, remove, reorder) | Base | [radar-list] | P2 | planned | Pinned at the top of the site picker |
 | Radar status dot (receiving / late) | Base | [radar-list] | P2 | planned | From the newest chunk/volume age per site; one cheap S3 listing, cached |
 | Radar detail with latest operator status message | Base | [radar-list] [not-updating] | P3 | planned | Level III Free Text Message (FTM) product, ICD 2620001 |
-| Nearest radar from my location | Base | [getting-started] | P3 | planned | |
+| Nearest radar from my location | Base | [getting-started] | P3 | in progress | Done: radar list nearest-first from the map center with distances; a home point ("Set home", then click the map) that a first run opens near; "Nearest radar" command. Next: GeoClue location |
 | Auto radar selection as location changes (toggle) | Base | [advanced] | P3 | planned | |
 | Show TDWR sites (off by default) | Base | [advanced] [tdwr] | P5 | planned | TDWR Level III; source bucket to verify |
 | Show research radars (off by default) | Base | [advanced] [whatsnew57] | P5 | planned | Free public research feeds only; list TBD |

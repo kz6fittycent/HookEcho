@@ -44,6 +44,8 @@ pub enum Action {
     PlayPause,
     Live,
     SitePicker,
+    NearestRadar,
+    SetHome,
     ProductPicker,
     Sheet(SheetTab),
     Shortcuts,
@@ -99,7 +101,7 @@ pub const SHORTCUTS: &[ShortcutGroup] = &[
     (
         "GENERAL",
         &[
-            ("Ctrl K", "Command palette"),
+            ("Ctrl K", "Menu (search everything)"),
             ("S", "Change radar"),
             ("P", "Change product or angle"),
             ("L", "Layers, colors and settings"),
@@ -140,7 +142,7 @@ pub const SHORTCUTS: &[ShortcutGroup] = &[
 /// (155 rows would bury everything else), except favorites.
 pub fn all(model: &Model, query: &str) -> Vec<Command> {
     let mut v = Vec::new();
-    let sites = model::site_list(query, &model.config.favorites);
+    let sites = model::site_list(query, &model.config.favorites, Some(model.map_center()));
     for (s, fav) in sites
         .into_iter()
         .filter(|(_, fav)| *fav || !query.trim().is_empty())
@@ -160,6 +162,27 @@ pub fn all(model: &Model, query: &str) -> Vec<Command> {
             Action::Site(s.id.as_str()),
         ));
     }
+    // Always on top, so a first-time user sees how to start near home.
+    v.push(cmd(
+        Group::Sites,
+        "Nearest radar",
+        if model.config.home.is_some() {
+            "Closest to home"
+        } else {
+            "Closest to the middle of the map"
+        },
+        None,
+        "local closest my area",
+        Action::NearestRadar,
+    ));
+    v.push(cmd(
+        Group::Sites,
+        "Set home",
+        "Click the map to choose the spot",
+        None,
+        "location house my area",
+        Action::SetHome,
+    ));
     for m in PRODUCTS {
         let (name, what) = model::product_label(m);
         let key = match m {
@@ -550,6 +573,8 @@ pub fn run(model: &mut Model, action: &Action, view: [f64; 2], now: f64) {
                 scroll: 0.0,
             }
         }
+        Action::NearestRadar => model.go_to_nearest(view),
+        Action::SetHome => model.placing_home = true,
         Action::ProductPicker => model.picker = Picker::Product,
         Action::Sheet(tab) => model.sheet = Some(model::Sheet::new(*tab)),
         Action::Shortcuts => model.picker = Picker::Shortcuts,
@@ -593,6 +618,18 @@ mod tests {
         Model::new(Config::default(), site, [1280.0, 800.0])
     }
 
+    /// The location commands lead the empty palette, where a first-time
+    /// user will see them, and a search for "home" finds them.
+    #[test]
+    fn location_commands_first() {
+        let m = model();
+        let empty = search(all(&m, ""), "");
+        assert_eq!(empty[0].action, Action::NearestRadar);
+        assert_eq!(empty[1].action, Action::SetHome);
+        let found = search(all(&m, "home"), "home");
+        assert_eq!(found[0].action, Action::SetHome);
+    }
+
     #[test]
     fn fuzzy_prefers_word_starts() {
         assert!(fuzzy("vel", "Velocity").is_some());
@@ -617,7 +654,7 @@ mod tests {
         assert_eq!(first("roads"), Some(Action::Layer(Layer::Roads)));
         // An empty query lists commands but no (non-favorite) sites.
         let empty = search(all(&m, ""), "");
-        assert!(empty.iter().all(|c| c.group != Group::Sites));
+        assert!(empty.iter().all(|c| !matches!(c.action, Action::Site(_))));
         assert!(empty.len() > 20);
         // Grouped in order when nothing is typed.
         let groups: Vec<Group> = empty.iter().map(|c| c.group).collect();

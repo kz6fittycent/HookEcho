@@ -17,6 +17,7 @@ fn icon_for(c: &Command) -> Icon {
             _,
         ) => Icon::Palette,
         (Action::Shortcuts, _) => Icon::Keyboard,
+        (Action::NearestRadar | Action::SetHome, _) => Icon::MapPin,
         (Action::Live | Action::PlayPause, _) => Icon::Play,
         (Action::ZoomIn | Action::ZoomOut, _) => Icon::Search,
         (_, Group::Sites) => Icon::Radar,

@@ -75,6 +75,9 @@ pub struct Config {
     pub reduced_motion: bool,
     /// Last viewed site; the app reopens on it.
     pub site: Option<String>,
+    /// Home point (lat, lon), set from the map. A first run opens on the
+    /// radar nearest to it, and "Nearest radar" measures from it.
+    pub home: Option<(f64, f64)>,
     pub favorites: Vec<String>,
     /// Frames in the loop, including the live one (10, 30 or 50).
     pub loop_frames: usize,
@@ -99,6 +102,7 @@ impl Default for Config {
             units: Units::Imperial,
             reduced_motion: false,
             site: None,
+            home: None,
             favorites: Vec::new(),
             loop_frames: 10,
             loop_speed: 1.0,
@@ -148,6 +152,7 @@ mod tests {
         let p = dir.join("config.toml");
         let c = Config {
             site: Some("KTLX".into()),
+            home: Some((33.1, -96.75)),
             favorites: vec!["KFWS".into()],
             ..Default::default()
         };

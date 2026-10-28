@@ -398,6 +398,56 @@ pub fn icon_button(
     resp
 }
 
+/// Width of a [`labeled_button`] showing `text`.
+pub fn labeled_button_width(kit: &Kit, painter: &Painter, text: &str) -> f32 {
+    let g = kit.galley(
+        painter,
+        text.to_string(),
+        Type::Label,
+        kit.theme.text_primary,
+    );
+    size::ICON_BUTTON + g.size().x + space::S3
+}
+
+/// An icon button with a word beside the icon, for the one control whose
+/// icon alone doesn't say what it does (the command palette, "Menu").
+#[allow(clippy::too_many_arguments)]
+pub fn labeled_button(
+    ui: &mut Ui,
+    kit: &mut Kit,
+    painter: &Painter,
+    rect: Rect,
+    id: Id,
+    icon: Icon,
+    text: &str,
+    tooltip: &str,
+    shortcut: Option<&str>,
+    selected: bool,
+) -> Response {
+    let resp = interact(ui, rect, id, WidgetType::Button, tooltip, Some(selected));
+    kit.state_fill(painter, rect, radius::SM, &resp, selected);
+    let color = if selected {
+        kit.theme.accent
+    } else if resp.hovered() {
+        kit.theme.text_primary
+    } else {
+        kit.theme.text_secondary
+    };
+    let glyph = Rect::from_min_size(rect.min, egui::vec2(size::ICON_BUTTON, rect.height()));
+    kit.icon(painter, glyph, icon, size::ICON_MD, color);
+    kit.text(
+        painter,
+        egui::pos2(glyph.max.x, rect.center().y),
+        egui::Align2::LEFT_CENTER,
+        text,
+        Type::Label,
+        color,
+    );
+    kit.focus_ring(painter, rect, radius::SM, &resp);
+    kit.tooltip(ui, &resp, tooltip, shortcut);
+    resp
+}
+
 /// Lays out styled text runs left to right, vertically centered on `cy`.
 /// Returns the x after the last run.
 pub fn row(

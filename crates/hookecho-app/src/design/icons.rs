@@ -25,6 +25,7 @@ pub enum Icon {
     Settings,
     Gauge,
     Zap,
+    Menu,
 }
 
 impl Icon {
@@ -46,6 +47,7 @@ impl Icon {
             Icon::Settings => asset_str!("icons/settings-2.svg"),
             Icon::Gauge => asset_str!("icons/gauge.svg"),
             Icon::Zap => asset_str!("icons/zap.svg"),
+            Icon::Menu => asset_str!("icons/menu.svg"),
         }
     }
 }
