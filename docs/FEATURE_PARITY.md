@@ -73,7 +73,7 @@ Sources (all public, read 2026-10-09):
 | Radar detail with latest operator status message | Base | [radar-list] [not-updating] | P3 | planned | Level III Free Text Message (FTM) product, ICD 2620001 |
 | Nearest radar from my location | Base | [getting-started] | P3 | in progress | Done: radar list nearest-first from the map center with distances; a home point ("Set home", then click the map) that a first run opens near; "Nearest radar" command. Next: GeoClue location |
 | Auto radar selection as location changes (toggle) | Base | [advanced] | P3 | planned | |
-| Show TDWR sites (off by default) | Base | [advanced] [tdwr] | P5 | planned | TDWR Level III, from `unidata-nexrad-level3` (verified 2026-10-28) |
+| Show TDWR sites (off by default) | Base | [advanced] [tdwr] | P5 | in progress | Listed in the radar picker ("· airport") and on the map, on by default for now (the owner asked for them). An off switch is still to do. 44 of 47 published on 2026-10-28; TJBQ, TJRV and TPBI had no scans |
 | Show research radars (off by default) | Base | [advanced] [whatsnew57] | P5 | planned | Free public research feeds only; list TBD |
 | Data update timed to the VCP schedule (no wasteful polling) | Base | [data-overview] | P2 | in progress | Polls the chunk bucket every 4 s with `start-after` (only new keys come back); state changes only, so the idle app is never woken. Predicting chunk times from the VCP is a later refinement |
 | Multiple data providers with automatic fallback | Base | [providers] | P4 | planned | Free substitutes: Unidata chunks → NOAA NODD `noaa-nexrad-level2` → NWS Level III. No paid feeds |
@@ -109,7 +109,7 @@ Sources (all public, read 2026-10-09):
 | Enhanced echo tops (with "topped" range) | Base | [other] [pal-tech] | P3 | planned | Product 135; the TOPPED mask in palettes |
 | Precipitation: DAA, DSA/DTA, DOD, DSD, storm total, one-hour, storm total (classic) | Base | [precip] [classic] | P3 | planned | Products 170, 172, 173, 174, 175, 78, 80 |
 | Precipitation depiction (rain/mix/snow) | Base | [refl] | P5 | planned | **Proprietary** (radar plus surface obs). Free substitute: color reflectivity by MRMS `PrecipFlag` or by the HC class. It will differ from the original |
-| TDWR long-range and short-range reflectivity, velocity | Base | [tdwr] | P5 | in progress | Pulled forward by the owner (2026-10-28). Decoder done: `hookecho-core::level3` reads products 180/182/186, matching MetPy byte for byte. Next: fetching and showing them |
+| TDWR long-range and short-range reflectivity, velocity | Base | [tdwr] | P5 | in progress | Pulled forward by the owner (2026-10-28). Shown live and in the loop: short-range reflectivity (TZ0) and velocity (TV0), one scan about every 6 minutes (`hookecho-core::tdwr`). Long-range reflectivity (TZL) is decoded but not shown yet |
 | Tilt selection | Base | [product-legend] | P1 | done | Product chip → picker; `[`/`]` keys |
 | Quick product/tilt grid ("product picker" shortcut) | Base | [shortcuts] | P2 | planned | Product chip opens a grid: product × tilt |
 | Progressive sweep display while the volume is still scanning | — | KICKOFF | P2 | done | Real-time chunks decoded as they arrive; the previous volume shows under a sweep still arriving; sweep strip shows in / arriving / pending tilts |

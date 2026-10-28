@@ -9,6 +9,7 @@ use crate::cache::ChunkCache;
 use crate::level2::{Sweep, Volume};
 use crate::realtime::{ChunkKey, LiveVolume};
 use crate::s3::{self, Bucket};
+use crate::tdwr;
 use std::sync::{Arc, mpsc};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -58,7 +59,9 @@ impl LoopLoader {
                     .expect("tokio runtime");
                 rt.block_on(async move {
                     let cache = ChunkCache::new(&cache_dir, crate::cache::DEFAULT_MAX_BYTES);
-                    let Ok(bucket) = Bucket::new(s3::CHUNKS_BUCKET) else {
+                    let (Ok(bucket), Ok(level3)) =
+                        (Bucket::new(s3::CHUNKS_BUCKET), Bucket::new(tdwr::BUCKET))
+                    else {
                         return;
                     };
                     let send = |e: LoopEvent| {
@@ -70,7 +73,7 @@ impl LoopLoader {
                         if let Some(req) = req {
                             // A newer request cancels this one.
                             tokio::select! {
-                                r = load(&bucket, &cache, &req, &send) => match r {
+                                r = load(&bucket, &level3, &cache, &req, &send) => match r {
                                     Ok(()) => send(LoopEvent::Done(req.clone())),
                                     Err(e) => send(LoopEvent::Failed(req.clone(), e.to_string())),
                                 },
@@ -101,10 +104,14 @@ impl LoopLoader {
 /// Frames newest first, so the loop fills in backward from the live frame.
 async fn load(
     bucket: &Bucket,
+    level3: &Bucket,
     cache: &ChunkCache,
     req: &LoopRequest,
     send: &impl Fn(LoopEvent),
 ) -> Result<(), s3::Error> {
+    if tdwr::is_tdwr(&req.site) {
+        return load_tdwr(level3, cache, req, send).await;
+    }
     let before = ChunkKey::parse(&format!("{}-001-S", req.before))
         .ok_or_else(|| s3::Error::Parse(req.before.clone()))?;
     // All volumes of the site with their start stamps, newest first, older
@@ -157,6 +164,31 @@ async fn load(
                 volume: Arc::new(volume),
             }));
             sent += 1;
+        }
+    }
+    Ok(())
+}
+
+/// TDWR loop frames: the scans before the live one (tdwr.rs). Each scan is
+/// a single tilt, so `tilt_deg` doesn't apply.
+async fn load_tdwr(
+    bucket: &Bucket,
+    cache: &ChunkCache,
+    req: &LoopRequest,
+    send: &impl Fn(LoopEvent),
+) -> Result<(), s3::Error> {
+    let before = tdwr::Stamp::from_prefix(&req.before)
+        .ok_or_else(|| s3::Error::Parse(req.before.clone()))?;
+    let stamps = tdwr::scans(bucket, &req.site, before.unix, req.frames, before.unix, 2).await?;
+    for stamp in stamps {
+        // A scan that fails to load is skipped; the loop shows the rest.
+        if let Ok(volume) = tdwr::load(bucket, cache, &req.site, &stamp).await {
+            send(LoopEvent::Frame(LoopFrame {
+                request: req.clone(),
+                prefix: stamp.prefix(&req.site),
+                start: stamp.unix,
+                volume: Arc::new(volume),
+            }));
         }
     }
     Ok(())
