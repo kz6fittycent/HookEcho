@@ -1759,6 +1759,7 @@ dependencies = [
 name = "hookecho-core"
 version = "0.1.0"
 dependencies = [
+ "bzip2",
  "directories",
  "nexrad-data",
  "nexrad-model",
