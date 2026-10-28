@@ -62,6 +62,13 @@ Phase 2 done:
 
 Owner requests for later: a full "command center" with surface obs (temperature, dewpoint, pressure and trend, wind, visibility). P5 in FEATURE_PARITY; needs approval for each new data endpoint.
 
+**Owner fixes before Phase 3 (2026-10-28), in this order, one PR each:**
+1. New app icon: a red/green velocity-couplet swirl in a counter-clockwise arrow (Northern Hemisphere rotation: green left, red right, with the radar to the south; the arrow must stay counter-clockwise). The old banded hook echo read as something else.
+2. Start near the user. Today the app opens on KTLX (the sample) and the picker sorts by state, so a Dallas user lands in Oklahoma. Plan: sort the picker by distance from the map center, "Use my location" via GeoClue (snap `location-observe`, connected by hand), set home by clicking the map, open on the nearest radar. No new endpoints.
+3. TDWR (TDAL and TDFW are 16–28 km from north Dallas; KFWS is 78 km): a Level III reader for TZ0/TZL/TV0. These come from the already-approved `unidata-nexrad-level3` bucket (checked 2026-10-28: about 180 files per site per day), so no new endpoint. Pulls the Level III decoder forward from Phase 3/P5.
+
+Daily workflow failures to fix (seen 2026-10-28): Security Rebuild fails because `latest/stable` is empty (it should skip quietly until the first stable release); Refresh Radar Data can't open its PR because the repo doesn't let Actions create pull requests (an owner setting).
+
 Where to pick up next session:
 - **Get the owner's Phase 2 sign-off first** (KICKOFF gate). End-of-phase screenshots: `target/shots/phase2/` (20 PNGs, gitignored; regenerate with `--screenshots`).
 - **Call-for-testing issues:** revision 7 (PR #15) opens a new CFT issue; close #16 (revision 6) as superseded when it appears. Close each older CFT once its replacement exists.
