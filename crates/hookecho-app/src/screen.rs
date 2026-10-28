@@ -324,6 +324,7 @@ pub fn paint(ui: &mut Ui, kit: &mut Kit, model: &mut Model, scene: egui::Texture
         Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)),
         Color32::WHITE,
     );
+    home_marker(kit, model, &painter);
     site_markers(ui, kit, model, &painter);
     let m = margin(screen);
     let site_rect = site_chip(
@@ -442,6 +443,32 @@ fn notice(kit: &Kit, painter: &egui::Painter, screen: Rect, m: f32, text: &str) 
         text,
         Type::Label,
         kit.theme.text_primary,
+    );
+}
+
+/// The home point (set from the command palette), as a pin whose tip sits
+/// on the spot. Hidden under the chrome like the site markers.
+fn home_marker(kit: &mut Kit, model: &Model, painter: &egui::Painter) {
+    let Some((lat, lon)) = model.config.home else {
+        return;
+    };
+    let p = model
+        .camera
+        .latlon_to_screen(lat, lon, view_size(kit.screen));
+    let tip = pos2(p[0] as f32, p[1] as f32);
+    let pin = Rect::from_center_size(
+        tip - egui::Vec2::Y * (size::ICON_MD / 2.0),
+        vec2(size::ICON_MD, size::ICON_MD),
+    );
+    if !kit.screen.contains(tip) || chrome_bands(kit.screen).iter().any(|b| b.intersects(pin)) {
+        return;
+    }
+    kit.icon(
+        painter,
+        pin,
+        Icon::MapPin,
+        size::ICON_MD,
+        kit.theme.map_label,
     );
 }
 

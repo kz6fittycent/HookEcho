@@ -44,6 +44,8 @@ pub enum Action {
     PlayPause,
     Live,
     SitePicker,
+    NearestRadar,
+    SetHome,
     ProductPicker,
     Sheet(SheetTab),
     Shortcuts,
@@ -140,7 +142,7 @@ pub const SHORTCUTS: &[ShortcutGroup] = &[
 /// (155 rows would bury everything else), except favorites.
 pub fn all(model: &Model, query: &str) -> Vec<Command> {
     let mut v = Vec::new();
-    let sites = model::site_list(query, &model.config.favorites);
+    let sites = model::site_list(query, &model.config.favorites, Some(model.map_center()));
     for (s, fav) in sites
         .into_iter()
         .filter(|(_, fav)| *fav || !query.trim().is_empty())
@@ -250,6 +252,26 @@ pub fn all(model: &Model, query: &str) -> Vec<Command> {
             Some("S"),
             "site",
             Action::SitePicker,
+        ),
+        cmd(
+            Group::Actions,
+            "Nearest radar",
+            if model.config.home.is_some() {
+                "Closest to home"
+            } else {
+                "Closest to the middle of the map"
+            },
+            None,
+            "local closest my area",
+            Action::NearestRadar,
+        ),
+        cmd(
+            Group::Actions,
+            "Set home to the map center",
+            "Opens and measures from here",
+            None,
+            "location house my area",
+            Action::SetHome,
         ),
         cmd(
             Group::Actions,
@@ -550,6 +572,8 @@ pub fn run(model: &mut Model, action: &Action, view: [f64; 2], now: f64) {
                 scroll: 0.0,
             }
         }
+        Action::NearestRadar => model.go_to_nearest(view),
+        Action::SetHome => model.set_home_here(),
         Action::ProductPicker => model.picker = Picker::Product,
         Action::Sheet(tab) => model.sheet = Some(model::Sheet::new(*tab)),
         Action::Shortcuts => model.picker = Picker::Shortcuts,

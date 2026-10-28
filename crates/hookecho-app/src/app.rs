@@ -61,11 +61,7 @@ impl App {
             .as_ref()
             .map(|d| Config::load(&d.config_file()))
             .unwrap_or_default();
-        let initial = config
-            .site
-            .as_deref()
-            .and_then(sites::by_id)
-            .unwrap_or_else(|| sites::by_id(assets::SAMPLE_SITE).expect("sample site"));
+        let initial = crate::model::initial_site(&config, assets::SAMPLE_SITE);
         let map = basemap::decode(assets::BASEMAP).expect("bundled basemap");
         crate::bench::trace("basemap decoded");
         let renderer = Renderer::new(gpu.device, gpu.queue, &map, design::map_label_fonts());

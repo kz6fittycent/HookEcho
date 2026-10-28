@@ -70,7 +70,12 @@ pub fn site_picker(ui: &mut Ui, kit: &mut Kit, model: &mut Model, anchor: Rect) 
         pos2(rect.min.x + space::S2, field.max.y + space::S2),
         pos2(rect.max.x - space::S2, rect.max.y - space::S2),
     );
-    let items = model::site_list(&query, &model.config.favorites);
+    // With nothing typed, the list runs nearest-first from the middle of the
+    // map, each row with its distance; a search groups by state as before.
+    let near = model.map_center();
+    let by_distance = query.trim().is_empty();
+    let fmt = model::Fmt::of(&model.config);
+    let items = model::site_list(&query, &model.config.favorites, Some(near));
     // Rows: section headers interleaved with sites.
     enum Row<'a> {
         Header(String),
@@ -81,6 +86,8 @@ pub fn site_picker(ui: &mut Ui, kit: &mut Kit, model: &mut Model, anchor: Rect) 
     for &(s, fav) in &items {
         let section = if fav {
             "Favorites".to_string()
+        } else if by_distance {
+            "Closest to the map center".to_string()
         } else {
             state_name(&s.state)
         };
@@ -207,7 +214,12 @@ pub fn site_picker(ui: &mut Ui, kit: &mut Kit, model: &mut Model, anchor: Rect) 
                     &clip,
                     pos2(row_rect.max.x - space::S2 - size::ICON_MD - space::S2, cy),
                     Align2::RIGHT_CENTER,
-                    s.state.clone(),
+                    if by_distance {
+                        let km = hookecho_core::geo::range_bearing(near, (s.lat, s.lon)).0;
+                        format!("{} · {}", fmt.distance(km), s.state)
+                    } else {
+                        s.state.clone()
+                    },
                     Type::Caption,
                     t.text_tertiary,
                 );
