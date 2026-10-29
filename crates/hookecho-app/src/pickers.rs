@@ -214,11 +214,19 @@ pub fn site_picker(ui: &mut Ui, kit: &mut Kit, model: &mut Model, anchor: Rect) 
                     &clip,
                     pos2(row_rect.max.x - space::S2 - size::ICON_MD - space::S2, cy),
                     Align2::RIGHT_CENTER,
-                    if by_distance {
-                        let km = hookecho_core::geo::range_bearing(near, (s.lat, s.lon)).0;
-                        format!("{} · {}", fmt.distance(km), s.state)
-                    } else {
-                        s.state.clone()
+                    {
+                        // Airport radars cover about 90 km; flag them.
+                        let place = if s.kind == hookecho_core::sites::SiteKind::Tdwr {
+                            format!("{} · airport", s.state)
+                        } else {
+                            s.state.clone()
+                        };
+                        if by_distance {
+                            let km = hookecho_core::geo::range_bearing(near, (s.lat, s.lon)).0;
+                            format!("{} · {place}", fmt.distance(km))
+                        } else {
+                            place
+                        }
                     },
                     Type::Caption,
                     t.text_tertiary,

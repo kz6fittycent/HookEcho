@@ -60,7 +60,10 @@ fn markers(model: &Model, screen: Rect) -> Vec<(&'static sites::Site, Pos2, bool
     let bands = chrome_bands(screen);
     sites::all()
         .iter()
-        .filter(|s| s.kind == SiteKind::Nexrad && (show_all || s.id == model.site.id))
+        .filter(|s| {
+            matches!(s.kind, SiteKind::Nexrad | SiteKind::Tdwr)
+                && (show_all || s.id == model.site.id)
+        })
         .filter_map(|s| {
             let p = model.camera.latlon_to_screen(s.lat, s.lon, size);
             let p = pos2(p[0] as f32, p[1] as f32);

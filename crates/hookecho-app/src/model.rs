@@ -776,7 +776,7 @@ fn match_rank(s: &Site, q: &str) -> Option<u8> {
 }
 
 /// Sites the picker offers, filtered by `query` (state, ID, or name).
-/// Favorites first, then operational NEXRADs: nearest to `near` first when
+/// Favorites first, then operational NEXRADs and TDWRs: nearest to `near` first when
 /// there's no query (so the radars around the map come up top), otherwise
 /// by match quality, state, ID.
 pub fn site_list(
@@ -794,7 +794,11 @@ pub fn site_list(
         .collect();
     let mut rest: Vec<&'static Site> = sites::all()
         .iter()
-        .filter(|s| s.kind == SiteKind::Nexrad && matches(s) && !favorites.contains(&s.id))
+        .filter(|s| {
+            matches!(s.kind, SiteKind::Nexrad | SiteKind::Tdwr)
+                && matches(s)
+                && !favorites.contains(&s.id)
+        })
         .collect();
     match near {
         Some(p) if q.is_empty() => {
@@ -911,7 +915,10 @@ impl Model {
     pub fn status_line(&self, now_ms: i64) -> (String, StatusKind) {
         use hookecho_core::live::FeedState;
         let mode = |vcp: u16| {
-            if hookecho_core::level2::vcp_is_clear_air(vcp) {
+            if self.site.kind == SiteKind::Tdwr {
+                // Airport radars have no VCPs; say what kind of radar it is.
+                "Airport radar (TDWR)"
+            } else if hookecho_core::level2::vcp_is_clear_air(vcp) {
                 "Clear-air mode"
             } else {
                 "Precipitation mode"
@@ -1046,7 +1053,12 @@ mod tests {
         );
         assert!(ok.iter().any(|(s, _)| s.id == "KTLX"));
         let tul = site_list("tul", &[], None);
-        assert_eq!(tul[0].0.id, "KINX", "name word prefix (Tulsa)");
+        let ids: Vec<&str> = tul.iter().take(2).map(|(s, _)| s.id.as_str()).collect();
+        assert_eq!(
+            ids,
+            ["TTUL", "KINX"],
+            "ID (Tulsa airport radar), then name word"
+        );
         let t = site_list("ktlx", &[], None);
         assert_eq!(t[0].0.id, "KTLX", "exact ID first");
         assert!(
@@ -1064,16 +1076,19 @@ mod tests {
     }
 
     /// North of Dallas: the picker's unfiltered list starts with the local
-    /// radar, not with Alaska; a query still ranks by match.
+    /// radars (airport TDWRs included), not with Alaska; a query still ranks
+    /// by match.
     #[test]
     fn site_list_nearest_first() {
         let plano = Some((33.1, -96.75));
         let near = site_list("", &[], plano);
-        assert_eq!(near[0].0.id, "KFWS");
+        // The airport radars (TDWR) at DFW and Love Field, then KFWS.
+        let ids: Vec<&str> = near.iter().take(3).map(|(s, _)| s.id.as_str()).collect();
+        assert_eq!(ids, ["TDFW", "TDAL", "KFWS"]);
         let fav = site_list("", &["KTLX".into()], plano);
         assert_eq!(
             (fav[0].0.id.as_str(), fav[1].0.id.as_str()),
-            ("KTLX", "KFWS")
+            ("KTLX", "TDFW")
         );
         assert_eq!(site_list("ok", &[], plano)[0].0.state, "OK");
     }

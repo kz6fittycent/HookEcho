@@ -73,7 +73,7 @@ Sources (all public, read 2026-10-09):
 | Radar detail with latest operator status message | Base | [radar-list] [not-updating] | P3 | planned | Level III Free Text Message (FTM) product, ICD 2620001 |
 | Nearest radar from my location | Base | [getting-started] | P3 | in progress | Done: radar list nearest-first from the map center with distances; a home point ("Set home", then click the map) that a first run opens near; "Nearest radar" command. Next: GeoClue location |
 | Auto radar selection as location changes (toggle) | Base | [advanced] | P3 | planned | |
-| Show TDWR sites (off by default) | Base | [advanced] [tdwr] | P5 | planned | TDWR Level III, from `unidata-nexrad-level3` (verified 2026-10-28) |
+| Show TDWR sites (off by default) | Base | [advanced] [tdwr] | P5 | in progress | Listed in the radar picker ("· airport") and on the map, on by default for now (the owner asked for them). An off switch is still to do. 44 of 47 published on 2026-10-28; TJBQ, TJRV and TPBI had no scans |
 | Show research radars (off by default) | Base | [advanced] [whatsnew57] | P5 | planned | Free public research feeds only; list TBD |
 | Data update timed to the VCP schedule (no wasteful polling) | Base | [data-overview] | P2 | in progress | Polls the chunk bucket every 4 s with `start-after` (only new keys come back); state changes only, so the idle app is never woken. Predicting chunk times from the VCP is a later refinement |
 | Multiple data providers with automatic fallback | Base | [providers] | P4 | planned | Free substitutes: Unidata chunks → NOAA NODD `noaa-nexrad-level2` → NWS Level III. No paid feeds |
@@ -109,7 +109,7 @@ Sources (all public, read 2026-10-09):
 | Enhanced echo tops (with "topped" range) | Base | [other] [pal-tech] | P3 | planned | Product 135; the TOPPED mask in palettes |
 | Precipitation: DAA, DSA/DTA, DOD, DSD, storm total, one-hour, storm total (classic) | Base | [precip] [classic] | P3 | planned | Products 170, 172, 173, 174, 175, 78, 80 |
 | Precipitation depiction (rain/mix/snow) | Base | [refl] | P5 | planned | **Proprietary** (radar plus surface obs). Free substitute: color reflectivity by MRMS `PrecipFlag` or by the HC class. It will differ from the original |
-| TDWR long-range and short-range reflectivity, velocity | Base | [tdwr] | P5 | in progress | Pulled forward by the owner (2026-10-28). Decoder done: `hookecho-core::level3` reads products 180/182/186, matching MetPy byte for byte. Next: fetching and showing them |
+| TDWR long-range and short-range reflectivity, velocity | Base | [tdwr] | P5 | in progress | Pulled forward by the owner (2026-10-28). Shown live and in the loop: short-range reflectivity (TZ0) and velocity (TV0), one scan about every 6 minutes (`hookecho-core::tdwr`). Long-range reflectivity (TZL) is decoded but not shown yet |
 | Tilt selection | Base | [product-legend] | P1 | done | Product chip → picker; `[`/`]` keys |
 | Quick product/tilt grid ("product picker" shortcut) | Base | [shortcuts] | P2 | planned | Product chip opens a grid: product × tilt |
 | Progressive sweep display while the volume is still scanning | — | KICKOFF | P2 | done | Real-time chunks decoded as they arrive; the previous volume shows under a sweep still arriving; sweep strip shows in / arriving / pending tilts |
@@ -224,6 +224,8 @@ Requests users raise against other viewers (mainly [Supercell Wx issues][scwx]) 
 | Command palette (Ctrl+K or the search button): every site, product, layer, action, setting and palette by typing, fuzzy matched and grouped | KICKOFF §5 | P2 | done | Enter runs the top match; arrows move; Esc closes |
 | Says so when there's little or no precipitation in range (clear air), so a blank map doesn't look broken | Owner feedback (CFT #8) | P2 | done | Under 20 km² of drawn reflectivity in runs of 1 km or more, so clutter speckle doesn't count |
 | Rotational velocity / NROT readout in the inspector | [scwx] #160, #206 | P5+ | planned | |
+| Space weather: Kp index, solar wind, X-ray flux and flares, SWPC alerts, aurora forecast | Owner request (2026-10-28) | P5 | planned | NOAA SWPC JSON (services.swpc.noaa.gov, free). New endpoint: ask first. Owner's data-layer order: warnings → SPC → surface obs → satellite → space weather |
+| Radar mosaic: the latest reflectivity of every radar on screen, nearest radar wins, then single-radar mode on a storm | Owner question (2026-10-28) | P5+ | planned | Reflectivity only (velocity can't be mosaicked). Uses data we already fetch, or NOAA MRMS (new endpoint) |
 | VAD wind profile (VWP) display | [scwx] #383 | P5+ | planned | Level III product 48 |
 | Audible alerts / TTS for new warnings near me; "follow" an alert | [scwx] #352, #637, #617, #581 | P5+ | planned | Local only, no push service |
 | Per-pane independent site/time (not only product) | [scwx] #77, #183 | P5+ | planned | |

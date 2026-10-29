@@ -7,6 +7,7 @@ use crate::cache::ChunkCache;
 use crate::level2::Volume;
 use crate::realtime::{ChunkKey, LiveVolume, next_volume};
 use crate::s3::{self, Bucket};
+use crate::tdwr;
 use std::sync::Arc;
 use std::sync::mpsc;
 use std::time::Duration;
@@ -117,13 +118,19 @@ async fn run(
         cache: Arc::new(cache),
     };
     let _ = ctx.cache.trim();
-    let bucket = match Bucket::new(s3::CHUNKS_BUCKET) {
-        Ok(b) => b,
-        Err(_) => return,
+    let (Ok(bucket), Ok(level3)) = (Bucket::new(s3::CHUNKS_BUCKET), Bucket::new(tdwr::BUCKET))
+    else {
+        return;
     };
     loop {
         let site = sites.borrow_and_update().clone();
         match site {
+            Some(site) if tdwr::is_tdwr(&site) => {
+                tokio::select! {
+                    _ = follow_tdwr(&level3, &ctx, &site) => {}
+                    r = sites.changed() => if r.is_err() { return },
+                }
+            }
             Some(site) => {
                 tokio::select! {
                     _ = follow(&bucket, &ctx, &site) => {}
@@ -184,6 +191,85 @@ async fn follow(bucket: &Bucket, ctx: &Ctx, site: &str) {
             }
         }
     }
+}
+
+/// How often to look for a new TDWR scan; sites publish one about every
+/// 6 minutes.
+const TDWR_POLL: Duration = Duration::from_secs(60);
+
+/// Follows one TDWR site (tdwr.rs): each new scan is one complete volume.
+async fn follow_tdwr(bucket: &Bucket, ctx: &Ctx, site: &str) {
+    ctx.state(site, FeedState::Connecting);
+    let mut shown: Option<tdwr::Stamp> = None;
+    if let Some(stamp) = ctx
+        .cache
+        .latest(site)
+        .and_then(|p| tdwr::Stamp::from_prefix(&p))
+        && let Some(v) = tdwr::load_cached(&ctx.cache, site, &stamp)
+    {
+        send_scan(ctx, site, &stamp, v, true);
+        shown = Some(stamp);
+    }
+    let mut backoff = Duration::from_secs(2);
+    let mut attempt = 0;
+    let mut last_state = FeedState::Connecting;
+    let mut set = |state: FeedState| {
+        if state != last_state {
+            ctx.state(site, state.clone());
+            last_state = state;
+        }
+    };
+    loop {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_secs() as i64);
+        let step = async {
+            let newest = tdwr::scans(bucket, site, i64::MAX, 1, now, 2).await?;
+            let Some(stamp) = newest.into_iter().next() else {
+                return Ok(None);
+            };
+            if shown.as_ref() != Some(&stamp) {
+                let v = tdwr::load(bucket, &ctx.cache, site, &stamp).await?;
+                let _ = ctx.cache.set_latest(site, &stamp.prefix(site));
+                send_scan(ctx, site, &stamp, v, false);
+                shown = Some(stamp);
+            }
+            Ok::<_, s3::Error>(Some(()))
+        };
+        match step.await {
+            Ok(Some(())) => {
+                set(FeedState::Live);
+                attempt = 0;
+                backoff = Duration::from_secs(2);
+                tokio::time::sleep(TDWR_POLL).await;
+            }
+            Ok(None) => {
+                set(FeedState::NoData);
+                tokio::time::sleep(MAX_BACKOFF).await;
+            }
+            Err(e) => {
+                attempt += 1;
+                set(FeedState::Retrying {
+                    attempt,
+                    wait_s: backoff.as_secs(),
+                    error: e.to_string(),
+                });
+                tokio::time::sleep(backoff).await;
+                backoff = (backoff * 2).min(MAX_BACKOFF);
+            }
+        }
+    }
+}
+
+fn send_scan(ctx: &Ctx, site: &str, stamp: &tdwr::Stamp, volume: Volume, from_cache: bool) {
+    ctx.send(FeedEvent::Update(LiveUpdate {
+        site: site.to_string(),
+        prefix: stamp.prefix(site),
+        volume: Arc::new(volume),
+        chunks: 1,
+        complete: true,
+        from_cache,
+    }));
 }
 
 /// One polling step. `Ok(None)`: the site has no data at all.
@@ -378,5 +464,30 @@ mod feed_tests {
             }
         }
         panic!("no live update within 60 s; states {states:?}");
+    }
+
+    /// The TDWR path (tdwr.rs): a recent Love Field scan, with reflectivity
+    /// and velocity. `cargo test -p hookecho-core -- --ignored live_`.
+    #[test]
+    #[ignore]
+    fn live_feed_delivers_a_tdwr_scan() {
+        let dir = std::env::temp_dir().join(format!("hookecho-feed-tdwr-{}", std::process::id()));
+        let feed = super::Feed::start(dir.clone(), std::sync::Arc::new(|| {}));
+        feed.watch("TDAL");
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+        while std::time::Instant::now() < deadline {
+            if let Ok(super::FeedEvent::Update(u)) =
+                feed.events.recv_timeout(std::time::Duration::from_secs(5))
+            {
+                assert_eq!(u.site, "TDAL");
+                assert!(u.complete && u.prefix.starts_with("TDAL/"));
+                let s = &u.volume.sweeps[0];
+                assert!(s.field(crate::Moment::Reflectivity).is_some());
+                assert!(s.field(crate::Moment::Velocity).is_some());
+                let _ = std::fs::remove_dir_all(&dir);
+                return;
+            }
+        }
+        panic!("no TDAL scan within 60 s");
     }
 }

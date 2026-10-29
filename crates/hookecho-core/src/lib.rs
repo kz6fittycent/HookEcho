@@ -15,5 +15,6 @@ pub mod paths;
 pub mod realtime;
 pub mod s3;
 pub mod sites;
+pub mod tdwr;
 
 pub use moment::{Moment, RawGates};

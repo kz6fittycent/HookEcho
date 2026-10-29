@@ -62,10 +62,18 @@ Phase 2 done:
 
 Owner requests for later: a full "command center" with surface obs (temperature, dewpoint, pressure and trend, wind, visibility). P5 in FEATURE_PARITY; needs approval for each new data endpoint.
 
-**Owner fixes before Phase 3 (2026-10-28), in this order, one PR each:**
-1. New app icon: a red/green velocity-couplet swirl in a counter-clockwise arrow (Northern Hemisphere rotation: green left, red right, with the radar to the south; the arrow must stay counter-clockwise). The old banded hook echo read as something else.
-2. Start near the user. Today the app opens on KTLX (the sample) and the picker sorts by state, so a Dallas user lands in Oklahoma. Plan: sort the picker by distance from the map center, "Use my location" via GeoClue (snap `location-observe`, connected by hand), set home by clicking the map, open on the nearest radar. No new endpoints.
-3. TDWR (TDAL and TDFW are 16–28 km from north Dallas; KFWS is 78 km): a Level III reader for TZ0/TZL/TV0. These come from the already-approved `unidata-nexrad-level3` bucket (checked 2026-10-28: about 180 files per site per day), so no new endpoint. Pulls the Level III decoder forward from Phase 3/P5.
+**Owner fixes before Phase 3 (2026-10-28), one PR each:**
+1. Done (PR #17, revision 7): new app icon, a red/green velocity-couplet swirl in a counter-clockwise arrow (Northern Hemisphere rotation: green left, red right, with the radar to the south; keep the arrow counter-clockwise). Also security updates (rustls, rustls-webpki, tokio).
+2. Done (PR #18, revision 8): start near the user. Nearest-first radar list from the map center, Menu → Set home (click the map), Menu → Nearest radar, a labeled Menu button. Still to do: "Use my location" (location portal or GeoClue; research and propose first, it needs a dependency and a snap plug).
+3. TDWR: decoder (`hookecho-core::level3`, MetPy byte-exact) and app integration (`hookecho-core::tdwr`, live + loop + picker) as two stacked PRs. TZL (long range) is decoded but not shown yet; a TDWR on/off switch is still to do.
+
+**Data layers, in the owner's order (2026-10-28).** Each is a new endpoint: get approval for it before any code.
+1. NWS warnings and watches (api.weather.gov alerts).
+2. SPC convective outlooks and mesoscale discussions (spc.noaa.gov).
+3. Surface observations, the owner's "command center" (aviationweather.gov METARs).
+4. GOES satellite imagery (`noaa-goes19` on AWS: visible, infrared, water vapor). NetCDF/HDF5 decoding is a project of its own.
+5. Space weather (owner request: friends who are weather people watch it): NOAA SWPC (services.swpc.noaa.gov, free JSON): Kp index, solar wind, X-ray flux and flares, alerts, aurora forecast.
+Also planned and unordered: GLM lightning (P3), local storm reports, ProbSevere, models and soundings, mosaic (nearest-radar reflectivity from every radar on screen; velocity can't be mosaicked).
 
 Daily workflow failures to fix (seen 2026-10-28): Security Rebuild fails because `latest/stable` is empty (it should skip quietly until the first stable release); Refresh Radar Data can't open its PR because the repo doesn't let Actions create pull requests (an owner setting).
 
