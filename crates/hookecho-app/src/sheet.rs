@@ -160,7 +160,7 @@ pub fn side_sheet(ui: &mut Ui, kit: &mut Kit, model: &mut Model, rect: Rect) {
         pos2(rect.min.x, tabs.max.y + space::S2),
         pos2(rect.max.x, rect.max.y - pad),
     );
-    if ui.rect_contains_pointer(area) {
+    if components::pointer_over(&ui, area) {
         sheet.scroll -= ui.input(|i| i.smooth_scroll_delta.y);
     }
     let clipped = painter.with_clip_rect(area);

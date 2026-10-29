@@ -292,6 +292,46 @@ mod tests {
         assert!(tap(&mut o, otlk_at).is_empty());
     }
 
+    /// The Menu lists everything with an empty query, more than fits, and
+    /// the mouse wheel scrolls it.
+    #[test]
+    fn command_palette_scrolls() {
+        let Ok(mut o) = Offscreen::new(None, SIZE) else {
+            eprintln!("no GPU adapter; skipped");
+            return;
+        };
+        o.frame(SIZE, 1.0, Vec::new());
+        crate::overlays::open_command(&mut o.app.model);
+        o.frame(SIZE, 1.0, Vec::new());
+        let p = egui::pos2(SIZE[0] / 2.0, 300.0);
+        o.frame(SIZE, 1.0, vec![egui::Event::PointerMoved(p)]);
+        for _ in 0..4 {
+            o.frame(
+                SIZE,
+                1.0,
+                vec![egui::Event::MouseWheel {
+                    unit: egui::MouseWheelUnit::Point,
+                    delta: egui::vec2(0.0, -120.0), // design-ok: a test wheel event
+                    phase: egui::TouchPhase::Move,
+                    modifiers: Default::default(),
+                }],
+            );
+        }
+        match &o.app.model.picker {
+            Picker::Command { scroll, .. } => assert!(*scroll > 0.0, "scroll {scroll}"),
+            p => panic!("{p:?}"),
+        }
+        // The Radars tab browses every radar.
+        click(&mut o, egui::Id::new("command-groups").with(1));
+        assert!(matches!(
+            o.app.model.picker,
+            Picker::Command {
+                group: Some(crate::commands::Group::Sites),
+                ..
+            }
+        ));
+    }
+
     #[test]
     fn pickers_respond_to_clicks() {
         let Ok(mut o) = Offscreen::new(None, SIZE) else {

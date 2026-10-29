@@ -1,6 +1,7 @@
 //! The command palette's commands (docs/DESIGN.md §3.8): every site,
-//! product, layer, action and setting, reachable by typing. Built from the
-//! model each time the palette opens or the query changes; no egui here.
+//! product, layer, action and setting, reachable by typing or by browsing a
+//! group (the tabs under the search field). Built from the model each time
+//! the palette opens or the query changes; no egui here.
 
 use crate::model::{self, Model, PRODUCTS, Picker, SheetTab};
 use hookecho_core::Moment;
@@ -16,9 +17,29 @@ pub enum Group {
 }
 
 impl Group {
+    /// The tabs under the search field, after "All".
+    pub const ALL: [Group; 5] = [
+        Group::Sites,
+        Group::Products,
+        Group::Layers,
+        Group::Actions,
+        Group::Settings,
+    ];
+
+    /// The tab's name.
+    pub fn tab(self) -> &'static str {
+        match self {
+            Group::Sites => "Radars",
+            Group::Products => "Products",
+            Group::Layers => "Layers",
+            Group::Actions => "Actions",
+            Group::Settings => "Settings",
+        }
+    }
+
     pub fn label(self) -> &'static str {
         match self {
-            Group::Sites => "SITES",
+            Group::Sites => "RADARS",
             Group::Products => "PRODUCTS",
             Group::Layers => "LAYERS",
             Group::Actions => "ACTIONS",
@@ -70,6 +91,10 @@ pub enum Action {
     MaskDualPol(bool),
     LabelScale(f32),
     SpaceWeather,
+    /// Show a GOES band, or none.
+    Satellite(Option<hookecho_core::goes::Band>),
+    /// Show an SPC outlook day (its categorical outlook), or none.
+    Outlook(Option<u8>),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -146,9 +171,20 @@ pub const SHORTCUTS: &[ShortcutGroup] = &[
     ),
 ];
 
-/// Every command for the current state. Sites come only from a query
-/// (155 rows would bury everything else), except favorites.
-pub fn all(model: &Model, query: &str) -> Vec<Command> {
+/// Every command for the current state, or one group's (`None`: all). In
+/// "All", sites come only from a query (200 rows would bury everything
+/// else), except favorites; browsing Radars lists every radar, nearest the
+/// map center first.
+pub fn all_in(model: &Model, query: &str, group: Option<Group>) -> Vec<Command> {
+    let browse_sites = group == Some(Group::Sites);
+    let mut v = everything(model, query, browse_sites);
+    if let Some(g) = group {
+        v.retain(|c| c.group == g);
+    }
+    v
+}
+
+fn everything(model: &Model, query: &str, browse_sites: bool) -> Vec<Command> {
     let mut v = Vec::new();
     let sites = model::site_list(
         query,
@@ -156,10 +192,11 @@ pub fn all(model: &Model, query: &str) -> Vec<Command> {
         Some(model.map_center()),
         model.config.tdwr,
     );
+    let limit = if browse_sites { usize::MAX } else { 8 };
     for (s, fav) in sites
         .into_iter()
-        .filter(|(_, fav)| *fav || !query.trim().is_empty())
-        .take(8)
+        .filter(|(_, fav)| *fav || browse_sites || !query.trim().is_empty())
+        .take(limit)
     {
         let hint = if fav {
             format!("{} · favorite", s.state)
@@ -236,8 +273,65 @@ pub fn all(model: &Model, query: &str) -> Vec<Command> {
         "tilt elevation",
         Action::TiltDown,
     ));
-    let map = model.config.map;
     let c = &model.config;
+    let sat = c
+        .satellite
+        .as_deref()
+        .and_then(hookecho_core::goes::Band::from_key);
+    for band in hookecho_core::goes::Band::ALL {
+        v.push(cmd(
+            Group::Layers,
+            format!("Satellite: {}", band.name().to_lowercase()),
+            if sat == Some(band) {
+                "Shown"
+            } else {
+                "GOES-East under the radar"
+            },
+            None,
+            "goes satellite clouds imagery",
+            Action::Satellite(Some(band)),
+        ));
+    }
+    if sat.is_some() {
+        v.push(cmd(
+            Group::Layers,
+            "Satellite off",
+            "",
+            None,
+            "goes satellite hide",
+            Action::Satellite(None),
+        ));
+    }
+    let outlook_day = c
+        .outlook
+        .as_deref()
+        .and_then(hookecho_core::spc::Product::from_key)
+        .map(|p| p.day());
+    for day in 1..=3u8 {
+        v.push(cmd(
+            Group::Layers,
+            format!("SPC outlook, day {day}"),
+            if outlook_day == Some(day) {
+                "Shown"
+            } else {
+                "Severe weather risk areas"
+            },
+            None,
+            "convective outlook risk categorical tornado hail wind",
+            Action::Outlook(Some(day)),
+        ));
+    }
+    if outlook_day.is_some() {
+        v.push(cmd(
+            Group::Layers,
+            "SPC outlook off",
+            "",
+            None,
+            "convective outlook hide",
+            Action::Outlook(None),
+        ));
+    }
+    let map = model.config.map;
     let state = |on: bool| if on { "Shown" } else { "Hidden" };
     for (layer, name, on, kw) in [
         (
@@ -648,6 +742,15 @@ pub fn run(model: &mut Model, action: &Action, view: [f64; 2], now: f64) {
         Action::NearestRadar => model.go_to_nearest(view),
         Action::SetHome => model.placing_home = true,
         Action::UseMyLocation => model.locate_requested = true,
+        Action::Satellite(b) => c.satellite = b.map(|b| b.key().to_string()),
+        Action::Outlook(day) => {
+            c.outlook = day.and_then(|d| {
+                hookecho_core::spc::Product::ALL
+                    .into_iter()
+                    .find(|p| p.day() == d)
+                    .map(|p| p.key())
+            })
+        }
         Action::ProductPicker => model.picker = Picker::Product,
         Action::Sheet(tab) => model.sheet = Some(model::Sheet::new(*tab)),
         Action::Shortcuts => model.picker = Picker::Shortcuts,
@@ -697,14 +800,43 @@ mod tests {
     #[test]
     fn location_commands_first() {
         let m = model();
-        let empty = search(all(&m, ""), "");
+        let empty = search(all_in(&m, "", None), "");
         assert_eq!(empty[0].action, Action::NearestRadar);
         assert_eq!(empty[1].action, Action::UseMyLocation);
         assert_eq!(empty[2].action, Action::SetHome);
-        let found = search(all(&m, "home"), "home");
+        let found = search(all_in(&m, "home", None), "home");
         assert_eq!(found[0].action, Action::SetHome);
-        let found = search(all(&m, "my location"), "my location");
+        let found = search(all_in(&m, "my location", None), "my location");
         assert_eq!(found[0].action, Action::UseMyLocation);
+    }
+
+    /// Each tab browses its group with nothing typed; Radars lists every
+    /// radar, and the satellite and outlook layers are there to find.
+    #[test]
+    fn groups_browse_without_typing() {
+        let mut m = model();
+        let radars = search(all_in(&m, "", Some(Group::Sites)), "");
+        let sites = radars
+            .iter()
+            .filter(|c| matches!(c.action, Action::Site(_)))
+            .count();
+        assert!(sites > 150, "{sites}");
+        assert!(search(all_in(&m, "", None), "").len() < radars.len());
+        let layers = search(all_in(&m, "", Some(Group::Layers)), "");
+        assert!(layers.iter().all(|c| c.group == Group::Layers));
+        let ir = layers
+            .iter()
+            .find(|c| c.label == "Satellite: infrared")
+            .unwrap();
+        run(&mut m, &ir.action.clone(), [1280.0, 800.0], 0.0);
+        assert_eq!(m.config.satellite.as_deref(), Some("infrared"));
+        let day2 = search(all_in(&m, "outlook", None), "outlook");
+        let d2 = day2
+            .iter()
+            .find(|c| c.label == "SPC outlook, day 2")
+            .unwrap();
+        run(&mut m, &d2.action.clone(), [1280.0, 800.0], 0.0);
+        assert_eq!(m.config.outlook.as_deref(), Some("day2-cat"));
     }
 
     #[test]
@@ -721,7 +853,12 @@ mod tests {
     #[test]
     fn search_finds_by_label_keyword_and_site() {
         let m = model();
-        let first = |q: &str| search(all(&m, q), q).into_iter().next().map(|c| c.action);
+        let first = |q: &str| {
+            search(all_in(&m, q, None), q)
+                .into_iter()
+                .next()
+                .map(|c| c.action)
+        };
         assert_eq!(first("velocity"), Some(Action::Product(Moment::Velocity)));
         assert_eq!(first("dark mode"), Some(Action::Theme(ThemePref::Dark)));
         assert_eq!(first("utc"), Some(Action::Utc(true)));
@@ -730,14 +867,14 @@ mod tests {
         assert_eq!(first("kfws"), Some(Action::Site("KFWS")));
         assert_eq!(first("roads"), Some(Action::Layer(Layer::Roads)));
         // An empty query lists commands but no (non-favorite) sites.
-        let empty = search(all(&m, ""), "");
+        let empty = search(all_in(&m, "", None), "");
         assert!(empty.iter().all(|c| !matches!(c.action, Action::Site(_))));
         assert!(empty.len() > 20);
         // Grouped in order when nothing is typed.
         let groups: Vec<Group> = empty.iter().map(|c| c.group).collect();
         assert!(groups.windows(2).all(|w| w[0] <= w[1]));
         // Each group appears once, as a block.
-        let typed = search(all(&m, "loop"), "loop");
+        let typed = search(all_in(&m, "loop", None), "loop");
         let mut seen: Vec<Group> = Vec::new();
         for c in &typed {
             if seen.last() != Some(&c.group) {

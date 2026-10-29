@@ -711,3 +711,12 @@ pub fn toggle(
     kit.focus_ring(painter, rect, radius::SM, &resp);
     resp.clicked()
 }
+
+/// Whether the pointer is over `rect`, by position alone. Use it for wheel
+/// scrolling in overlays: they paint on their own Foreground layers, which
+/// egui doesn't register as hoverable areas, so `Ui::rect_contains_pointer`
+/// is always false there.
+pub fn pointer_over(ui: &Ui, rect: Rect) -> bool {
+    ui.input(|i| i.pointer.hover_pos())
+        .is_some_and(|p| rect.contains(p))
+}

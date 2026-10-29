@@ -238,6 +238,8 @@ pub enum Picker {
         query: String,
         selected: usize,
         scroll: f32,
+        /// The group tab browsed; `None` is "All".
+        group: Option<crate::commands::Group>,
     },
     /// Keyboard shortcuts sheet (`?`).
     Shortcuts,

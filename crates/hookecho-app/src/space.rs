@@ -252,7 +252,7 @@ pub fn card(ui: &mut Ui, kit: &mut Kit, model: &mut Model) {
     ui.interact(rect, Id::new("space-bg"), egui::Sense::click_and_drag());
     kit.glass(&painter, rect, radius::LG, 3);
     let area = rect.shrink(pad);
-    if ui.rect_contains_pointer(rect) {
+    if crate::design::components::pointer_over(&ui, rect) {
         scroll -= ui.input(|i| i.smooth_scroll_delta.y);
     }
     scroll = scroll.clamp(0.0, (content_h - area.height()).max(0.0));

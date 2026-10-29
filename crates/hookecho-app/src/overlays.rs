@@ -42,6 +42,7 @@ pub fn open_command(model: &mut Model) {
         query: String::new(),
         selected: 0,
         scroll: 0.0,
+        group: None,
     };
 }
 
@@ -77,6 +78,7 @@ pub fn command_palette(
         mut query,
         mut selected,
         mut scroll,
+        mut group,
     } = model.picker.clone()
     else {
         return;
@@ -84,9 +86,17 @@ pub fn command_palette(
     let t = kit.theme.clone();
     // Sized to the results (from the query as it stood at the frame's
     // start; a keystroke resizes it on the next frame).
-    let list_h = list_height(&commands::search(commands::all(model, &query), &query));
-    let h =
-        space::S3 + size::COMMAND_FIELD_H + space::S2 + list_h.max(2.0 * size::ROW_H) + space::S2;
+    let list_h = list_height(&commands::search(
+        commands::all_in(model, &query, group),
+        &query,
+    ));
+    let h = space::S3
+        + size::COMMAND_FIELD_H
+        + space::S2
+        + size::SETTING_SEGMENT_H
+        + space::S2
+        + list_h.max(2.0 * size::ROW_H)
+        + space::S2;
     let rect = card(kit.screen, size::COMMAND_W, h.min(size::COMMAND_MAX_H));
     let layer = LayerId::new(Order::Foreground, Id::new("command-palette"));
     let painter = ui.ctx().layer_painter(layer);
@@ -109,15 +119,42 @@ pub fn command_palette(
         field,
         field_id,
         &mut query,
-        "Type a radar, product, layer or setting",
+        "Search, or browse a group below",
     ) {
         selected = 0;
         scroll = 0.0;
     }
+    // Group tabs: browse without knowing what to type.
+    let tabs = Rect::from_min_size(
+        pos2(field.min.x, field.max.y + space::S2),
+        vec2(field.width(), size::SETTING_SEGMENT_H),
+    );
+    let mut names = vec!["All"];
+    names.extend(Group::ALL.iter().map(|g| g.tab()));
+    let cur = group
+        .and_then(|g| Group::ALL.iter().position(|x| *x == g))
+        .map_or(0, |i| i + 1);
+    if let Some(i) = components::segmented(
+        &mut ui,
+        kit,
+        &painter,
+        tabs,
+        Id::new("command-groups"),
+        &names,
+        cur,
+        Type::Caption,
+    ) && i != cur
+    {
+        group = (i > 0).then(|| Group::ALL[i - 1]);
+        selected = 0;
+        scroll = 0.0;
+        // Keep the typing focus in the field.
+        ui.memory_mut(|m| m.request_focus(field_id));
+    }
 
-    let results = commands::search(commands::all(model, &query), &query);
+    let results = commands::search(commands::all_in(model, &query, group), &query);
     let list = Rect::from_min_max(
-        pos2(rect.min.x + space::S2, field.max.y + space::S2),
+        pos2(rect.min.x + space::S2, tabs.max.y + space::S2),
         pos2(rect.max.x - space::S2, rect.max.y - space::S2),
     );
     // Rows: a header before each group's first command.
@@ -150,7 +187,7 @@ pub fn command_palette(
         }
         selected = selected.min(results.len() - 1);
     }
-    if ui.rect_contains_pointer(list) {
+    if components::pointer_over(&ui, list) {
         scroll -= wheel;
     }
     if up || down {
@@ -258,6 +295,7 @@ pub fn command_palette(
         query,
         selected,
         scroll,
+        group,
     };
     if let Some(i) = run {
         let now = ui.input(|i| i.time);

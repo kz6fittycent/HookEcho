@@ -229,7 +229,7 @@ A picker drops down from its chip (`radius.lg`, `elevation.2`), max 420 px tall,
 
 ### 3.8 Command palette (Ctrl+K)
 
-A centered card, 560 px wide, offset `space.6` from the top, `elevation.3`. The input row uses `type.title`. Results are grouped (Sites, Products, Layers, Actions, Settings), each row showing an icon, a label, a secondary hint and a right-aligned shortcut keycap. Fuzzy matching. `Enter` runs the selected row; `Esc` closes.
+A centered card, 560 px wide, offset `space.6` from the top, `elevation.3`. The input row uses `type.title`. Under it, a segmented row of group tabs (All · Radars · Products · Layers · Actions · Settings) lets people browse without knowing what to type (owner, 2026-10-29); the Radars tab lists every radar. Results are grouped (Radars, Products, Layers, Actions, Settings), each row showing an icon, a label, a secondary hint and a right-aligned shortcut keycap. Fuzzy matching. `Enter` runs the selected row; `Esc` closes.
 
 ### 3.9 Shortcuts sheet (`?`)
 
