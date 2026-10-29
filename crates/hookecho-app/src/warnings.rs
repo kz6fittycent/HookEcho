@@ -3,9 +3,8 @@
 //! same card shows SPC watches, MDs and the outlook under the click
 //! (spc.rs).
 
-use crate::design::components::{Kit, icon_button};
+use crate::design::components::{self, Kit};
 use crate::design::hazards;
-use crate::design::icons::Icon;
 use crate::design::tokens::{Type, radius, size, space};
 use crate::model::{self, Model, Picker};
 use eframe::egui::{
@@ -56,6 +55,18 @@ pub fn click(model: &mut Model, at: (f64, f64)) -> bool {
         .map(|a| a.id.clone())
         .collect();
     ids.extend(crate::spc::hits(model, at));
+    // (The dock is on screen when it has a width: not in a narrow window.)
+    if crate::dock::wants_dock(model, crate::dock::Panel::Bulletins) && model.dock_inset > 0.0 {
+        // Docked: the panel shows what was clicked (or, on open map, the
+        // list of everything again).
+        let hit = !ids.is_empty();
+        model.dock_bulletins = ids;
+        model
+            .config
+            .dock_collapsed
+            .retain(|k| k != crate::dock::Panel::Bulletins.key());
+        return hit;
+    }
     if ids.is_empty() {
         if matches!(model.picker, Picker::Warnings { .. }) {
             model.picker = Picker::None;
@@ -77,47 +88,28 @@ fn wrapped(
     painter.layout(text.to_string(), ty.font(), color, w)
 }
 
-/// The warning card: below the site chip on the left. Each warning gets a
-/// colored bar, its type, when it ends and who issued it, the area, then
-/// the NWS text. Scrolls; Esc, the close button, or a click elsewhere on
-/// the map closes it.
-pub fn card(ui: &mut Ui, kit: &mut Kit, model: &mut Model, top_left: Pos2) {
-    let Picker::Warnings { ids, mut scroll } = model.picker.clone() else {
-        return;
-    };
-    let entries = entries(model, &ids);
-    if entries.is_empty() {
-        // Expired or withdrawn since it was opened.
-        model.picker = Picker::None;
-        return;
-    }
-    let t = kit.theme.clone();
-    let screen = kit.screen;
-    let pad = space::S3;
-    let w = hazards::CARD_W.min(screen.width() - 2.0 * (top_left.x - screen.min.x));
-    let max_h = hazards::CARD_MAX_H.min(screen.max.y - top_left.y - space::S6);
-    let layer = LayerId::new(Order::Foreground, Id::new("warning-card"));
-    let painter = ui.ctx().layer_painter(layer);
-    let text_x = top_left.x + pad + hazards::CARD_BAR_W + space::S2;
-    let text_w = top_left.x + w - pad - text_x;
+type Block = (Color32, Vec<(std::sync::Arc<egui::Galley>, f32)>);
 
-    // Lay out first, to size the card to its content.
-    let blocks: Vec<_> = entries
+/// Lays out the blocks for `entries` in `w` points of text (the bar takes
+/// its own room to the left of that).
+fn layout(kit: &Kit, painter: &Painter, entries: &[Entry], w: f32) -> Vec<Block> {
+    let t = &kit.theme;
+    entries
         .iter()
         .map(|e| {
             let mut parts = vec![
                 (
-                    wrapped(&painter, &e.title, Type::Label, t.text_primary, text_w),
+                    wrapped(painter, &e.title, Type::Label, t.text_primary, w),
                     space::S1,
                 ),
                 (
-                    wrapped(&painter, &e.when, Type::Caption, t.text_secondary, text_w),
+                    wrapped(painter, &e.when, Type::Caption, t.text_secondary, w),
                     space::S1,
                 ),
             ];
             if !e.area.is_empty() {
                 parts.push((
-                    wrapped(&painter, &e.area, Type::Caption, t.text_tertiary, text_w),
+                    wrapped(painter, &e.area, Type::Caption, t.text_tertiary, w),
                     space::S2,
                 ));
             } else {
@@ -130,19 +122,75 @@ pub fn card(ui: &mut Ui, kit: &mut Kit, model: &mut Model, top_left: Pos2) {
                     t.text_secondary
                 };
                 parts.push((
-                    wrapped(&painter, &tidy(body), Type::Body, color, text_w),
+                    wrapped(painter, &tidy(body), Type::Body, color, w),
                     space::S2,
                 ));
             }
             (e.color, parts)
         })
-        .collect();
-    let content_h: f32 = blocks
+        .collect()
+}
+
+fn blocks_height(blocks: &[Block]) -> f32 {
+    blocks
         .iter()
         .map(|(_, parts)| parts.iter().map(|(g, gap)| g.size().y + gap).sum::<f32>())
         .sum::<f32>()
-        + space::S3 * (blocks.len() as f32 - 1.0);
-    let h = (pad + content_h + pad).min(max_h);
+        + space::S3 * (blocks.len() as f32 - 1.0).max(0.0)
+}
+
+/// Paints laid-out blocks from `y`, each with its colored bar; returns the
+/// height used.
+fn paint_blocks(kit: &Kit, painter: &Painter, blocks: &[Block], x0: f32, x1: f32, y0: f32) -> f32 {
+    let text_x = x0 + hazards::CARD_BAR_W + space::S2;
+    let mut y = y0;
+    for (i, (color, parts)) in blocks.iter().enumerate() {
+        if i > 0 {
+            kit.divider(painter, x0, x1, y + space::S3 / 2.0);
+            y += space::S3;
+        }
+        let title_h = parts[0].0.size().y;
+        painter.rect_filled(
+            Rect::from_min_size(pos2(x0, y), vec2(hazards::CARD_BAR_W, title_h)),
+            radius::XS,
+            *color,
+        );
+        for (g, gap) in parts {
+            painter.galley(pos2(text_x, y), g.clone(), kit.theme.text_primary);
+            y += g.size().y + gap;
+        }
+    }
+    y - y0
+}
+
+fn text_width(x0: f32, x1: f32) -> f32 {
+    x1 - x0 - hazards::CARD_BAR_W - space::S2
+}
+
+/// The floating warning card: below the site chip on the left, with the
+/// shared panel header. Each warning, watch or MD gets a colored bar, its
+/// type, when it ends and who issued it, the area, then the full text.
+/// Scrolls; Esc, close, or a click elsewhere on the map closes it.
+pub fn card(ui: &mut Ui, kit: &mut Kit, model: &mut Model, top_left: Pos2, area: Rect) {
+    use crate::dock::Panel;
+    let Picker::Warnings { ids, mut scroll } = model.picker.clone() else {
+        return;
+    };
+    let entries = entries(model, &ids);
+    if entries.is_empty() {
+        // Expired or withdrawn since it was opened.
+        model.picker = Picker::None;
+        return;
+    }
+    let pad = space::S3;
+    let w = hazards::CARD_W.min(area.width() - 2.0 * (top_left.x - area.min.x));
+    let max_h = hazards::CARD_MAX_H.min(area.max.y - top_left.y - space::S6);
+    let layer = LayerId::new(Order::Foreground, Id::new("warning-card"));
+    let painter = ui.ctx().layer_painter(layer);
+    let (x0, x1) = (top_left.x + pad, top_left.x + w - pad);
+    let blocks = layout(kit, &painter, &entries, text_width(x0, x1));
+    let content_h = blocks_height(&blocks);
+    let h = (pad + size::PANEL_HEADER_H + content_h + pad).min(max_h);
     let rect = Rect::from_min_size(top_left, vec2(w, h));
     let mut ui = ui.new_child(egui::UiBuilder::new().layer_id(layer).max_rect(rect));
     ui.interact(
@@ -151,56 +199,155 @@ pub fn card(ui: &mut Ui, kit: &mut Kit, model: &mut Model, top_left: Pos2) {
         egui::Sense::click_and_drag(),
     );
     kit.glass(&painter, rect, radius::LG, 2);
-
-    let area = rect.shrink(pad);
-    if crate::design::components::pointer_over(&ui, rect) {
-        scroll -= ui.input(|i| i.smooth_scroll_delta.y);
-    }
-    scroll = scroll.clamp(0.0, (content_h - area.height()).max(0.0));
-    let clipped = painter.with_clip_rect(area);
-    let mut y = area.min.y - scroll;
-    for (i, (color, parts)) in blocks.iter().enumerate() {
-        if i > 0 {
-            kit.divider(&clipped, area.min.x, area.max.x, y + space::S3 / 2.0);
-            y += space::S3;
-        }
-        let title_h = parts[0].0.size().y;
-        clipped.rect_filled(
-            Rect::from_min_size(pos2(area.min.x, y), vec2(hazards::CARD_BAR_W, title_h)),
-            radius::XS,
-            *color,
-        );
-        for (g, gap) in parts {
-            clipped.galley(pos2(text_x, y), g.clone(), t.text_primary);
-            y += g.size().y + gap;
-        }
-    }
-    crate::design::components::scroll_indicator(kit, &painter, area, scroll, content_h);
-
-    let close = Rect::from_min_size(
-        pos2(
-            rect.max.x - space::S1 - size::ICON_BUTTON,
-            rect.min.y + space::S1,
-        ),
-        vec2(size::ICON_BUTTON, size::ICON_BUTTON),
-    );
-    let closed = icon_button(
+    let inner = rect.shrink(pad);
+    let header = Rect::from_min_size(inner.min, vec2(inner.width(), size::PANEL_HEADER_H));
+    let action = components::panel_header(
         &mut ui,
         kit,
         &painter,
-        close,
-        Id::new("warning-card-close"),
-        Icon::X,
-        "Close",
-        Some("Esc"),
+        header,
+        Id::new("warning-card-header"),
+        Panel::Bulletins.title(),
         false,
-    )
-    .clicked();
-    if closed {
-        model.picker = Picker::None;
-    } else if let Picker::Warnings { scroll: s, .. } = &mut model.picker {
-        *s = scroll;
+        false,
+        true,
+    );
+    let body = Rect::from_min_max(pos2(inner.min.x, header.max.y), inner.max);
+    if components::pointer_over(&ui, rect) {
+        scroll -= ui.input(|i| i.smooth_scroll_delta.y);
     }
+    scroll = scroll.clamp(0.0, (content_h - body.height()).max(0.0));
+    paint_blocks(
+        kit,
+        &painter.with_clip_rect(body),
+        &blocks,
+        body.min.x,
+        body.max.x,
+        body.min.y - scroll,
+    );
+    components::scroll_indicator(kit, &painter, body, scroll, content_h);
+    match action {
+        Some(components::PanelAction::Close) => model.picker = Picker::None,
+        Some(a) => crate::dock::act(model, Panel::Bulletins, a),
+        None => {
+            if let Picker::Warnings { scroll: s, .. } = &mut model.picker {
+                *s = scroll;
+            }
+        }
+    }
+}
+
+/// Card ids of everything active and shown: warnings (most severe first),
+/// then watches and MDs.
+fn all_active(model: &Model) -> Vec<String> {
+    let now = now_ms();
+    let mut ids: Vec<String> = model.visible_alerts(now).map(|a| a.id.clone()).collect();
+    ids.extend(crate::spc::visible_watches(model, now).map(|w| format!("ww:{}", w.number)));
+    ids.extend(crate::spc::visible_discussions(model, now).map(|d| format!("md:{}", d.number)));
+    ids
+}
+
+/// The docked panel's body: what was clicked on the map, in full; or, with
+/// nothing chosen, everything active as a list to pick from.
+pub fn dock_body(
+    ui: &mut Ui,
+    kit: &mut Kit,
+    model: &mut Model,
+    painter: &Painter,
+    x0: f32,
+    x1: f32,
+    y0: f32,
+) -> f32 {
+    let t = kit.theme.clone();
+    let live = painter.clip_rect().is_positive();
+    let chosen = entries(model, &model.dock_bulletins.clone());
+    let mut y = y0;
+    if !chosen.is_empty() {
+        let r = Rect::from_min_max(pos2(x0, y), pos2(x1, y + size::HINT_H));
+        let label = "← Everything active";
+        if live {
+            let resp = components::interact(
+                ui,
+                r,
+                Id::new("bulletins-all"),
+                egui::WidgetType::Button,
+                label,
+                None,
+            );
+            if resp.clicked() {
+                model.dock_bulletins.clear();
+            }
+            kit.text(
+                painter,
+                pos2(x0, r.center().y),
+                egui::Align2::LEFT_CENTER,
+                label,
+                Type::Caption,
+                if resp.hovered() {
+                    t.text_primary
+                } else {
+                    t.accent
+                },
+            );
+        }
+        y = r.max.y + space::S2;
+        let blocks = layout(kit, painter, &chosen, text_width(x0, x1));
+        y += paint_blocks(kit, painter, &blocks, x0, x1, y);
+        return y + space::S2 - y0;
+    }
+    let ids = all_active(model);
+    if ids.is_empty() {
+        let msg = if model.config.warnings || model.config.watches || model.config.discussions {
+            "No warnings, watches or discussions in effect"
+        } else {
+            "Warnings, watches and MDs are switched off in Layers"
+        };
+        let g = wrapped(painter, msg, Type::Body, t.text_secondary, x1 - x0);
+        let gh = g.size().y;
+        painter.galley(pos2(x0, y), g, t.text_secondary);
+        return gh + space::S3;
+    }
+    // One row per item: its bar, type and end time; a click opens it.
+    for (id, e) in ids.iter().zip(entries(model, &ids)) {
+        let text_x = x0 + hazards::CARD_BAR_W + space::S2;
+        let title = wrapped(painter, &e.title, Type::Body, t.text_primary, x1 - text_x);
+        let when = wrapped(
+            painter,
+            &e.when,
+            Type::Caption,
+            t.text_tertiary,
+            x1 - text_x,
+        );
+        let h = title.size().y + when.size().y + space::S2;
+        let r = Rect::from_min_max(pos2(x0, y), pos2(x1, y + h));
+        if live {
+            let resp = components::interact(
+                ui,
+                r,
+                Id::new(("bulletin", id.as_str())),
+                egui::WidgetType::Button,
+                &e.title,
+                None,
+            );
+            kit.row_fill(painter, r, &resp, false);
+            if resp.clicked() {
+                model.dock_bulletins = vec![id.clone()];
+            }
+        }
+        painter.rect_filled(
+            Rect::from_min_size(
+                pos2(x0, y + space::S1),
+                vec2(hazards::CARD_BAR_W, h - space::S2),
+            ),
+            radius::XS,
+            e.color,
+        );
+        let th = title.size().y;
+        painter.galley(pos2(text_x, y + space::S1), title, t.text_primary);
+        painter.galley(pos2(text_x, y + space::S1 + th), when, t.text_tertiary);
+        y += h;
+    }
+    y + space::S2 - y0
 }
 
 /// One block of the card.

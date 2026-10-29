@@ -13,6 +13,7 @@ mod commands;
 // some pieces are first used by Phase 2 screens (side sheet, palette, timeline).
 #[allow(dead_code)]
 mod design;
+mod dock;
 mod feeds;
 mod headless;
 mod location;

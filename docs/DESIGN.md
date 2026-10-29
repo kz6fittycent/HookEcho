@@ -239,6 +239,16 @@ A centered glass card with a 2-column list of keycaps and actions, grouped. Tool
 
 Two (side by side, or stacked when taller than wide) or four (2×2) panes. Panes are separated by a 1 px `glass.stroke` divider with a 6 px grab zone. The camera is shared. Each pane has its own **product chip** in its top-left; the site chip appears once, in pane 1. The timeline and legend are shared (the legend shows the focused pane's product).
 
+### 3.11 Dock (left)
+
+Owner request (2026-10-29). A column on the left, `size.dock_w` (360 px) wide and full height minus the window margin, `radius.lg`, glass at `elevation.1`. It exists only while a panel is docked in it. With the dock open the map runs under it, but all map chrome (chips, timeline, legend, notices, floating cards) lays out right of it, and the map recenters by half the dock's width so the middle of the visible map doesn't move.
+
+- **Panels:** Warnings and watches, Weather station, Space weather, Inspector. Each can float over the map (where it always has: the warning card under the site chip, the station panel bottom left, space weather centered, the inspector at the pointer) or sit in the dock, stacked in the order docked, each a card with a divider between.
+- **One header for every panel**, docked or floating (`components::panel_header`): the title in `type.label`, then right-aligned icon buttons: collapse/expand (`chevron-up`/`chevron-down`, docked only), pin (`pin`, floating: "Dock this panel at the left") or unpin (`pin-off`, docked: "Float this panel over the map"), and close. The inspector has no close (unpin is its way out); its close slot stays empty so the buttons line up.
+- **Docked bodies:** Warnings and watches lists everything active (a colored bar, type, end time); a row or a map click shows the full text, with "← Everything active" to go back. The inspector shows the reading at the pointer or pinned spot, and a hint otherwise; the map keeps the reticle.
+- The dock scrolls when its panels don't fit. Its panels and their collapsed state are saved. Windows narrower than `size.dock_min_window` (1000 px) float every panel instead and give the map the full width.
+- Menu → "Dock the inspector" (it has no header to click while it follows the pointer); Menu → "Space weather" expands a docked space weather panel.
+
 ## 4. States
 
 | State | Treatment |

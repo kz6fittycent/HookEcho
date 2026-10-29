@@ -4,8 +4,7 @@
 //! chart for the past three days and the three ahead, solar wind, X-rays
 //! and the latest flare, the three-day outlook and SWPC's latest alerts.
 
-use crate::design::components::{Kit, icon_button};
-use crate::design::icons::Icon;
+use crate::design::components::Kit;
 use crate::design::space as sp;
 use crate::design::tokens::{Type, radius, size, space};
 use crate::model::{self, Model, Picker};
@@ -189,101 +188,51 @@ fn lines(w: &SpaceWeather, utc: bool) -> Vec<(String, bool)> {
     v
 }
 
-pub fn card(ui: &mut Ui, kit: &mut Kit, model: &mut Model) {
-    let Picker::SpaceWeather { mut scroll } = model.picker else {
-        return;
-    };
+/// The space weather body: when it's from, the R/S/G levels, Kp now and
+/// its chart, solar wind, X-rays, the three-day outlook and the latest
+/// alerts. Drawn from `y` between `x0` and `x1` (the painter clipped to
+/// what's visible); returns its height.
+pub fn body(kit: &mut Kit, model: &Model, p: &Painter, x0: f32, x1: f32, y0: f32) -> f32 {
     let t = kit.theme.clone();
     let w = model.layers.space.clone();
     let utc = model.config.utc;
     let now = crate::warnings::now_ms();
-    let pad = space::S4;
-    let screen = kit.screen;
-    let width = sp::CARD_W.min(screen.width() - 2.0 * space::S3);
-    let text_w = width - 2.0 * pad;
-    let layer = LayerId::new(Order::Foreground, Id::new("space-weather"));
-    let painter = ui.ctx().layer_painter(layer);
-    let body = lines(&w, utc);
-    // Alerts: the newest of each headline, up to five.
-    let mut seen = Vec::new();
-    let alerts: Vec<_> = w
-        .alerts
-        .iter()
-        .filter(|a| {
-            let new = !seen.contains(&a.title);
-            seen.push(a.title.clone());
-            new
-        })
-        .take(5)
-        .map(|a| {
-            painter.layout(
-                format!("{} · {}", a.title, model::clock_time(a.issued_ms, utc)),
-                Type::Body.font(),
-                t.text_secondary,
-                text_w,
-            )
-        })
-        .collect();
-    let body_g: Vec<_> = body
-        .iter()
-        .map(|(s, primary)| {
-            let c = if *primary {
-                t.text_primary
-            } else {
-                t.text_secondary
-            };
-            painter.layout(s.clone(), Type::Body.font(), c, text_w)
-        })
-        .collect();
-    let eyebrow = size::ROW_H * 0.6;
-    let content_h = size::ROW_H
-        + sp::SCALE_CHIP[1]
-        + space::S3
-        + sp::LINE_H
-        + sp::KP_CHART_H
-        + space::S3
-        + body_g.iter().map(|g| g.size().y + space::S1).sum::<f32>()
-        + eyebrow
-        + alerts.iter().map(|g| g.size().y + space::S1).sum::<f32>();
-    let top = screen.min.y + space::S6;
-    let h = (pad + content_h + pad).min(screen.max.y - top - space::S3);
-    let rect = Rect::from_min_size(pos2(screen.center().x - width / 2.0, top), vec2(width, h));
-    let mut ui = ui.new_child(egui::UiBuilder::new().layer_id(layer).max_rect(rect));
-    ui.interact(rect, Id::new("space-bg"), egui::Sense::click_and_drag());
-    kit.glass(&painter, rect, radius::LG, 3);
-    let area = rect.shrink(pad);
-    if crate::design::components::pointer_over(&ui, rect) {
-        scroll -= ui.input(|i| i.smooth_scroll_delta.y);
+    let text_w = x1 - x0;
+    let x = x0;
+    let mut y = y0;
+    if w.kp.is_empty() && w.kp_now.is_none() {
+        let msg = if model.layers.space_trouble.is_some() {
+            "Can't reach NOAA SWPC right now; retrying"
+        } else {
+            "Loading from NOAA SWPC…"
+        };
+        kit.text(
+            p,
+            pos2(x, y + sp::LINE_H / 2.0),
+            Align2::LEFT_CENTER,
+            msg,
+            Type::Body,
+            t.text_secondary,
+        );
+        return sp::LINE_H + space::S2;
     }
-    scroll = scroll.clamp(0.0, (content_h - area.height()).max(0.0));
-    let p = painter.with_clip_rect(area);
-    let x = area.min.x;
-    let mut y = area.min.y - scroll;
-
-    kit.text(
-        &p,
-        pos2(x, y + size::ROW_H / 2.0),
-        Align2::LEFT_CENTER,
-        "Space weather",
-        Type::Title,
-        t.text_primary,
-    );
     if let Some((ms, _)) = w.kp_now {
         kit.text(
-            &p,
-            pos2(area.max.x - size::ICON_BUTTON, y + size::ROW_H / 2.0),
-            Align2::RIGHT_CENTER,
+            p,
+            pos2(x, y + sp::LINE_H / 2.0),
+            Align2::LEFT_CENTER,
             format!("NOAA SWPC · {}", model::clock_time(ms, utc)),
             Type::Caption,
             t.text_tertiary,
         );
+        y += sp::LINE_H + space::S1;
     }
-    y += size::ROW_H;
 
-    // R, S, G chips.
+    // R, S, G chips, sharing the width.
+    let chip_w = ((text_w - 2.0 * space::S2) / 3.0).min(sp::SCALE_CHIP[0]);
     let mut cx = x;
     for (letter, level) in [('R', w.scales.r), ('S', w.scales.s), ('G', w.scales.g)] {
-        let r = Rect::from_min_size(pos2(cx, y), vec2(sp::SCALE_CHIP[0], sp::SCALE_CHIP[1]));
+        let r = Rect::from_min_size(pos2(cx, y), vec2(chip_w, sp::SCALE_CHIP[1]));
         let color = sp::scale_color(level);
         p.rect_filled(r, radius::SM, t.track);
         if let Some(c) = color {
@@ -294,7 +243,7 @@ pub fn card(ui: &mut Ui, kit: &mut Kit, model: &mut Model) {
             );
         }
         kit.text(
-            &p,
+            p,
             r.center() - egui::Vec2::Y * space::S2,
             Align2::CENTER_CENTER,
             format!("{letter}{level}"),
@@ -302,7 +251,7 @@ pub fn card(ui: &mut Ui, kit: &mut Kit, model: &mut Model) {
             color.unwrap_or(t.text_primary),
         );
         kit.text(
-            &p,
+            p,
             r.center() + egui::Vec2::Y * (space::S2 + space::S1),
             Align2::CENTER_CENTER,
             scale_name(letter).split(' ').next().unwrap_or_default(),
@@ -319,17 +268,12 @@ pub fn card(ui: &mut Ui, kit: &mut Kit, model: &mut Model) {
         None => "Kp —".to_string(),
     };
     if let Some(m) = w.kp_max_ahead(now) {
-        kp_line.push_str(&format!(" · up to {m:.1} expected (G{})", g_for_kp(m)));
+        kp_line.push_str(&format!(" · up to {m:.1} ahead (G{})", g_for_kp(m)));
     }
-    kit.text(
-        &p,
-        pos2(x, y + sp::LINE_H / 2.0),
-        Align2::LEFT_CENTER,
-        kp_line,
-        Type::BodyTab,
-        t.text_primary,
-    );
-    y += sp::LINE_H;
+    let g = p.layout(kp_line, Type::BodyTab.font(), t.text_primary, text_w);
+    let gh = g.size().y;
+    p.galley(pos2(x, y), g, t.text_primary);
+    y += gh + space::S1;
     let from = now - 3 * 86_400_000;
     let bars: Vec<_> = w.kp.iter().filter(|k| k.time_ms >= from).collect();
     if !bars.is_empty() {
@@ -362,22 +306,29 @@ pub fn card(ui: &mut Ui, kit: &mut Kit, model: &mut Model) {
             }
         }
         kit.text(
-            &p,
+            p,
             chart.min + vec2(space::S1, space::S1),
             Align2::LEFT_TOP,
             "Past 3 days · next 3 days (faded)",
             Type::Caption,
             t.text_tertiary,
         );
+        y += sp::KP_CHART_H + space::S3;
     }
-    y += sp::KP_CHART_H + space::S3;
-    for g in body_g {
+    for (s, primary) in lines(&w, utc) {
+        let c = if primary {
+            t.text_primary
+        } else {
+            t.text_secondary
+        };
+        let g = p.layout(s, Type::Body.font(), c, text_w);
         let gh = g.size().y;
-        p.galley(pos2(x, y), g, t.text_primary);
+        p.galley(pos2(x, y), g, c);
         y += gh + space::S1;
     }
+    let eyebrow = size::ROW_H * 0.6;
     kit.text(
-        &p,
+        p,
         pos2(x, y + eyebrow / 2.0),
         Align2::LEFT_CENTER,
         "LATEST ALERTS",
@@ -385,46 +336,104 @@ pub fn card(ui: &mut Ui, kit: &mut Kit, model: &mut Model) {
         t.text_tertiary,
     );
     y += eyebrow;
+    // The newest of each headline, up to five.
+    let mut seen = Vec::new();
+    let alerts: Vec<_> = w
+        .alerts
+        .iter()
+        .filter(|a| {
+            let new = !seen.contains(&a.title);
+            seen.push(a.title.clone());
+            new
+        })
+        .take(5)
+        .collect();
     if alerts.is_empty() {
         kit.text(
-            &p,
+            p,
             pos2(x, y),
             Align2::LEFT_TOP,
             "None",
             Type::Body,
             t.text_secondary,
         );
+        y += sp::LINE_H;
     }
-    for g in alerts {
+    for a in alerts {
+        let g = p.layout(
+            format!("{} · {}", a.title, model::clock_time(a.issued_ms, utc)),
+            Type::Body.font(),
+            t.text_secondary,
+            text_w,
+        );
         let gh = g.size().y;
         p.galley(pos2(x, y), g, t.text_secondary);
         y += gh + space::S1;
     }
-    crate::design::components::scroll_indicator(kit, &painter, area, scroll, content_h);
+    y + space::S2 - y0
+}
 
-    let close = Rect::from_min_size(
-        pos2(
-            rect.max.x - space::S1 - size::ICON_BUTTON,
-            rect.min.y + space::S1,
-        ),
-        vec2(size::ICON_BUTTON, size::ICON_BUTTON),
+/// The floating space weather card: centered in the map area, with the
+/// shared panel header; scrolls when it doesn't fit.
+pub fn card(ui: &mut Ui, kit: &mut Kit, model: &mut Model, area: Rect) {
+    use crate::dock::Panel;
+    let Picker::SpaceWeather { mut scroll } = model.picker else {
+        return;
+    };
+    let pad = space::S4;
+    let width = sp::CARD_W.min(area.width() - 2.0 * space::S3);
+    let layer = LayerId::new(Order::Foreground, Id::new("space-weather"));
+    let painter = ui.ctx().layer_painter(layer);
+    let x0 = area.center().x - width / 2.0;
+    let content_h = body(
+        kit,
+        model,
+        &painter.with_clip_rect(Rect::NOTHING),
+        x0 + pad,
+        x0 + width - pad,
+        0.0,
     );
-    let closed = icon_button(
+    let top = area.min.y + space::S6;
+    let h = (pad + size::PANEL_HEADER_H + content_h + pad).min(area.max.y - top - space::S3);
+    let rect = Rect::from_min_size(pos2(x0, top), vec2(width, h));
+    let mut ui = ui.new_child(egui::UiBuilder::new().layer_id(layer).max_rect(rect));
+    ui.interact(rect, Id::new("space-bg"), egui::Sense::click_and_drag());
+    kit.glass(&painter, rect, radius::LG, 3);
+    let inner = rect.shrink(pad);
+    let header = Rect::from_min_size(inner.min, vec2(inner.width(), size::PANEL_HEADER_H));
+    let action = crate::design::components::panel_header(
         &mut ui,
         kit,
         &painter,
-        close,
-        Id::new("space-close"),
-        Icon::X,
-        "Close",
-        Some("Esc"),
+        header,
+        Id::new("space-header"),
+        Panel::Space.title(),
         false,
-    )
-    .clicked();
-    if closed {
-        model.picker = Picker::None;
-    } else if let Picker::SpaceWeather { scroll: s } = &mut model.picker {
-        *s = scroll;
+        false,
+        true,
+    );
+    let area = Rect::from_min_max(pos2(inner.min.x, header.max.y), inner.max);
+    if crate::design::components::pointer_over(&ui, area) {
+        scroll -= ui.input(|i| i.smooth_scroll_delta.y);
+    }
+    scroll = scroll.clamp(0.0, (content_h - area.height()).max(0.0));
+    body(
+        kit,
+        model,
+        &painter.with_clip_rect(area),
+        area.min.x,
+        area.max.x,
+        area.min.y - scroll,
+    );
+    crate::design::components::scroll_indicator(kit, &painter, area, scroll, content_h);
+    match action {
+        Some(crate::design::components::PanelAction::Close) => model.picker = Picker::None,
+        Some(a) => crate::dock::act(model, Panel::Space, a),
+        None => {
+            if let Picker::SpaceWeather { scroll: s } = &mut model.picker {
+                *s = scroll;
+            }
+        }
     }
 }
 

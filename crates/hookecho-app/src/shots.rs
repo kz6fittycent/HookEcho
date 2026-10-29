@@ -439,6 +439,49 @@ pub fn run(dir: &Path) -> Result<(), String> {
         o.app.model.config.station_panel = true;
         o.app.model.layers.space = Default::default();
     }
+    // The dock: warnings, the station, space weather and the inspector
+    // pinned at the left, over recorded data.
+    if let (Some(alerts), Some(spc), Some(obs), Some(w)) = (
+        crate::warnings::sample_alerts(),
+        crate::spc::sample(),
+        crate::stations::sample(),
+        crate::space::sample(),
+    ) {
+        let m = &mut o.app.model;
+        m.layers.alerts = std::sync::Arc::new(alerts);
+        m.layers.spc = std::sync::Arc::new(spc);
+        m.layers.obs = std::sync::Arc::new(obs);
+        m.layers.space = std::sync::Arc::new(w);
+        m.config.home = Some((35.47, -97.52));
+        m.config.station_panel = true;
+        m.config.dock = ["bulletins", "station", "inspector", "space"]
+            .map(String::from)
+            .to_vec();
+        m.dock_inset = 0.0;
+        let ball = debris_ball(&o);
+        let m = &mut o.app.model;
+        m.camera = Camera::looking_at(ball.0, ball.1 + 0.25, 140.0, SIZE[0] as f64);
+        m.motion.zoom_target = m.camera.scale;
+        m.inspect = crate::model::Inspect::Pinned(ball);
+        for (theme, name) in [
+            (ThemeKind::Dark, "30-dock"),
+            (ThemeKind::Light, "31-dock-light"),
+        ] {
+            o.app.theme_override = Some(theme);
+            let (w, h, px) = o.capture(SIZE, PPP);
+            let path = dir.join(format!("{name}.png"));
+            image::RgbaImage::from_raw(w, h, px)
+                .ok_or("bad image")?
+                .save(&path)
+                .map_err(|e| e.to_string())?;
+            println!("wrote {}", path.display());
+        }
+        let m = &mut o.app.model;
+        m.config.dock.clear();
+        m.config.home = None;
+        m.inspect = crate::model::Inspect::Off;
+        m.layers = Default::default();
+    }
     // Satellite, from GOES files on disk (not bundled: 3-12 MB each):
     // HOOKECHO_GOES_FILE=a.nc[:b.nc...], the band from each name (C01, C09,
     // C13).

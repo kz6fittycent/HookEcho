@@ -95,6 +95,8 @@ pub enum Action {
     Satellite(Option<hookecho_core::goes::Band>),
     /// Show an SPC outlook day (its categorical outlook), or none.
     Outlook(Option<u8>),
+    /// Dock the inspector, or float it again.
+    DockInspector,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -468,6 +470,18 @@ fn everything(model: &Model, query: &str, browse_sites: bool) -> Vec<Command> {
         ),
         cmd(
             Group::Actions,
+            if crate::dock::wants_dock(model, crate::dock::Panel::Inspector) {
+                "Float the inspector"
+            } else {
+                "Dock the inspector"
+            },
+            "Read values in the left dock instead of at the pointer",
+            None,
+            "inspector value dock panel pin",
+            Action::DockInspector,
+        ),
+        cmd(
+            Group::Actions,
             "Keyboard shortcuts",
             "Every key at a glance",
             Some("?"),
@@ -754,7 +768,22 @@ pub fn run(model: &mut Model, action: &Action, view: [f64; 2], now: f64) {
         Action::ProductPicker => model.picker = Picker::Product,
         Action::Sheet(tab) => model.sheet = Some(model::Sheet::new(*tab)),
         Action::Shortcuts => model.picker = Picker::Shortcuts,
-        Action::SpaceWeather => model.picker = Picker::SpaceWeather { scroll: 0.0 },
+        Action::SpaceWeather => {
+            let p = crate::dock::Panel::Space;
+            if crate::dock::wants_dock(model, p) {
+                model.config.dock_collapsed.retain(|k| k != p.key());
+            } else {
+                model.picker = Picker::SpaceWeather { scroll: 0.0 };
+            }
+        }
+        Action::DockInspector => {
+            let p = crate::dock::Panel::Inspector;
+            if crate::dock::wants_dock(model, p) {
+                crate::dock::undock(model, p);
+            } else {
+                crate::dock::dock(model, p);
+            }
+        }
         Action::ZoomIn | Action::ZoomOut => {
             let k = if *action == Action::ZoomIn {
                 1.6

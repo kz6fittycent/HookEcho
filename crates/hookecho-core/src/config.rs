@@ -118,6 +118,11 @@ pub struct Config {
     /// The GOES band drawn under the radar, by `goes::Band::key`; none by
     /// default.
     pub satellite: Option<String>,
+    /// Panels docked in the left column, top to bottom (the app's
+    /// `dock::Panel` keys).
+    pub dock: Vec<String>,
+    /// Docked panels shown collapsed to their headers.
+    pub dock_collapsed: Vec<String>,
 }
 
 impl Default for Config {
@@ -148,6 +153,8 @@ impl Default for Config {
             station_panel: true,
             aurora: false,
             satellite: None,
+            dock: Vec::new(),
+            dock_collapsed: Vec::new(),
         }
     }
 }

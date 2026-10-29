@@ -720,3 +720,84 @@ pub fn pointer_over(ui: &Ui, rect: Rect) -> bool {
     ui.input(|i| i.pointer.hover_pos())
         .is_some_and(|p| rect.contains(p))
 }
+
+/// What a panel header's buttons asked for.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PanelAction {
+    Dock,
+    Undock,
+    Collapse,
+    Close,
+}
+
+/// The header every panel shares, docked or floating (DESIGN.md §3.11):
+/// the title on the left, then collapse (docked only), pin or unpin, and
+/// close. `closable: false` leaves close out (the inspector, whose unpin
+/// is its close).
+#[allow(clippy::too_many_arguments)]
+pub fn panel_header(
+    ui: &mut Ui,
+    kit: &mut Kit,
+    painter: &Painter,
+    rect: Rect,
+    id: Id,
+    title: &str,
+    docked: bool,
+    collapsed: bool,
+    closable: bool,
+) -> Option<PanelAction> {
+    let t = kit.theme.clone();
+    let b = size::ICON_BUTTON;
+    let y = rect.center().y - b / 2.0;
+    // Without close, its slot stays empty, so the buttons line up with the
+    // other panels' in the dock.
+    let mut x = rect.max.x - b - if closable { 0.0 } else { b };
+    let mut buttons: Vec<(Icon, &str, PanelAction)> = Vec::new();
+    if closable {
+        buttons.push((Icon::X, "Close", PanelAction::Close));
+    }
+    if docked {
+        buttons.push((
+            Icon::PinOff,
+            "Float this panel over the map",
+            PanelAction::Undock,
+        ));
+        buttons.push(if collapsed {
+            (Icon::ChevronDown, "Expand", PanelAction::Collapse)
+        } else {
+            (Icon::ChevronUp, "Collapse", PanelAction::Collapse)
+        });
+    } else {
+        buttons.push((Icon::Pin, "Dock this panel at the left", PanelAction::Dock));
+    }
+    let mut action = None;
+    for (icon, label, a) in buttons {
+        let r = Rect::from_min_size(pos2(x, y), vec2(b, b));
+        if icon_button(
+            ui,
+            kit,
+            painter,
+            r,
+            id.with(label),
+            icon,
+            label,
+            None,
+            false,
+        )
+        .clicked()
+        {
+            action = Some(a);
+        }
+        x -= b;
+    }
+    let clip = painter.with_clip_rect(Rect::from_min_max(rect.min, pos2(x + b, rect.max.y)));
+    kit.text(
+        &clip,
+        pos2(rect.min.x, rect.center().y),
+        Align2::LEFT_CENTER,
+        title,
+        Type::Label,
+        t.text_primary,
+    );
+    action
+}

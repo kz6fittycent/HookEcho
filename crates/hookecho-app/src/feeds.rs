@@ -69,7 +69,8 @@ impl Feeds {
         // Space weather while its card is open or the aurora is shown; a
         // poll right away when the aurora is switched on.
         let c = &model.config;
-        let card = matches!(model.picker, crate::model::Picker::SpaceWeather { .. });
+        let card = matches!(model.picker, crate::model::Picker::SpaceWeather { .. })
+            || crate::dock::wants_dock(model, crate::dock::Panel::Space);
         self.space.enable(c.aurora || card);
         if self.aurora.swap(c.aurora, Ordering::Relaxed) != c.aurora && c.aurora {
             self.space.poll_now();

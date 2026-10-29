@@ -332,6 +332,54 @@ mod tests {
         ));
     }
 
+    /// The pin in a floating panel's header docks it; the map's chrome moves
+    /// right of the dock; unpin in the dock floats it again.
+    #[test]
+    fn panels_dock_and_float() {
+        let wide = [1400.0, 860.0];
+        let Ok(mut o) = Offscreen::new(None, wide) else {
+            eprintln!("no GPU adapter; skipped");
+            return;
+        };
+        let click_at = |o: &mut Offscreen, id: egui::Id| {
+            let r = o
+                .ctx
+                .read_response(id)
+                .unwrap_or_else(|| panic!("{id:?}"))
+                .rect;
+            let ev = |pressed| egui::Event::PointerButton {
+                pos: r.center(),
+                button: egui::PointerButton::Primary,
+                pressed,
+                modifiers: Default::default(),
+            };
+            o.frame(wide, 1.0, vec![egui::Event::PointerMoved(r.center())]);
+            o.frame(wide, 1.0, vec![ev(true), ev(false)]);
+            o.frame(wide, 1.0, Vec::new());
+        };
+        o.app.model.layers.space = std::sync::Arc::new(crate::space::sample().unwrap());
+        o.app.model.picker = Picker::SpaceWeather { scroll: 0.0 };
+        o.frame(wide, 1.0, Vec::new());
+        let center = o.app.model.map_center();
+        click_at(
+            &mut o,
+            egui::Id::new("space-header").with("Dock this panel at the left"),
+        );
+        assert_eq!(o.app.model.config.dock, ["space"]);
+        assert_eq!(o.app.model.picker, Picker::None);
+        assert!(o.app.model.dock_inset > 0.0, "the dock is on screen");
+        let moved = o.app.model.map_center();
+        assert!((moved.1 - center.1).abs() < 1e-6, "the map didn't jump");
+        click_at(
+            &mut o,
+            egui::Id::new(("dock", "space")).with("Float this panel over the map"),
+        );
+        assert!(o.app.model.config.dock.is_empty());
+        assert!(matches!(o.app.model.picker, Picker::SpaceWeather { .. }));
+        o.frame(wide, 1.0, Vec::new());
+        assert_eq!(o.app.model.dock_inset, 0.0);
+    }
+
     #[test]
     fn pickers_respond_to_clicks() {
         let Ok(mut o) = Offscreen::new(None, SIZE) else {

@@ -57,7 +57,8 @@ fn chrome_bands(screen: Rect) -> [Rect; 3] {
 fn markers(model: &Model, screen: Rect) -> Vec<(&'static sites::Site, Pos2, bool)> {
     let size = view_size(screen);
     let show_all = model.camera.km_per_px() > 1.2 || matches!(model.picker, Picker::Site { .. });
-    let bands = chrome_bands(screen);
+    let bands = chrome_bands(crate::dock::map_area(model, screen));
+    let dock = crate::dock::rect(model, screen);
     sites::all()
         .iter()
         .filter(|s| {
@@ -68,7 +69,10 @@ fn markers(model: &Model, screen: Rect) -> Vec<(&'static sites::Site, Pos2, bool
             let p = model.camera.latlon_to_screen(s.lat, s.lon, size);
             let p = pos2(p[0] as f32, p[1] as f32);
             let pill = show_all && s.id != model.site.id;
-            (screen.contains(p) && !bands.iter().any(|b| b.contains(p))).then_some((s, p, pill))
+            (screen.contains(p)
+                && !bands.iter().any(|b| b.contains(p))
+                && !dock.is_some_and(|d| d.contains(p)))
+            .then_some((s, p, pill))
         })
         .collect()
 }
@@ -76,8 +80,9 @@ fn markers(model: &Model, screen: Rect) -> Vec<(&'static sites::Site, Pos2, bool
 /// Rects the renderer keeps free of place labels: chrome, site markers and
 /// station plots.
 pub fn label_exclusions(model: &Model, screen: Rect) -> Vec<[f32; 4]> {
-    let mut v: Vec<[f32; 4]> = chrome_bands(screen)
+    let mut v: Vec<[f32; 4]> = chrome_bands(crate::dock::map_area(model, screen))
         .iter()
+        .chain(crate::dock::rect(model, screen).as_ref())
         .map(|r| [r.min.x, r.min.y, r.max.x, r.max.y])
         .collect();
     for (_, p, pill) in markers(model, screen) {
@@ -355,6 +360,9 @@ pub fn keys(ui: &Ui, model: &mut Model, screen: Rect) {
 /// Paints the screen. `scene`: the rendered map texture.
 pub fn paint(ui: &mut Ui, kit: &mut Kit, model: &mut Model, scene: egui::TextureId) {
     let screen = kit.screen;
+    // The map runs under the dock; its chrome lays out right of it.
+    crate::dock::settle(model, screen);
+    let area = crate::dock::map_area(model, screen);
     let painter = ui.painter().clone();
     painter.image(
         scene,
@@ -369,27 +377,34 @@ pub fn paint(ui: &mut Ui, kit: &mut Kit, model: &mut Model, scene: egui::Texture
     crate::stations::draw(kit, model, &painter, view_size(screen));
     home_marker(kit, model, &painter);
     site_markers(ui, kit, model, &painter);
-    let m = margin(screen);
+    crate::dock::draw(ui, kit, model, screen);
+    let m = margin(area);
     let site_rect = site_chip(
         ui,
         kit,
         model,
         &painter,
-        pos2(screen.min.x + m, screen.min.y + m),
+        pos2(area.min.x + m, area.min.y + m),
     );
     let product_rect = product_chip(
         ui,
         kit,
         model,
         &painter,
-        pos2(site_rect.max.x + space::S2, screen.min.y + m),
+        pos2(site_rect.max.x + space::S2, area.min.y + m),
     );
-    let compact = screen.width() < size::COMPACT_BREAKPOINT;
-    let legend_rect = legend(ui, kit, model, &painter, screen, m, compact);
-    timeline(ui, kit, model, &painter, screen, m, compact, legend_rect);
-    crate::stations::panel(ui, kit, model, &painter, m);
+    let compact = area.width() < size::COMPACT_BREAKPOINT;
+    let legend_rect = legend(ui, kit, model, &painter, area, m, compact);
+    timeline(ui, kit, model, &painter, area, m, compact, legend_rect);
+    crate::stations::floating(ui, kit, model, &painter, area, m);
     if let Inspect::Hover(at) | Inspect::Pinned(at) = model.inspect {
-        inspector(kit, model, &painter, at);
+        if crate::dock::docked(model, kit.screen, crate::dock::Panel::Inspector) {
+            // The reading is in the dock; the map keeps the reticle.
+            let p = model.camera.latlon_to_screen(at.0, at.1, view_size(screen));
+            kit.reticle(&painter, pos2(p[0] as f32, p[1] as f32));
+        } else {
+            inspector(kit, model, &painter, at, None);
+        }
     }
     let search_rect = top_right(ui, kit, model, &painter, screen, m);
     crate::sheet::side_sheet(ui, kit, model, crate::sheet::sheet_rect(screen, m));
@@ -401,12 +416,13 @@ pub fn paint(ui: &mut Ui, kit: &mut Kit, model: &mut Model, scene: egui::Texture
             crate::overlays::command_palette(ui, kit, model, view_size(screen), search_rect)
         }
         Picker::Shortcuts => crate::overlays::shortcuts_sheet(ui, kit, model, search_rect),
-        Picker::SpaceWeather { .. } => crate::space::card(ui, kit, model),
+        Picker::SpaceWeather { .. } => crate::space::card(ui, kit, model, area),
         Picker::Warnings { .. } => crate::warnings::card(
             ui,
             kit,
             model,
-            pos2(screen.min.x + m, site_rect.max.y + space::S2),
+            pos2(area.min.x + m, site_rect.max.y + space::S2),
+            area,
         ),
         Picker::None => {}
     }
@@ -414,15 +430,15 @@ pub fn paint(ui: &mut Ui, kit: &mut Kit, model: &mut Model, scene: egui::Texture
         notice(
             kit,
             &painter,
-            screen,
+            area,
             m,
             "Click the map to set home · Esc to cancel",
         );
     } else if let Some((text, _)) = &model.notice {
-        notice(kit, &painter, screen, m, text);
+        notice(kit, &painter, area, m, text);
     } else if matches!(model.picker, Picker::None) && model.no_precipitation() {
         let text = format!("Little or no rain or snow near {} right now", model.site.id);
-        notice(kit, &painter, screen, m, &text);
+        notice(kit, &painter, area, m, &text);
     }
 }
 
@@ -1180,12 +1196,46 @@ fn timeline(
     kit.focus_ring(painter, track, radius::SM, &scrub);
 }
 
-fn inspector(kit: &mut Kit, model: &Model, painter: &egui::Painter, at: (f64, f64)) {
+/// The docked inspector's body: the reading at the pointer (or the pinned
+/// spot), or a hint while there's none. Returns its height.
+pub fn inspector_body(
+    kit: &mut Kit,
+    model: &Model,
+    painter: &egui::Painter,
+    x0: f32,
+    x1: f32,
+    y: f32,
+) -> f32 {
+    if let Inspect::Hover(at) | Inspect::Pinned(at) = model.inspect
+        && let Some(h) = inspector(kit, model, painter, at, Some((x0, x1, y)))
+    {
+        return h;
+    }
+    let t = &kit.theme;
+    kit.text(
+        painter,
+        pos2(x0, y + size::INSPECTOR_ROW_H / 2.0),
+        Align2::LEFT_CENTER,
+        "Point at the radar to read a value; I pins it",
+        Type::Body,
+        t.text_secondary,
+    );
+    size::INSPECTOR_ROW_H + space::S2
+}
+
+/// The inspector card: at the pointer (`docked: None`), or drawn into the
+/// dock between x0 and x1 from y. Returns its height, or `None` with no
+/// radar data.
+fn inspector(
+    kit: &mut Kit,
+    model: &Model,
+    painter: &egui::Painter,
+    at: (f64, f64),
+    docked: Option<(f32, f32, f32)>,
+) -> Option<f32> {
     let t = kit.theme.clone();
-    let Some(l) = model.loaded_here() else { return };
-    let Some(sweep) = model.current_sweep() else {
-        return;
-    };
+    let l = model.loaded_here()?;
+    let sweep = model.current_sweep()?;
     let size = view_size(kit.screen);
     let p = model.camera.latlon_to_screen(at.0, at.1, size);
     let p = pos2(p[0] as f32, p[1] as f32);
@@ -1213,7 +1263,9 @@ fn inspector(kit: &mut Kit, model: &Model, painter: &egui::Painter, at: (f64, f6
         }
         _ => ("—".to_string(), "", Some("No echo")),
     };
-    kit.reticle(painter, p);
+    if docked.is_none() {
+        kit.reticle(painter, p);
+    }
     let rows = [
         ("Beam height".to_string(), fmt.height(probe.height_km)),
         (
@@ -1238,17 +1290,25 @@ fn inspector(kit: &mut Kit, model: &Model, painter: &egui::Painter, at: (f64, f6
         + rows.len() as f32 * size::INSPECTOR_ROW_H
         + pad
         - space::S1;
-    let screen = kit.screen;
-    let off = size::INSPECTOR_OFFSET;
-    let mut min = p + egui::Vec2::splat(off);
-    if min.x + w > screen.max.x - space::S4 {
-        min.x = p.x - off - w;
-    }
-    if min.y + h > screen.max.y - space::S4 - size::TIMELINE_H {
-        min.y = p.y - off - h;
-    }
-    let rect = Rect::from_min_size(min, vec2(w, h));
-    kit.glass(painter, rect, radius::MD, 2);
+    let rect = match docked {
+        // In the dock the panel is the card; the text lines up with the
+        // other panels' (the card's own padding sits outside).
+        Some((x0, x1, y)) => Rect::from_min_max(pos2(x0 - pad, y), pos2(x1 + pad, y + h)),
+        None => {
+            let screen = kit.screen;
+            let off = size::INSPECTOR_OFFSET;
+            let mut min = p + egui::Vec2::splat(off);
+            if min.x + w > screen.max.x - space::S4 {
+                min.x = p.x - off - w;
+            }
+            if min.y + h > screen.max.y - space::S4 - size::TIMELINE_H {
+                min.y = p.y - off - h;
+            }
+            let rect = Rect::from_min_size(min, vec2(w, h));
+            kit.glass(painter, rect, radius::MD, 2);
+            rect
+        }
+    };
     let mut y = rect.min.y + pad + 14.0;
     let end = row(
         kit,
@@ -1320,4 +1380,5 @@ fn inspector(kit: &mut Kit, model: &Model, painter: &egui::Painter, at: (f64, f6
         );
         y += 10.0;
     }
+    Some(h)
 }

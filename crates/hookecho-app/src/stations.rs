@@ -5,12 +5,11 @@
 //! The panel follows the station nearest home (or the map center without
 //! one); a click on a plot pins that station instead.
 
-use crate::design::components::{Kit, icon_button};
-use crate::design::icons::Icon;
+use crate::design::components::{self, Kit};
 use crate::design::stations as st;
 use crate::design::tokens::{Type, radius, size, space};
 use crate::model::{self, Model};
-use eframe::egui::{Align2, Id, Painter, Pos2, Rect, Shape, Stroke, Ui, Vec2, pos2, vec2};
+use eframe::egui::{Align2, Id, Painter, Pos2, Rect, Shape, Stroke, Ui, pos2, vec2};
 use hookecho_core::config::{Config, Units};
 use hookecho_core::obs::{History, Ob};
 
@@ -25,7 +24,7 @@ fn now_ms() -> i64 {
 /// home or the map center.
 pub fn panel_station(model: &Model) -> Option<&Ob> {
     let obs = &model.layers.obs;
-    if let Some(id) = &model.pinned_station
+    if let Some(id) = &model.chosen_station
         && let Some(o) = obs.by_id(id)
     {
         return Some(o);
@@ -255,7 +254,7 @@ pub fn click(model: &mut Model, screen: Rect, at: Pos2, view: [f64; 2]) -> bool 
         .map(|(o, _)| o.id.clone());
     match hit {
         Some(id) => {
-            model.pinned_station = Some(id);
+            model.chosen_station = Some(id);
             model.config.station_panel = true;
             true
         }
@@ -292,15 +291,35 @@ fn panel_lines(c: &Config, o: &Ob, h: Option<&History>) -> Vec<String> {
     v
 }
 
-/// Draws the panel above the timeline row, at the left.
-pub fn panel(ui: &mut Ui, kit: &mut Kit, model: &mut Model, painter: &Painter, m: f32) {
-    if !model.config.station_panel {
-        return;
-    }
-    let Some(o) = panel_station(model).cloned() else {
-        return;
-    };
+/// The station panel's body: the station, its temperature, dew point and
+/// humidity, wind, pressure and trend, visibility and weather, and how old
+/// the report is. Drawn from `y` between `x0` and `x1`; returns its height.
+pub fn body(
+    ui: &mut Ui,
+    kit: &mut Kit,
+    model: &mut Model,
+    painter: &Painter,
+    x0: f32,
+    x1: f32,
+    y0: f32,
+) -> f32 {
     let t = kit.theme.clone();
+    let Some(o) = panel_station(model).cloned() else {
+        let msg = if model.layers.obs_trouble.is_some() {
+            "Can't reach aviationweather.gov; retrying"
+        } else {
+            "Waiting for observations…"
+        };
+        kit.text(
+            painter,
+            pos2(x0, y0 + st::PANEL_LINE_H / 2.0),
+            Align2::LEFT_CENTER,
+            msg,
+            Type::Body,
+            t.text_secondary,
+        );
+        return st::PANEL_LINE_H + space::S2;
+    };
     let c = model.config.clone();
     let history = model.layers.obs.station.clone();
     let name = history
@@ -309,26 +328,12 @@ pub fn panel(ui: &mut Ui, kit: &mut Kit, model: &mut Model, painter: &Painter, m
         .map(|h| h.name.clone())
         .unwrap_or_default();
     let lines = panel_lines(&c, &o, history.as_ref());
-    let pad = space::S3;
-    let h = pad
-        + st::PANEL_LINE_H
-        + st::PANEL_VALUE_H
-        + st::PANEL_LINE_H * lines.len() as f32
-        + st::PANEL_LINE_H
-        + pad;
-    let screen = kit.screen;
-    let w = st::PANEL_W.min(screen.width() - 2.0 * m);
-    let bottom = screen.max.y - m - size::TIMELINE_H - space::S2;
-    let rect = Rect::from_min_size(pos2(screen.min.x + m, bottom - h), vec2(w, h));
-    ui.interact(rect, Id::new("station-panel"), eframe::egui::Sense::click());
-    kit.glass(painter, rect, radius::LG, 1);
-    let x = rect.min.x + pad;
-    let text_w = rect.width() - 2.0 * pad - size::ICON_BUTTON;
-    let clip = painter.with_clip_rect(Rect::from_min_size(
-        rect.min,
-        vec2(pad + text_w, rect.height()),
-    ));
-    let mut y = rect.min.y + pad + st::PANEL_LINE_H / 2.0;
+    let clip = painter.with_clip_rect(painter.clip_rect().intersect(Rect::from_min_max(
+        pos2(x0, painter.clip_rect().min.y),
+        pos2(x1, painter.clip_rect().max.y),
+    )));
+    let x = x0;
+    let mut y = y0 + st::PANEL_LINE_H / 2.0;
     let id_rect = kit.text(
         &clip,
         pos2(x, y),
@@ -352,7 +357,7 @@ pub fn panel(ui: &mut Ui, kit: &mut Kit, model: &mut Model, painter: &Painter, m
         format!("{}{}", temp(&c, v), temp_unit(&c))
     });
     let big_rect = kit.text(
-        painter,
+        &clip,
         pos2(x, y),
         Align2::LEFT_CENTER,
         big,
@@ -394,8 +399,9 @@ pub fn panel(ui: &mut Ui, kit: &mut Kit, model: &mut Model, painter: &Painter, m
         model::ago(age.max(120)),
         model::clock_time(o.time_ms, c.utc)
     );
-    foot.push_str(if model.pinned_station.is_some() {
-        " · pinned"
+    let chosen = model.chosen_station.is_some();
+    foot.push_str(if chosen {
+        " · chosen on the map"
     } else if c.home.is_some() {
         " · nearest home"
     } else {
@@ -409,37 +415,91 @@ pub fn panel(ui: &mut Ui, kit: &mut Kit, model: &mut Model, painter: &Painter, m
         Type::Caption,
         t.text_tertiary,
     );
+    y += st::PANEL_LINE_H / 2.0;
+    // (A measuring pass, with nothing visible, takes no clicks.)
+    if chosen && painter.clip_rect().is_positive() {
+        // Back to following the nearest station.
+        let r = Rect::from_min_max(pos2(x, y), pos2(x1, y + st::PANEL_LINE_H));
+        let resp = components::interact(
+            ui,
+            r,
+            Id::new("station-nearest"),
+            eframe::egui::WidgetType::Button,
+            "Use the nearest station",
+            None,
+        );
+        kit.text(
+            &clip,
+            pos2(x, r.center().y),
+            Align2::LEFT_CENTER,
+            "Use the nearest station",
+            Type::Caption,
+            if resp.hovered() {
+                t.text_primary
+            } else {
+                t.accent
+            },
+        );
+        if resp.clicked() {
+            model.chosen_station = None;
+        }
+        y = r.max.y;
+    } else if chosen {
+        y += st::PANEL_LINE_H;
+    }
+    y + space::S2 - y0
+}
 
-    let close = Rect::from_min_size(
-        pos2(
-            rect.max.x - space::S1 - size::ICON_BUTTON,
-            rect.min.y + space::S1,
-        ),
-        Vec2::splat(size::ICON_BUTTON),
-    );
-    let pinned = model.pinned_station.is_some();
-    let clicked = icon_button(
+/// The floating station panel: bottom left of the map area, above the
+/// timeline row.
+pub fn floating(
+    ui: &mut Ui,
+    kit: &mut Kit,
+    model: &mut Model,
+    painter: &Painter,
+    area: Rect,
+    m: f32,
+) {
+    use crate::dock::Panel;
+    if !model.config.station_panel || crate::dock::docked(model, kit.screen, Panel::Station) {
+        return;
+    }
+    let pad = space::S3;
+    let w = st::PANEL_W.min(area.width() - 2.0 * m);
+    let x0 = area.min.x + m;
+    // Measure the body with nothing visible, then draw it for real.
+    let hidden = painter.with_clip_rect(Rect::NOTHING);
+    let body_h = body(ui, kit, model, &hidden, x0 + pad, x0 + w - pad, 0.0);
+    let h = pad + size::PANEL_HEADER_H + body_h + pad - space::S2;
+    let bottom = area.max.y - m - size::TIMELINE_H - space::S2;
+    let rect = Rect::from_min_size(pos2(x0, bottom - h), vec2(w, h));
+    ui.interact(rect, Id::new("station-panel"), eframe::egui::Sense::click());
+    kit.glass(painter, rect, radius::LG, 1);
+    let inner = rect.shrink(pad);
+    let header = Rect::from_min_size(inner.min, vec2(inner.width(), size::PANEL_HEADER_H));
+    let action = components::panel_header(
         ui,
         kit,
         painter,
-        close,
-        Id::new("station-panel-close"),
-        Icon::X,
-        if pinned {
-            "Unpin this station"
-        } else {
-            "Hide the station panel"
-        },
-        None,
+        header,
+        Id::new("station-panel-header"),
+        Panel::Station.title(),
         false,
-    )
-    .clicked();
-    if clicked {
-        if pinned {
-            model.pinned_station = None;
-        } else {
-            model.config.station_panel = false;
-        }
+        false,
+        true,
+    );
+    let clip = painter.with_clip_rect(rect);
+    body(
+        ui,
+        kit,
+        model,
+        &clip,
+        inner.min.x,
+        inner.max.x,
+        header.max.y,
+    );
+    if let Some(a) = action {
+        crate::dock::act(model, Panel::Station, a);
     }
 }
 

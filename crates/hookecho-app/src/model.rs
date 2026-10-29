@@ -364,10 +364,19 @@ pub struct Model {
     pub notice: Option<(String, f64)>,
     /// "Set home" is waiting for a click on the map.
     pub placing_home: bool,
+    /// The warnings, watches and MDs selected in the docked bulletins panel
+    /// (card ids, as `Picker::Warnings`); empty lists everything active.
+    pub dock_bulletins: Vec<String>,
+    /// The dock's scroll offset.
+    pub dock_scroll: f32,
+    /// The dock's width last frame (0 without one), to keep the map still
+    /// when it opens or closes.
+    pub dock_inset: f32,
     /// "Use my location" was chosen; the app starts the request (location.rs).
     pub locate_requested: bool,
-    /// The station pinned to the station panel by a click (stations.rs).
-    pub pinned_station: Option<String>,
+    /// The station chosen for the station panel by a click on its plot
+    /// (stations.rs); `None` follows the nearest one.
+    pub chosen_station: Option<String>,
     /// Cached `no_precipitation` answer, keyed by (generation, sweep, palette version).
     quiet: Option<((u64, usize, u64), bool)>,
     pub sheet: Option<Sheet>,
@@ -457,8 +466,11 @@ impl Model {
             palettes: crate::palettes::Library::load(None),
             notice: None,
             placing_home: false,
+            dock_bulletins: Vec::new(),
+            dock_scroll: 0.0,
+            dock_inset: 0.0,
             locate_requested: false,
-            pinned_station: None,
+            chosen_station: None,
             quiet: None,
             sheet: None,
             chrome: Vec::new(),
@@ -799,8 +811,10 @@ impl Model {
     }
 
     /// The (lat, lon) at the middle of the map.
+    /// The middle of the map you can see: right of the dock, if there is one.
     pub fn map_center(&self) -> (f64, f64) {
-        hookecho_core::geo::from_mercator(self.camera.center)
+        let dx = self.dock_inset as f64 / 2.0 / self.camera.scale;
+        hookecho_core::geo::from_mercator([self.camera.center[0] + dx, self.camera.center[1]])
     }
 
     /// Makes `at` (lat, lon) the home point and ends "Set home" placing.

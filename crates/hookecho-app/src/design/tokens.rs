@@ -116,6 +116,12 @@ pub mod size {
     pub const SHORTCUT_ROW_H: f32 = 28.0;
     /// Side sheet (DESIGN.md §3.6).
     pub const SHEET_W: f32 = 360.0;
+    /// The left dock (DESIGN.md §3.11): its width, and the narrowest window
+    /// that keeps it (below this, docked panels float instead).
+    pub const DOCK_W: f32 = 360.0;
+    pub const DOCK_MIN_WINDOW: f32 = 1000.0;
+    /// The header every panel shares, docked or floating.
+    pub const PANEL_HEADER_H: f32 = 44.0;
     pub const SEGMENTED_H: f32 = 32.0;
     /// A settings row: label (and hint) on the left, control on the right.
     pub const SETTING_ROW_H: f32 = 48.0;
