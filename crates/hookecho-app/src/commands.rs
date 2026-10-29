@@ -37,6 +37,7 @@ pub enum Layer {
     Discussions,
     StationPlots,
     StationPanel,
+    Aurora,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -67,6 +68,7 @@ pub enum Action {
     RestoreColors,
     MaskDualPol(bool),
     LabelScale(f32),
+    SpaceWeather,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -259,6 +261,12 @@ pub fn all(model: &Model, query: &str) -> Vec<Command> {
             c.station_panel,
             "command center conditions pressure visibility",
         ),
+        (
+            Layer::Aurora,
+            "Aurora forecast",
+            c.aurora,
+            "space weather northern lights ovation",
+        ),
         (Layer::Counties, "County lines", map.counties, "borders"),
         (Layer::Roads, "Highways", map.roads, "roads interstates"),
         (
@@ -346,6 +354,14 @@ pub fn all(model: &Model, query: &str) -> Vec<Command> {
             None,
             "preferences options",
             Action::Sheet(SheetTab::Settings),
+        ),
+        cmd(
+            Group::Actions,
+            "Space weather",
+            "Kp, solar wind, flares, SWPC alerts",
+            None,
+            "aurora geomagnetic storm sun solar kp swpc",
+            Action::SpaceWeather,
         ),
         cmd(
             Group::Actions,
@@ -604,6 +620,7 @@ pub fn run(model: &mut Model, action: &Action, view: [f64; 2], now: f64) {
                 Layer::Discussions => &mut c.discussions,
                 Layer::StationPlots => &mut c.station_plots,
                 Layer::StationPanel => &mut c.station_panel,
+                Layer::Aurora => &mut c.aurora,
             };
             *f = !*f;
         }
@@ -624,6 +641,7 @@ pub fn run(model: &mut Model, action: &Action, view: [f64; 2], now: f64) {
         Action::ProductPicker => model.picker = Picker::Product,
         Action::Sheet(tab) => model.sheet = Some(model::Sheet::new(*tab)),
         Action::Shortcuts => model.picker = Picker::Shortcuts,
+        Action::SpaceWeather => model.picker = Picker::SpaceWeather { scroll: 0.0 },
         Action::ZoomIn | Action::ZoomOut => {
             let k = if *action == Action::ZoomIn {
                 1.6

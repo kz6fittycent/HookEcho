@@ -18,6 +18,7 @@ pub mod poll;
 pub mod realtime;
 pub mod s3;
 pub mod sites;
+pub mod space;
 pub mod spc;
 pub mod tdwr;
 pub mod time;

@@ -363,6 +363,7 @@ pub fn paint(ui: &mut Ui, kit: &mut Kit, model: &mut Model, scene: egui::Texture
         Color32::WHITE,
     );
     crate::spc::draw_outlook(model, &painter, view_size(screen));
+    crate::space::draw_aurora(model, &painter, view_size(screen));
     crate::spc::draw_outlines(kit, model, &painter, view_size(screen));
     crate::warnings::draw(kit, model, &painter, view_size(screen));
     crate::stations::draw(kit, model, &painter, view_size(screen));
@@ -400,6 +401,7 @@ pub fn paint(ui: &mut Ui, kit: &mut Kit, model: &mut Model, scene: egui::Texture
             crate::overlays::command_palette(ui, kit, model, view_size(screen), search_rect)
         }
         Picker::Shortcuts => crate::overlays::shortcuts_sheet(ui, kit, model, search_rect),
+        Picker::SpaceWeather { .. } => crate::space::card(ui, kit, model),
         Picker::Warnings { .. } => crate::warnings::card(
             ui,
             kit,

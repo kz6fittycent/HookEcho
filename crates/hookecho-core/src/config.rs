@@ -113,6 +113,8 @@ pub struct Config {
     pub station_plots: bool,
     /// The station panel: the nearest station's conditions.
     pub station_panel: bool,
+    /// The OVATION aurora forecast on the map.
+    pub aurora: bool,
 }
 
 impl Default for Config {
@@ -141,6 +143,7 @@ impl Default for Config {
             outlook: None,
             station_plots: false,
             station_panel: true,
+            aurora: false,
         }
     }
 }

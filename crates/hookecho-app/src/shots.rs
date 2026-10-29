@@ -403,6 +403,38 @@ pub fn run(dir: &Path) -> Result<(), String> {
         o.app.model.config.station_plots = false;
         o.app.model.config.home = None;
     }
+    // Space weather: the card open over the aurora forecast (recorded
+    // SWPC answers, moved to now).
+    if let Some(w) = crate::space::sample() {
+        let m = &mut o.app.model;
+        m.layers.space = std::sync::Arc::new(w);
+        m.config.aurora = true;
+        m.config.station_panel = false;
+        m.camera = Camera::looking_at(60.0, -100.0, 6500.0, SIZE[0] as f64);
+        m.motion.zoom_target = m.camera.scale;
+        for (theme, name, card) in [
+            (ThemeKind::Dark, "26-aurora", false),
+            (ThemeKind::Dark, "27-space-weather", true),
+            (ThemeKind::Light, "28-space-weather-light", true),
+        ] {
+            o.app.model.picker = if card {
+                Picker::SpaceWeather { scroll: 0.0 }
+            } else {
+                Picker::None
+            };
+            o.app.theme_override = Some(theme);
+            let (w, h, px) = o.capture(SIZE, PPP);
+            let path = dir.join(format!("{name}.png"));
+            image::RgbaImage::from_raw(w, h, px)
+                .ok_or("bad image")?
+                .save(&path)
+                .map_err(|e| e.to_string())?;
+            println!("wrote {}", path.display());
+        }
+        o.app.model.picker = Picker::None;
+        o.app.model.config.aurora = false;
+        o.app.model.config.station_panel = true;
+    }
     Ok(())
 }
 

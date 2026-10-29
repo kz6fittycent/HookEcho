@@ -3,7 +3,7 @@
 
 use crate::design::components::{self, Kit, interact, segmented, toggle};
 use crate::design::tokens::{Type, radius, size, space};
-use crate::model::{Model, SheetTab};
+use crate::model::{Model, Picker, SheetTab};
 use crate::pickers;
 use eframe::egui::{self, Align2, Id, LayerId, Order, Rect, Ui, WidgetType, pos2, vec2};
 use hookecho_core::config::{Speed, ThemePref, Units};
@@ -247,6 +247,15 @@ fn layers(ui: &mut Ui, kit: &mut Kit, model: &mut Model, b: &mut Body) {
             b.hint(kit, "Can't reach aviationweather.gov; retrying")
         }
         _ => b.hint(kit, "Zoom in to see them; click one to pin it"),
+    }
+    b.gap();
+    b.eyebrow(kit, "SPACE WEATHER");
+    let c = &mut model.config;
+    c.aurora = b.toggle(ui, kit, "aurora", "Aurora forecast", c.aurora);
+    b.hint(kit, "Chance of aurora overhead, from NOAA SWPC");
+    let row = b.row();
+    if text_button(ui, kit, b.painter, row, "space", "Space weather conditions") {
+        model.picker = Picker::SpaceWeather { scroll: 0.0 };
     }
 }
 

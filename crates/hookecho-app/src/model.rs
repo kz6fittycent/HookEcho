@@ -241,6 +241,10 @@ pub enum Picker {
     },
     /// Keyboard shortcuts sheet (`?`).
     Shortcuts,
+    /// The space weather card (space.rs).
+    SpaceWeather {
+        scroll: f32,
+    },
     /// The card for the warnings under a map click (warnings.rs), by id.
     Warnings {
         ids: Vec<String>,
@@ -261,6 +265,11 @@ pub struct LayerData {
     /// Surface observations (hookecho-core::obs).
     pub obs: std::sync::Arc<hookecho_core::obs::Obs>,
     pub obs_trouble: Option<String>,
+    /// Space weather (hookecho-core::space).
+    pub space: std::sync::Arc<hookecho_core::space::SpaceWeather>,
+    pub space_trouble: Option<String>,
+    /// The aurora forecast as a mesh (space.rs).
+    pub aurora_mesh: std::cell::RefCell<crate::space::AuroraCache>,
     /// The shown outlook, tessellated (spc.rs).
     pub outlook_mesh: std::cell::RefCell<crate::spc::OutlookCache>,
 }
