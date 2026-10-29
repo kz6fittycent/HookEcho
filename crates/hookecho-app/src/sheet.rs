@@ -3,7 +3,7 @@
 
 use crate::design::components::{self, Kit, interact, segmented, toggle};
 use crate::design::tokens::{Type, radius, size, space};
-use crate::model::{Model, Picker, SheetTab};
+use crate::model::{Model, Picker, Sheet, SheetTab};
 use crate::pickers;
 use eframe::egui::{self, Align2, Id, LayerId, Order, Rect, Ui, WidgetType, pos2, vec2};
 use hookecho_core::config::{Speed, ThemePref, Units};
@@ -175,7 +175,7 @@ pub fn side_sheet(ui: &mut Ui, kit: &mut Kit, model: &mut Model, rect: Rect) {
     let mut ui = ui.new_child(egui::UiBuilder::new().max_rect(area));
     ui.set_clip_rect(area);
     match sheet.tab {
-        SheetTab::Layers => layers(&mut ui, kit, model, &mut body),
+        SheetTab::Layers => layers(&mut ui, kit, model, &mut body, &mut sheet),
         SheetTab::Colors => colors(&mut ui, kit, model, &mut body),
         SheetTab::Settings => settings(&mut ui, kit, model, &mut body, &mut sheet),
     }
@@ -190,50 +190,12 @@ pub fn side_sheet(ui: &mut Ui, kit: &mut Kit, model: &mut Model, rect: Rect) {
     }
 }
 
-fn layers(ui: &mut Ui, kit: &mut Kit, model: &mut Model, b: &mut Body) {
-    b.eyebrow(kit, "MAP");
-    let map = &mut model.config.map;
-    map.counties = b.toggle(ui, kit, "counties", "County lines", map.counties);
-    map.roads = b.toggle(ui, kit, "roads", "Highways", map.roads);
-    map.labels = b.toggle(ui, kit, "labels", "Place names", map.labels);
+/// Layers, the data layers first (owner, 2026-10-29: the new ones were lost
+/// below the map and radar options), then radar and map options.
+fn layers(ui: &mut Ui, kit: &mut Kit, model: &mut Model, b: &mut Body, sheet: &mut Sheet) {
+    warnings(ui, kit, model, b, sheet);
     b.gap();
-    b.eyebrow(kit, "RADAR");
-    let c = &mut model.config;
-    c.mask_dualpol = b.toggle(ui, kit, "mask", "Hide dual-pol noise", c.mask_dualpol);
-    b.hint(kit, "CC, ZDR and PHI only where there's echo");
-    c.tdwr = b.toggle(ui, kit, "tdwr", "Airport radars (TDWR)", c.tdwr);
-    b.hint(kit, "Sharper close-in radars at major airports");
-    if c.tdwr {
-        c.tdwr_long_range = b.toggle(
-            ui,
-            kit,
-            "tdwr-long",
-            "Airport radar long range",
-            c.tdwr_long_range,
-        );
-        b.hint(kit, "Reflectivity to 225 nm instead of 48 nm, coarser");
-    }
-    b.gap();
-    b.eyebrow(kit, "WARNINGS");
-    let c = &mut model.config;
-    c.warnings = b.toggle(ui, kit, "warnings", "NWS warnings", c.warnings);
-    match &model.layers.alerts_trouble {
-        Some(_) if c.warnings => b.hint(kit, "Can't reach the NWS right now; retrying"),
-        _ => b.hint(kit, "Click a warning on the map to read it"),
-    }
-    if c.warnings {
-        for e in hookecho_core::alerts::Event::ALL {
-            let shown = !c.hidden_warnings.iter().any(|k| k == e.key());
-            let label = e.name().trim_end_matches(" Warning");
-            if b.toggle(ui, kit, e.key(), label, shown) != shown {
-                if shown {
-                    c.hidden_warnings.push(e.key().to_string());
-                } else {
-                    c.hidden_warnings.retain(|k| k != e.key());
-                }
-            }
-        }
-    }
+    spc_layers(ui, kit, model, b);
     b.gap();
     b.eyebrow(kit, "SATELLITE");
     let bands = hookecho_core::goes::Band::ALL;
@@ -249,8 +211,6 @@ fn layers(ui: &mut Ui, kit: &mut Kit, model: &mut Model, b: &mut Body) {
     }
     let status = crate::satellite::status(model);
     b.hint(kit, &status);
-    b.gap();
-    spc_layers(ui, kit, model, b);
     b.gap();
     b.eyebrow(kit, "SURFACE OBSERVATIONS");
     let c = &mut model.config;
@@ -271,6 +231,71 @@ fn layers(ui: &mut Ui, kit: &mut Kit, model: &mut Model, b: &mut Body) {
     let row = b.row();
     if text_button(ui, kit, b.painter, row, "space", "Space weather conditions") {
         model.picker = Picker::SpaceWeather { scroll: 0.0 };
+    }
+    b.gap();
+    b.eyebrow(kit, "RADAR");
+    let c = &mut model.config;
+    c.mask_dualpol = b.toggle(ui, kit, "mask", "Hide dual-pol noise", c.mask_dualpol);
+    b.hint(kit, "CC, ZDR and PHI only where there's echo");
+    c.tdwr = b.toggle(ui, kit, "tdwr", "Airport radars (TDWR)", c.tdwr);
+    b.hint(kit, "Sharper close-in radars at major airports");
+    if c.tdwr {
+        c.tdwr_long_range = b.toggle(
+            ui,
+            kit,
+            "tdwr-long",
+            "Airport radar long range",
+            c.tdwr_long_range,
+        );
+        b.hint(kit, "Reflectivity to 225 nm instead of 48 nm, coarser");
+    }
+    b.gap();
+    b.eyebrow(kit, "MAP");
+    let map = &mut model.config.map;
+    map.counties = b.toggle(ui, kit, "counties", "County lines", map.counties);
+    map.roads = b.toggle(ui, kit, "roads", "Highways", map.roads);
+    map.labels = b.toggle(ui, kit, "labels", "Place names", map.labels);
+}
+
+/// NWS warnings: the master switch, and the per-type switches folded
+/// behind one row so they don't push the other layers down.
+fn warnings(ui: &mut Ui, kit: &mut Kit, model: &mut Model, b: &mut Body, sheet: &mut Sheet) {
+    use hookecho_core::alerts::Event;
+    b.eyebrow(kit, "WARNINGS");
+    let c = &mut model.config;
+    c.warnings = b.toggle(ui, kit, "warnings", "NWS warnings", c.warnings);
+    match &model.layers.alerts_trouble {
+        Some(_) if c.warnings => b.hint(kit, "Can't reach the NWS right now; retrying"),
+        _ => b.hint(kit, "Click a warning on the map to read it"),
+    }
+    if !c.warnings {
+        return;
+    }
+    let shown = Event::ALL
+        .iter()
+        .filter(|e| !c.hidden_warnings.iter().any(|k| k == e.key()))
+        .count();
+    let label = match (sheet.warning_types, shown == Event::ALL.len()) {
+        (true, _) => "Hide warning types".to_string(),
+        (false, true) => "Warning types: all shown".to_string(),
+        (false, false) => format!("Warning types: {shown} of {} shown", Event::ALL.len()),
+    };
+    let row = b.row();
+    if text_button(ui, kit, b.painter, row, "warning-types", &label) {
+        sheet.warning_types = !sheet.warning_types;
+    }
+    if sheet.warning_types {
+        for e in Event::ALL {
+            let shown = !c.hidden_warnings.iter().any(|k| k == e.key());
+            let label = e.name().trim_end_matches(" Warning");
+            if b.toggle(ui, kit, e.key(), label, shown) != shown {
+                if shown {
+                    c.hidden_warnings.push(e.key().to_string());
+                } else {
+                    c.hidden_warnings.retain(|k| k != e.key());
+                }
+            }
+        }
     }
 }
 

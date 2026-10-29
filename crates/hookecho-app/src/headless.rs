@@ -367,8 +367,13 @@ mod tests {
         o.frame(SIZE, 1.0, Vec::new());
         click(&mut o, egui::Id::new("sheet-button"));
         assert!(o.app.model.sheet.is_some(), "button opens the sheet");
-        click(&mut o, egui::Id::new(("sheet", "roads")));
-        assert!(!o.app.model.config.map.roads, "toggle flips");
+        click(&mut o, egui::Id::new(("sheet", "watches")));
+        assert!(!o.app.model.config.watches, "toggle flips");
+        // The warning types open from one row, and their switches work.
+        click(&mut o, egui::Id::new(("sheet-button", "warning-types")));
+        assert!(o.app.model.sheet.as_ref().is_some_and(|s| s.warning_types));
+        click(&mut o, egui::Id::new(("sheet", "tornado")));
+        assert_eq!(o.app.model.config.hidden_warnings, ["tornado"]);
         click(&mut o, egui::Id::new("sheet-tabs").with(2));
         assert_eq!(
             o.app.model.sheet.as_ref().map(|s| s.tab),

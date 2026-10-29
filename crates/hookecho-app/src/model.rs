@@ -305,6 +305,8 @@ pub struct Sheet {
     pub cache_bytes: Option<u64>,
     /// Set by the Clear button; the app clears the cache and resets it.
     pub clear_cache: bool,
+    /// Layers: the per-type warning switches are unfolded.
+    pub warning_types: bool,
 }
 
 impl Sheet {
@@ -314,6 +316,7 @@ impl Sheet {
             scroll: 0.0,
             cache_bytes: None,
             clear_cache: false,
+            warning_types: false,
         }
     }
 }
