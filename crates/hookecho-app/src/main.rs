@@ -22,6 +22,7 @@ mod screen;
 mod sheet;
 mod shots;
 mod smoke;
+mod warnings;
 
 use eframe::egui;
 use std::path::PathBuf;

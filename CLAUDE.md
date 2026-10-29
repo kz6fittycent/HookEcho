@@ -68,7 +68,7 @@ Owner requests for later: a full "command center" with surface obs (temperature,
 3. TDWR: decoder (`hookecho-core::level3`, MetPy byte-exact) and app integration (`hookecho-core::tdwr`, live + loop + picker) as two stacked PRs. Merged (PR #21, #22). Then (PR #24): long range (TZL, a second sweep at the same angle; Layers → "Airport radar long range") and an on/off switch (Layers → "Airport radars (TDWR)").
 
 **Data layers, in the owner's order (2026-10-28).** Each is a new endpoint: get approval for it before any code.
-1. NWS warnings and watches (api.weather.gov alerts).
+1. NWS warnings and watches (api.weather.gov alerts). Endpoint approved 2026-10-28 ("do the rest"). Storm-based warnings done (PR #24: `hookecho-core::alerts`, `hookecho-app::warnings`, Layers → Warnings). Watches have no polygon in this feed: draw them from SPC's watch polygons with step 2.
 2. SPC convective outlooks and mesoscale discussions (spc.noaa.gov).
 3. Surface observations, the owner's "command center" (aviationweather.gov METARs).
 4. GOES satellite imagery (`noaa-goes19` on AWS: visible, infrared, water vapor). NetCDF/HDF5 decoding is a project of its own.

@@ -241,6 +241,11 @@ pub enum Picker {
     },
     /// Keyboard shortcuts sheet (`?`).
     Shortcuts,
+    /// The card for the warnings under a map click (warnings.rs), by id.
+    Warnings {
+        ids: Vec<String>,
+        scroll: f32,
+    },
 }
 
 /// Side sheet sections (DESIGN.md §3.6).
@@ -330,6 +335,10 @@ pub struct Model {
     pub sheet: Option<Sheet>,
     /// Last frame's glass panels (logical px, [x0, y0, x1, y1]).
     pub chrome: Vec<[f32; 4]>,
+    /// NWS warnings, most severe first (hookecho-core::alerts).
+    pub alerts: std::sync::Arc<Vec<hookecho_core::alerts::Alert>>,
+    /// Why the last warnings poll failed, until one succeeds.
+    pub alerts_trouble: Option<String>,
     generation: u64,
 }
 
@@ -415,8 +424,22 @@ impl Model {
             quiet: None,
             sheet: None,
             chrome: Vec::new(),
+            alerts: Default::default(),
+            alerts_trouble: None,
             generation: 0,
         }
+    }
+
+    /// Warnings to draw: in force at `now_ms`, of a type the user shows,
+    /// with warnings switched on. Most severe first.
+    pub fn visible_alerts(
+        &self,
+        now_ms: i64,
+    ) -> impl DoubleEndedIterator<Item = &hookecho_core::alerts::Alert> {
+        let c = &self.config;
+        self.alerts.iter().filter(move |a| {
+            c.warnings && a.active(now_ms) && !c.hidden_warnings.iter().any(|k| k == a.event.key())
+        })
     }
 
     /// What's on screen: the selected loop frame, or the live volume.

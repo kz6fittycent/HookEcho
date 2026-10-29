@@ -1,0 +1,920 @@
+{
+    "@context": [
+        "https://geojson.org/geojson-ld/geojson-context.jsonld",
+        {
+            "@version": "1.1",
+            "wx": "https://api.weather.gov/ontology#",
+            "@vocab": "https://api.weather.gov/ontology#"
+        }
+    ],
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.acf380386b52ea7fe0b5556ed91fb56b7f9aea13.001.1",
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            -104.33,
+                            31.57
+                        ],
+                        [
+                            -104.73,
+                            31.59
+                        ],
+                        [
+                            -104.75,
+                            31.8
+                        ],
+                        [
+                            -104.64,
+                            31.91
+                        ],
+                        [
+                            -104.3,
+                            31.89
+                        ],
+                        [
+                            -104.3,
+                            31.62
+                        ],
+                        [
+                            -104.33,
+                            31.57
+                        ]
+                    ]
+                ]
+            },
+            "properties": {
+                "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.acf380386b52ea7fe0b5556ed91fb56b7f9aea13.001.1",
+                "@type": "wx:Alert",
+                "id": "urn:oid:2.49.0.1.840.0.acf380386b52ea7fe0b5556ed91fb56b7f9aea13.001.1",
+                "areaDesc": "Culberson, TX",
+                "geocode": {
+                    "SAME": [
+                        "048109"
+                    ],
+                    "UGC": [
+                        "TXC109"
+                    ]
+                },
+                "affectedZones": [
+                    "https://api.weather.gov/zones/county/TXC109"
+                ],
+                "references": [],
+                "sent": "2026-10-28T20:12:00-05:00",
+                "effective": "2026-10-28T20:12:00-05:00",
+                "onset": "2026-10-28T20:12:00-05:00",
+                "expires": "2026-10-28T23:15:00-05:00",
+                "ends": "2026-10-28T23:15:00-05:00",
+                "status": "Actual",
+                "messageType": "Alert",
+                "category": "Met",
+                "severity": "Severe",
+                "certainty": "Likely",
+                "urgency": "Immediate",
+                "event": "Flash Flood Warning",
+                "sender": "w-nws.webmaster@noaa.gov",
+                "senderName": "NWS Midland/Odessa TX",
+                "headline": "Flash Flood Warning issued October 28 at 8:12PM CDT until October 28 at 11:15PM CDT by NWS Midland/Odessa TX",
+                "description": "FFWMAF\n\nThe National Weather Service in Midland/Odessa has issued a\n\n* Flash Flood Warning for...\nNorthern Culberson County in southwestern Texas...\n\n* Until 1115 PM CDT /1015 PM MDT/.\n\n* At 812 PM CDT /712 PM MDT/, Doppler radar indicated thunderstorms\nproducing heavy rain across the warned area. Between 1 and 1.5\ninches of rain have fallen. Flash flooding is ongoing or expected\nto begin shortly.\n\nHAZARD...Flash flooding caused by thunderstorms.\n\nSOURCE...Radar indicated.\n\nIMPACT...Flash flooding of small creeks and streams, urban areas,\nhighways, streets and underpasses as well as other poor\ndrainage and low-lying areas.\n\n* Some locations that will experience flash flooding include...\nMainly rural areas of Northern Culberson County.",
+                "instruction": "Be especially cautious at night when it is harder to recognize the\ndangers of flooding.\n\nIn hilly terrain there are hundreds of low water crossings which are\npotentially dangerous in heavy rain. Do not attempt to cross flooded\nroads. Find an alternate route.",
+                "response": "Avoid",
+                "note": null,
+                "parameters": {
+                    "AWIPSidentifier": [
+                        "FFWMAF"
+                    ],
+                    "WMOidentifier": [
+                        "WGUS54 KMAF 290112"
+                    ],
+                    "flashFloodDetection": [
+                        "RADAR INDICATED"
+                    ],
+                    "BLOCKCHANNEL": [
+                        "EAS",
+                        "NWEM",
+                        "CMAS"
+                    ],
+                    "EAS-ORG": [
+                        "WXR"
+                    ],
+                    "VTEC": [
+                        "/O.NEW.KMAF.FF.W.0251.261029T0112Z-261029T0415Z/"
+                    ],
+                    "eventEndingTime": [
+                        "2026-10-28T23:15:00-05:00"
+                    ]
+                },
+                "scope": "Public",
+                "code": "IPAWSv1.0",
+                "language": "en-US",
+                "web": "http://www.weather.gov",
+                "eventCode": {
+                    "SAME": [
+                        "FFW"
+                    ],
+                    "NationalWeatherService": [
+                        "FFW"
+                    ]
+                }
+            }
+        },
+        {
+            "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.59aef5ee9e25a1cbe73d5220213941b32731a742.001.1",
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            -105.9,
+                            31.29
+                        ],
+                        [
+                            -105.83,
+                            31.37
+                        ],
+                        [
+                            -105.61,
+                            31.44
+                        ],
+                        [
+                            -105.52,
+                            31.49
+                        ],
+                        [
+                            -105.44,
+                            31.44
+                        ],
+                        [
+                            -105.61,
+                            31.32
+                        ],
+                        [
+                            -105.75,
+                            31.17
+                        ],
+                        [
+                            -105.77,
+                            31.17
+                        ],
+                        [
+                            -105.78,
+                            31.2
+                        ],
+                        [
+                            -105.79,
+                            31.2
+                        ],
+                        [
+                            -105.87,
+                            31.29
+                        ],
+                        [
+                            -105.9,
+                            31.29
+                        ]
+                    ]
+                ]
+            },
+            "properties": {
+                "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.59aef5ee9e25a1cbe73d5220213941b32731a742.001.1",
+                "@type": "wx:Alert",
+                "id": "urn:oid:2.49.0.1.840.0.59aef5ee9e25a1cbe73d5220213941b32731a742.001.1",
+                "areaDesc": "Hudspeth, TX",
+                "geocode": {
+                    "SAME": [
+                        "048229"
+                    ],
+                    "UGC": [
+                        "TXC229"
+                    ]
+                },
+                "affectedZones": [
+                    "https://api.weather.gov/zones/county/TXC229"
+                ],
+                "references": [],
+                "sent": "2026-10-28T18:29:00-06:00",
+                "effective": "2026-10-28T18:29:00-06:00",
+                "onset": "2026-10-28T18:29:00-06:00",
+                "expires": "2026-10-28T21:30:00-06:00",
+                "ends": "2026-10-28T21:30:00-06:00",
+                "status": "Actual",
+                "messageType": "Alert",
+                "category": "Met",
+                "severity": "Severe",
+                "certainty": "Likely",
+                "urgency": "Immediate",
+                "event": "Flash Flood Warning",
+                "sender": "w-nws.webmaster@noaa.gov",
+                "senderName": "NWS El Paso Tx/Santa Teresa NM",
+                "headline": "Flash Flood Warning issued October 28 at 6:29PM MDT until October 28 at 9:30PM MDT by NWS El Paso Tx/Santa Teresa NM",
+                "description": "FFWEPZ\n\nThe National Weather Service in El Paso Tx/Santa Teresa has issued a\n\n* Flash Flood Warning for...\nWest Central Hudspeth County in western Texas...\n\n* Until 930 PM MDT.\n\n* At 629 PM MDT, Doppler radar indicated thunderstorms producing\nheavy rain across the warned area. Between 0.5 and 1.5 inches of\nrain have fallen. Additional rainfall amounts up to 1 inch are\npossible in the warned area. Flash flooding is ongoing or expected\nto begin shortly.\n\nHAZARD...Flash flooding caused by thunderstorms.\n\nSOURCE...Radar indicated.\n\nIMPACT...Flash flooding of small creeks and streams, urban areas,\nhighways, streets and underpasses as well as other poor\ndrainage and low-lying areas.\n\n* Some locations that will experience flash flooding include...\nFort Hancock and McNary.",
+                "instruction": "Turn around, don't drown when encountering flooded roads. Most flood\ndeaths occur in vehicles.\n\nBe especially cautious at night when it is harder to recognize the\ndangers of flooding.\n\nRemain alert for flooding even in locations not receiving rain.\nArroyos, streams, and rivers can become raging killer currents in a\nmatter of minutes, even from distant rainfall.",
+                "response": "Avoid",
+                "note": null,
+                "parameters": {
+                    "AWIPSidentifier": [
+                        "FFWEPZ"
+                    ],
+                    "WMOidentifier": [
+                        "WGUS54 KEPZ 290029"
+                    ],
+                    "flashFloodDetection": [
+                        "RADAR INDICATED"
+                    ],
+                    "BLOCKCHANNEL": [
+                        "EAS",
+                        "NWEM",
+                        "CMAS"
+                    ],
+                    "EAS-ORG": [
+                        "WXR"
+                    ],
+                    "VTEC": [
+                        "/O.NEW.KEPZ.FF.W.0243.261029T0029Z-261029T0330Z/"
+                    ],
+                    "eventEndingTime": [
+                        "2026-10-28T21:30:00-06:00"
+                    ]
+                },
+                "scope": "Public",
+                "code": "IPAWSv1.0",
+                "language": "en-US",
+                "web": "http://www.weather.gov",
+                "eventCode": {
+                    "SAME": [
+                        "FFW"
+                    ],
+                    "NationalWeatherService": [
+                        "FFW"
+                    ]
+                }
+            }
+        },
+        {
+            "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.f2f6373a42c8f463407563805f69754f5883060c.001.1",
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            -105.64,
+                            32.39
+                        ],
+                        [
+                            -105.69,
+                            32.36
+                        ],
+                        [
+                            -105.7,
+                            32.25
+                        ],
+                        [
+                            -105.61,
+                            32.16
+                        ],
+                        [
+                            -105.39,
+                            32.24
+                        ],
+                        [
+                            -105.38,
+                            32.34
+                        ],
+                        [
+                            -105.53,
+                            32.41
+                        ],
+                        [
+                            -105.64,
+                            32.39
+                        ]
+                    ]
+                ]
+            },
+            "properties": {
+                "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.f2f6373a42c8f463407563805f69754f5883060c.001.1",
+                "@type": "wx:Alert",
+                "id": "urn:oid:2.49.0.1.840.0.f2f6373a42c8f463407563805f69754f5883060c.001.1",
+                "areaDesc": "Otero, NM",
+                "geocode": {
+                    "SAME": [
+                        "035035"
+                    ],
+                    "UGC": [
+                        "NMC035"
+                    ]
+                },
+                "affectedZones": [
+                    "https://api.weather.gov/zones/county/NMC035"
+                ],
+                "references": [
+                    {
+                        "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.12530bc5f961691e98d70893e02302304de2bdc4.001.1",
+                        "identifier": "urn:oid:2.49.0.1.840.0.12530bc5f961691e98d70893e02302304de2bdc4.001.1",
+                        "sender": "w-nws.webmaster@noaa.gov",
+                        "sent": "2026-10-28T15:42:00-06:00"
+                    },
+                    {
+                        "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.dbc627695c3c5322dc3bef41e0ebd70adbda7ae9.001.1",
+                        "identifier": "urn:oid:2.49.0.1.840.0.dbc627695c3c5322dc3bef41e0ebd70adbda7ae9.001.1",
+                        "sender": "w-nws.webmaster@noaa.gov",
+                        "sent": "2026-10-28T16:13:00-06:00"
+                    }
+                ],
+                "sent": "2026-10-28T18:26:00-06:00",
+                "effective": "2026-10-28T18:26:00-06:00",
+                "onset": "2026-10-28T18:26:00-06:00",
+                "expires": "2026-10-28T20:15:00-06:00",
+                "ends": "2026-10-28T20:15:00-06:00",
+                "status": "Actual",
+                "messageType": "Update",
+                "category": "Met",
+                "severity": "Severe",
+                "certainty": "Likely",
+                "urgency": "Immediate",
+                "event": "Flash Flood Warning",
+                "sender": "w-nws.webmaster@noaa.gov",
+                "senderName": "NWS El Paso Tx/Santa Teresa NM",
+                "headline": "Flash Flood Warning issued October 28 at 6:26PM MDT until October 28 at 8:15PM MDT by NWS El Paso Tx/Santa Teresa NM",
+                "description": "FFWEPZ\n\nThe National Weather Service in El Paso Tx/Santa Teresa has extended\nthe\n\n* Flash Flood Warning for...\nSouth Central Otero County in south central New Mexico...\n\n* Until 815 PM MDT.\n\n* At 626 PM MDT, Doppler radar indicated thunderstorms producing\nheavy rain across the warned area. Between 1.5 and 2.5 inches of\nrain have fallen. Flooding impacts will continue, but no additional\nrainfall is expected. Flash flooding is ongoing or expected to\nbegin shortly.\n\nHAZARD...Flash flooding caused by thunderstorms.\n\nSOURCE...Radar indicated.\n\nIMPACT...Flash flooding of small creeks and streams, urban areas,\nhighways, streets and underpasses as well as other poor\ndrainage and low-lying areas.\n\n* Some locations that will experience flash flooding include...\nMainly rural areas of South Central Otero County.",
+                "instruction": "Turn around, don't drown when encountering flooded roads. Most flood\ndeaths occur in vehicles.\n\nBe especially cautious at night when it is harder to recognize the\ndangers of flooding.\n\nPlease report observed flooding to local emergency services or law\nenforcement and request they pass this information to the National\nWeather Service when you can do so safely.",
+                "response": "Avoid",
+                "note": null,
+                "parameters": {
+                    "AWIPSidentifier": [
+                        "FFWEPZ"
+                    ],
+                    "WMOidentifier": [
+                        "WGUS54 KEPZ 290026"
+                    ],
+                    "flashFloodDetection": [
+                        "RADAR INDICATED"
+                    ],
+                    "BLOCKCHANNEL": [
+                        "EAS",
+                        "NWEM",
+                        "CMAS"
+                    ],
+                    "EAS-ORG": [
+                        "WXR"
+                    ],
+                    "VTEC": [
+                        "/O.EXT.KEPZ.FF.W.0240.000000T0000Z-261029T0215Z/"
+                    ],
+                    "eventEndingTime": [
+                        "2026-10-28T20:15:00-06:00"
+                    ]
+                },
+                "scope": "Public",
+                "code": "IPAWSv1.0",
+                "language": "en-US",
+                "web": "http://www.weather.gov",
+                "eventCode": {
+                    "SAME": [
+                        "FFW"
+                    ],
+                    "NationalWeatherService": [
+                        "FFW"
+                    ]
+                }
+            }
+        },
+        {
+            "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.81e14cce23d16899359bfd110b4e27415cded80d.001.1",
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            -105.32,
+                            33.21
+                        ],
+                        [
+                            -105.4,
+                            33.27
+                        ],
+                        [
+                            -105.38,
+                            33.3
+                        ],
+                        [
+                            -105.32,
+                            33.31
+                        ],
+                        [
+                            -105.32,
+                            33.21
+                        ]
+                    ]
+                ]
+            },
+            "properties": {
+                "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.81e14cce23d16899359bfd110b4e27415cded80d.001.1",
+                "@type": "wx:Alert",
+                "id": "urn:oid:2.49.0.1.840.0.81e14cce23d16899359bfd110b4e27415cded80d.001.1",
+                "areaDesc": "Otero, NM",
+                "geocode": {
+                    "SAME": [
+                        "035035"
+                    ],
+                    "UGC": [
+                        "NMC035"
+                    ]
+                },
+                "affectedZones": [
+                    "https://api.weather.gov/zones/county/NMC035"
+                ],
+                "references": [],
+                "sent": "2026-10-28T17:44:00-06:00",
+                "effective": "2026-10-28T17:44:00-06:00",
+                "onset": "2026-10-28T17:44:00-06:00",
+                "expires": "2026-10-28T19:45:00-06:00",
+                "ends": "2026-10-28T19:45:00-06:00",
+                "status": "Actual",
+                "messageType": "Alert",
+                "category": "Met",
+                "severity": "Severe",
+                "certainty": "Likely",
+                "urgency": "Immediate",
+                "event": "Flash Flood Warning",
+                "sender": "w-nws.webmaster@noaa.gov",
+                "senderName": "NWS El Paso Tx/Santa Teresa NM",
+                "headline": "Flash Flood Warning issued October 28 at 5:44PM MDT until October 28 at 7:45PM MDT by NWS El Paso Tx/Santa Teresa NM",
+                "description": "FFWEPZ\n\nThe National Weather Service in El Paso Tx/Santa Teresa has issued a\n\n* Flash Flood Warning for...\nNorth Central Otero County in south central New Mexico...\n\n* Until 745 PM MDT.\n\n* At 544 PM MDT, Doppler radar indicated thunderstorms producing\nheavy rain across the warned area. Between 0.5 and 1.5 inches of\nrain have fallen. Additional rainfall amounts up to 1 inch are\npossible in the warned area. Flash flooding is ongoing or expected\nto begin shortly.\n\nHAZARD...Flash flooding caused by thunderstorms.\n\nSOURCE...Radar indicated.\n\nIMPACT...Flash flooding of small creeks and streams, urban areas,\nhighways, streets and underpasses as well as other poor\ndrainage and low-lying areas.\n\n* Some locations that will experience flash flooding include...\nMainly rural areas of North Central Otero County.",
+                "instruction": "Turn around, don't drown when encountering flooded roads. Most flood\ndeaths occur in vehicles.\n\nIn hilly terrain there are hundreds of low water crossings which are\npotentially dangerous in heavy rain. Do not attempt to cross flooded\nroads. Find an alternate route.\n\nPlease report observed flooding to local emergency services or law\nenforcement and request they pass this information to the National\nWeather Service when you can do so safely.",
+                "response": "Avoid",
+                "note": null,
+                "parameters": {
+                    "AWIPSidentifier": [
+                        "FFWEPZ"
+                    ],
+                    "WMOidentifier": [
+                        "WGUS54 KEPZ 282344"
+                    ],
+                    "flashFloodDetection": [
+                        "RADAR INDICATED"
+                    ],
+                    "BLOCKCHANNEL": [
+                        "EAS",
+                        "NWEM",
+                        "CMAS"
+                    ],
+                    "EAS-ORG": [
+                        "WXR"
+                    ],
+                    "VTEC": [
+                        "/O.NEW.KEPZ.FF.W.0242.261028T2344Z-261029T0145Z/"
+                    ],
+                    "eventEndingTime": [
+                        "2026-10-28T19:45:00-06:00"
+                    ]
+                },
+                "scope": "Public",
+                "code": "IPAWSv1.0",
+                "language": "en-US",
+                "web": "http://www.weather.gov",
+                "eventCode": {
+                    "SAME": [
+                        "FFW"
+                    ],
+                    "NationalWeatherService": [
+                        "FFW"
+                    ]
+                }
+            }
+        },
+        {
+            "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.76aa450b992c018b882d102571ab57b229cb9d88.001.1",
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            -105.38,
+                            33.3
+                        ],
+                        [
+                            -105.35,
+                            33.36
+                        ],
+                        [
+                            -105.29,
+                            33.39
+                        ],
+                        [
+                            -105.14,
+                            33.36
+                        ],
+                        [
+                            -105.13,
+                            33.34
+                        ],
+                        [
+                            -105.14,
+                            33.31
+                        ],
+                        [
+                            -105.21,
+                            33.24
+                        ],
+                        [
+                            -105.32,
+                            33.25
+                        ],
+                        [
+                            -105.32,
+                            33.31
+                        ],
+                        [
+                            -105.38,
+                            33.3
+                        ]
+                    ]
+                ]
+            },
+            "properties": {
+                "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.76aa450b992c018b882d102571ab57b229cb9d88.001.1",
+                "@type": "wx:Alert",
+                "id": "urn:oid:2.49.0.1.840.0.76aa450b992c018b882d102571ab57b229cb9d88.001.1",
+                "areaDesc": "Lincoln, NM",
+                "geocode": {
+                    "SAME": [
+                        "035027"
+                    ],
+                    "UGC": [
+                        "NMC027"
+                    ]
+                },
+                "affectedZones": [
+                    "https://api.weather.gov/zones/county/NMC027"
+                ],
+                "references": [
+                    {
+                        "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.768a5ab0dcb2238dd60602bdf453d5ed1c08f107.001.1",
+                        "identifier": "urn:oid:2.49.0.1.840.0.768a5ab0dcb2238dd60602bdf453d5ed1c08f107.001.1",
+                        "sender": "w-nws.webmaster@noaa.gov",
+                        "sent": "2026-10-28T17:08:00-06:00"
+                    }
+                ],
+                "sent": "2026-10-28T17:33:00-06:00",
+                "effective": "2026-10-28T17:33:00-06:00",
+                "onset": "2026-10-28T17:33:00-06:00",
+                "expires": "2026-10-28T20:15:00-06:00",
+                "ends": "2026-10-28T20:15:00-06:00",
+                "status": "Actual",
+                "messageType": "Update",
+                "category": "Met",
+                "severity": "Severe",
+                "certainty": "Likely",
+                "urgency": "Immediate",
+                "event": "Flash Flood Warning",
+                "sender": "w-nws.webmaster@noaa.gov",
+                "senderName": "NWS Albuquerque NM",
+                "headline": "Flash Flood Warning issued October 28 at 5:33PM MDT until October 28 at 8:15PM MDT by NWS Albuquerque NM",
+                "description": "At 533 PM MDT, Doppler radar indicated thunderstorms producing heavy\nrain across the warned area. Between 1 and 2 inches of rain have\nfallen. Additional rainfall amounts of 0.25 to 0.75 inches are\npossible in the warned area. Flash flooding is ongoing or expected to\nbegin shortly.\n\nHAZARD...Flash flooding caused by thunderstorms.\n\nSOURCE...Radar indicated.\n\nIMPACT...Flash flooding of small creeks and streams, urban areas,\nhighways, streets and underpasses as well as other poor\ndrainage and low-lying areas.\n\nSome locations that will experience flash flooding include...\nHondo, Picacho, and Tinnie.\n\nThis includes the following streams and drainages...\nRio Hondo, Twin Butte Canyon, Chavez Canyon, Rio Bonito, and Casey\nCanyon.",
+                "instruction": "Turn around, don't drown when encountering flooded roads. Most flood\ndeaths occur in vehicles.\n\nIn hilly or mountainous terrain there are numerous low water\ncrossings which are potentially dangerous in heavy rain. Do not\nattempt to cross flooded roads. Find an alternate route.\n\nBoth localized and distant heavy rainfall will create sudden and\ndangerous flows in arroyos and over low water crossings.",
+                "response": "Avoid",
+                "note": null,
+                "parameters": {
+                    "AWIPSidentifier": [
+                        "FFSABQ"
+                    ],
+                    "WMOidentifier": [
+                        "WGUS75 KABQ 282333"
+                    ],
+                    "NWSheadline": [
+                        "FLASH FLOOD WARNING REMAINS IN EFFECT UNTIL 815 PM MDT THIS EVENING FOR SOUTHEASTERN LINCOLN COUNTY"
+                    ],
+                    "flashFloodDetection": [
+                        "RADAR INDICATED"
+                    ],
+                    "BLOCKCHANNEL": [
+                        "EAS",
+                        "NWEM",
+                        "CMAS"
+                    ],
+                    "EAS-ORG": [
+                        "WXR"
+                    ],
+                    "VTEC": [
+                        "/O.CON.KABQ.FF.W.0238.000000T0000Z-261029T0215Z/"
+                    ],
+                    "eventEndingTime": [
+                        "2026-10-28T20:15:00-06:00"
+                    ]
+                },
+                "scope": "Public",
+                "code": "IPAWSv1.0",
+                "language": "en-US",
+                "web": "http://www.weather.gov",
+                "eventCode": {
+                    "SAME": [
+                        "FFS"
+                    ],
+                    "NationalWeatherService": [
+                        "FFW"
+                    ]
+                }
+            }
+        },
+        {
+            "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.b7664be1040313836fc3808880bfd4d00c2ffbdb.001.1",
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            -104.78,
+                            31.99
+                        ],
+                        [
+                            -104.8,
+                            32.02
+                        ],
+                        [
+                            -104.81,
+                            32.16
+                        ],
+                        [
+                            -104.8,
+                            32.31
+                        ],
+                        [
+                            -104.76,
+                            32.37
+                        ],
+                        [
+                            -104.65,
+                            32.36
+                        ],
+                        [
+                            -104.51,
+                            32.12
+                        ],
+                        [
+                            -104.48,
+                            32
+                        ],
+                        [
+                            -104.51,
+                            31.9
+                        ],
+                        [
+                            -104.62,
+                            31.94
+                        ],
+                        [
+                            -104.68,
+                            31.97
+                        ],
+                        [
+                            -104.78,
+                            31.99
+                        ]
+                    ]
+                ]
+            },
+            "properties": {
+                "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.b7664be1040313836fc3808880bfd4d00c2ffbdb.001.1",
+                "@type": "wx:Alert",
+                "id": "urn:oid:2.49.0.1.840.0.b7664be1040313836fc3808880bfd4d00c2ffbdb.001.1",
+                "areaDesc": "Eddy, NM; Culberson, TX",
+                "geocode": {
+                    "SAME": [
+                        "035015",
+                        "048109"
+                    ],
+                    "UGC": [
+                        "NMC015",
+                        "TXC109"
+                    ]
+                },
+                "affectedZones": [
+                    "https://api.weather.gov/zones/county/NMC015",
+                    "https://api.weather.gov/zones/county/TXC109"
+                ],
+                "references": [],
+                "sent": "2026-10-28T17:25:00-06:00",
+                "effective": "2026-10-28T17:25:00-06:00",
+                "onset": "2026-10-28T17:25:00-06:00",
+                "expires": "2026-10-28T20:30:00-06:00",
+                "ends": "2026-10-28T20:30:00-06:00",
+                "status": "Actual",
+                "messageType": "Alert",
+                "category": "Met",
+                "severity": "Severe",
+                "certainty": "Likely",
+                "urgency": "Immediate",
+                "event": "Flash Flood Warning",
+                "sender": "w-nws.webmaster@noaa.gov",
+                "senderName": "NWS Midland/Odessa TX",
+                "headline": "Flash Flood Warning issued October 28 at 5:25PM MDT until October 28 at 8:30PM MDT by NWS Midland/Odessa TX",
+                "description": "FFWMAF\n\nThe National Weather Service in Midland/Odessa has issued a\n\n* Flash Flood Warning for...\nSouthwestern Eddy County in southeastern New Mexico...\nNorthern Culberson County in southwestern Texas...\n\n* Until 830 PM MDT /930 PM CDT/.\n\n* At 525 PM MDT /625 PM CDT/, Doppler radar indicated thunderstorms\nproducing heavy rain across the warned area. Between 0.5 to 1.5\ninches have likely fallen in the past hour. Flash flooding is\nongoing or expected to begin shortly.\n\nHAZARD...Flash flooding caused by thunderstorms.\n\nSOURCE...Radar indicated.\n\nIMPACT...Flash flooding of small creeks and streams, highways,\nstreets and underpasses as well as other poor drainage and\nlow-lying areas.\n\n* Some locations that will experience flash flooding include...\nPortions of U.S. 62 180, Carlsbad Caverns National Park, Lincoln\nNational Forest and Queen.",
+                "instruction": "Turn around, don't drown when encountering flooded roads. Most flood\ndeaths occur in vehicles.\n\nIn hilly terrain there are hundreds of low water crossings which are\npotentially dangerous in heavy rain. Do not attempt to cross flooded\nroads. Find an alternate route.\n\nFlooding is occurring or is imminent. It is important to know where\nyou are relative to streams, rivers, or creeks which can become\nkillers in heavy rains. Campers and hikers should avoid streams or\ncreeks.",
+                "response": "Avoid",
+                "note": null,
+                "parameters": {
+                    "AWIPSidentifier": [
+                        "FFWMAF"
+                    ],
+                    "WMOidentifier": [
+                        "WGUS54 KMAF 282325"
+                    ],
+                    "flashFloodDetection": [
+                        "RADAR INDICATED"
+                    ],
+                    "BLOCKCHANNEL": [
+                        "EAS",
+                        "NWEM",
+                        "CMAS"
+                    ],
+                    "EAS-ORG": [
+                        "WXR"
+                    ],
+                    "VTEC": [
+                        "/O.NEW.KMAF.FF.W.0250.261028T2325Z-261029T0230Z/"
+                    ],
+                    "eventEndingTime": [
+                        "2026-10-28T20:30:00-06:00"
+                    ]
+                },
+                "scope": "Public",
+                "code": "IPAWSv1.0",
+                "language": "en-US",
+                "web": "http://www.weather.gov",
+                "eventCode": {
+                    "SAME": [
+                        "FFW"
+                    ],
+                    "NationalWeatherService": [
+                        "FFW"
+                    ]
+                }
+            }
+        },
+        {
+            "id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.831a9e7a993c99fb175245f72d2cf25b54269778.001.1",
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            -105.75,
+                            31.17
+                        ],
+                        [
+                            -105.62,
+                            31.32
+                        ],
+                        [
+                            -105.44,
+                            31.44
+                        ],
+                        [
+                            -105.33,
+                            31.46
+                        ],
+                        [
+                            -105.31,
+                            31.39
+                        ],
+                        [
+                            -105.56,
+                            31
+                        ],
+                        [
+                            -105.57,
+                            31.02
+                        ],
+                        [
+                            -105.58,
+                            31.03
+                        ],
+                        [
+                            -105.59,
+                            31.06
+                        ],
+                        [
+                            -105.6,
+                            31.07
+                        ],
+                        [
+                            -105.6,
+                            31.08
+                        ],
+                        [
+                            -105.63,
+                            31.1
+                        ],
+                        [
+                            -105.64,
+                            31.1
+                        ],
+                        [
+                            -105.65,
+                            31.11
+                        ],
+                        [
+                            -105.71,
+                            31.14
+                        ],
+                        [
+                            -105.72,
+                            31.15
+                        ],
+                        [
+                            -105.75,
+                            31.17
+                        ]
+                    ]
+                ]
+            },
+            "properties": {
+                "@id": "https://api.weather.gov/alerts/urn:oid:2.49.0.1.840.0.831a9e7a993c99fb175245f72d2cf25b54269778.001.1",
+                "@type": "wx:Alert",
+                "id": "urn:oid:2.49.0.1.840.0.831a9e7a993c99fb175245f72d2cf25b54269778.001.1",
+                "areaDesc": "Hudspeth, TX",
+                "geocode": {
+                    "SAME": [
+                        "048229"
+                    ],
+                    "UGC": [
+                        "TXC229"
+                    ]
+                },
+                "affectedZones": [
+                    "https://api.weather.gov/zones/county/TXC229"
+                ],
+                "references": [],
+                "sent": "2026-10-28T17:21:00-06:00",
+                "effective": "2026-10-28T17:21:00-06:00",
+                "onset": "2026-10-28T17:21:00-06:00",
+                "expires": "2026-10-28T20:15:00-06:00",
+                "ends": "2026-10-28T20:15:00-06:00",
+                "status": "Actual",
+                "messageType": "Alert",
+                "category": "Met",
+                "severity": "Severe",
+                "certainty": "Likely",
+                "urgency": "Immediate",
+                "event": "Flash Flood Warning",
+                "sender": "w-nws.webmaster@noaa.gov",
+                "senderName": "NWS El Paso Tx/Santa Teresa NM",
+                "headline": "Flash Flood Warning issued October 28 at 5:21PM MDT until October 28 at 8:15PM MDT by NWS El Paso Tx/Santa Teresa NM",
+                "description": "FFWEPZ\n\nThe National Weather Service in El Paso Tx/Santa Teresa has issued a\n\n* Flash Flood Warning for...\nCentral Hudspeth County in western Texas...\n\n* Until 815 PM MDT.\n\n* At 521 PM MDT, Doppler radar indicated thunderstorms producing\nheavy rain across the warned area. Between 0.5 and 1.5 inches of\nrain have fallen. Additional rainfall amounts up to 1 inch are\npossible in the warned area. Flash flooding is ongoing or expected\nto begin shortly.\n\nHAZARD...Flash flooding caused by thunderstorms.\n\nSOURCE...Radar indicated.\n\nIMPACT...Flash flooding of small creeks and streams, urban areas,\nhighways, streets and underpasses as well as other poor\ndrainage and low-lying areas.\n\n* Some locations that will experience flash flooding include...\nFort Quitman, Esperanza, Finlay and Sunset Ranches.",
+                "instruction": "Turn around, don't drown when encountering flooded roads. Most flood\ndeaths occur in vehicles.\n\nRemain alert for flooding even in locations not receiving rain.\nArroyos, streams, and rivers can become raging killer currents in a\nmatter of minutes, even from distant rainfall.\n\nPlease report observed flooding to local emergency services or law\nenforcement and request they pass this information to the National\nWeather Service when you can do so safely.",
+                "response": "Avoid",
+                "note": null,
+                "parameters": {
+                    "AWIPSidentifier": [
+                        "FFWEPZ"
+                    ],
+                    "WMOidentifier": [
+                        "WGUS54 KEPZ 282321"
+                    ],
+                    "flashFloodDetection": [
+                        "RADAR INDICATED"
+                    ],
+                    "BLOCKCHANNEL": [
+                        "EAS",
+                        "NWEM",
+                        "CMAS"
+                    ],
+                    "EAS-ORG": [
+                        "WXR"
+                    ],
+                    "VTEC": [
+                        "/O.NEW.KEPZ.FF.W.0241.261028T2321Z-261029T0215Z/"
+                    ],
+                    "eventEndingTime": [
+                        "2026-10-28T20:15:00-06:00"
+                    ]
+                },
+                "scope": "Public",
+                "code": "IPAWSv1.0",
+                "language": "en-US",
+                "web": "http://www.weather.gov",
+                "eventCode": {
+                    "SAME": [
+                        "FFW"
+                    ],
+                    "NationalWeatherService": [
+                        "FFW"
+                    ]
+                }
+            }
+        }
+    ],
+    "title": "Current watches, warnings, and advisories",
+    "updated": "2026-10-29T01:35:01+00:00"
+}

@@ -131,10 +131,10 @@ Sources (all public, read 2026-10-09):
 | Roads: interstates and US highways | Base | [layers] | P1 | in progress | TIGER primary roads (interstates and other limited-access highways) bundled; the rest of the US highways need TIGER secondary roads |
 | Detailed roads and road labels | T2 | [layers] [providers] | P5 | planned | Paid (Mapbox) in the original. Substitute: TIGER secondary roads bundled at higher zoom |
 | Satellite imagery base map | T2 | [layers] | P5 | planned | Paid (Mapbox) in the original. Free option needs a tile source, which conflicts with "no tile server". **Ask first** |
-| NWS warnings: tornado, severe t-storm, flash flood, special marine, snow squall, extreme wind | Base | [bulletins] | P3 | planned | api.weather.gov alerts, 60 s conditional polling |
+| NWS warnings: tornado, severe t-storm, flash flood, special marine, snow squall, extreme wind | Base | [bulletins] | P3 | done | api.weather.gov alerts (`hookecho-core::alerts`), 60 s polling with ETag/If-None-Match, last answer cached on disk. NWS map colors (`design/hazards.rs`), heavier outline for tornado and extreme wind. Click a warning for its full text (card below the site chip; overlapping warnings stack). No requests while switched off |
 | Hurricane, tropical storm, fire, dust storm, storm surge warnings | Base | [appstore] | P3 | planned | Same feed |
 | Pulsing polygons for emergencies and PDS | Base | [providers] | P3 | planned | From the NWS alert parameters/text; honor reduced-motion |
-| Warning type filter | Base | [bulletins] | P3 | planned | Side sheet → Layers |
+| Warning type filter | Base | [bulletins] | P3 | done | Side sheet → Layers → Warnings: master switch plus one per type |
 | Tornado and severe thunderstorm watches (US) | Mixed | [bulletins] [appstore] | P3 | planned | NWS alerts + SPC watch polygons |
 | Canadian warnings and watches; Australian warnings | Base | [bulletins] [advanced] | P5 | planned | ECCC GeoMet (free); BoM (check terms) |
 | Special weather statements | T1 | [upgrading] [bulletins] | P3 | planned | NWS alerts |
