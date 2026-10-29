@@ -64,18 +64,18 @@ Owner requests for later: a full "command center" with surface obs (temperature,
 
 **Owner fixes before Phase 3 (2026-10-28), one PR each:**
 1. Done (PR #17, revision 7): new app icon, a red/green velocity-couplet swirl in a counter-clockwise arrow (Northern Hemisphere rotation: green left, red right, with the radar to the south; keep the arrow counter-clockwise). Also security updates (rustls, rustls-webpki, tokio).
-2. Done (PR #18, revision 8): start near the user. Nearest-first radar list from the map center, Menu → Set home (click the map), Menu → Nearest radar, a labeled Menu button. Still to do: "Use my location" (location portal or GeoClue; research and propose first, it needs a dependency and a snap plug).
-3. TDWR: decoder (`hookecho-core::level3`, MetPy byte-exact) and app integration (`hookecho-core::tdwr`, live + loop + picker) as two stacked PRs. TZL (long range) is decoded but not shown yet; a TDWR on/off switch is still to do.
+2. Done (PR #18, revision 8): start near the user. Nearest-first radar list from the map center, Menu → Set home (click the map), Menu → Nearest radar, a labeled Menu button. Still to do: "Use my location". Proposal in `docs/LOCATION.md` (recommends the XDG Location portal via `ashpd`); waiting on the owner's pick before any code.
+3. TDWR: decoder (`hookecho-core::level3`, MetPy byte-exact) and app integration (`hookecho-core::tdwr`, live + loop + picker) as two stacked PRs. Merged (PR #21, #22). Then (PR #24): long range (TZL, a second sweep at the same angle; Layers → "Airport radar long range") and an on/off switch (Layers → "Airport radars (TDWR)").
 
 **Data layers, in the owner's order (2026-10-28).** Each is a new endpoint: get approval for it before any code.
-1. NWS warnings and watches (api.weather.gov alerts).
+1. NWS warnings and watches (api.weather.gov alerts). Endpoint approved 2026-10-28 ("do the rest"). Storm-based warnings done (PR #24: `hookecho-core::alerts`, `hookecho-app::warnings`, Layers → Warnings). Watches have no polygon in this feed: draw them from SPC's watch polygons with step 2.
 2. SPC convective outlooks and mesoscale discussions (spc.noaa.gov).
 3. Surface observations, the owner's "command center" (aviationweather.gov METARs).
 4. GOES satellite imagery (`noaa-goes19` on AWS: visible, infrared, water vapor). NetCDF/HDF5 decoding is a project of its own.
 5. Space weather (owner request: friends who are weather people watch it): NOAA SWPC (services.swpc.noaa.gov, free JSON): Kp index, solar wind, X-ray flux and flares, alerts, aurora forecast.
 Also planned and unordered: GLM lightning (P3), local storm reports, ProbSevere, models and soundings, mosaic (nearest-radar reflectivity from every radar on screen; velocity can't be mosaicked).
 
-Daily workflow failures to fix (seen 2026-10-28): Security Rebuild fails because `latest/stable` is empty (it should skip quietly until the first stable release); Refresh Radar Data can't open its PR because the repo doesn't let Actions create pull requests (an owner setting).
+Workflow failures seen 2026-10-28: Security Rebuild failed daily because `latest/stable` is empty; it now skips quietly until the first stable release (PR #24). Refresh Radar Data publishes fine but can't open its PR: the owner must turn on Settings → Actions → General → "Allow GitHub Actions to create and approve pull requests".
 
 Where to pick up next session:
 - **Get the owner's Phase 2 sign-off first** (KICKOFF gate). End-of-phase screenshots: `target/shots/phase2/` (20 PNGs, gitignored; regenerate with `--screenshots`).

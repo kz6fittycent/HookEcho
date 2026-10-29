@@ -309,6 +309,41 @@ pub fn run(dir: &Path) -> Result<(), String> {
         .map_err(|e| e.to_string())?;
     println!("wrote {}", path.display());
     o.app.model.config.label_scale = 1.0;
+    // NWS warnings with one open (recorded answer, kept in force).
+    if let Some(alerts) = crate::warnings::sample_alerts() {
+        let m = &mut o.app.model;
+        let at = (31.62, -104.6);
+        m.alerts = std::sync::Arc::new(alerts);
+        m.camera = Camera::looking_at(at.0, at.1, 420.0, SIZE[0] as f64);
+        m.motion.zoom_target = m.camera.scale;
+        let hit = m
+            .alerts
+            .iter()
+            .find(|a| a.area == "Culberson, TX")
+            .and_then(|a| a.rings.first())
+            .map(|r| {
+                let n = r.len() as f64;
+                r.iter()
+                    .fold((0.0, 0.0), |s, p| (s.0 + p.0 / n, s.1 + p.1 / n))
+            });
+        for (theme, name) in [
+            (ThemeKind::Dark, "20-warnings"),
+            (ThemeKind::Light, "21-warnings-light"),
+        ] {
+            if let Some(c) = hit {
+                crate::warnings::click(&mut o.app.model, c);
+            }
+            o.app.theme_override = Some(theme);
+            let (w, h, px) = o.capture(SIZE, PPP);
+            let path = dir.join(format!("{name}.png"));
+            image::RgbaImage::from_raw(w, h, px)
+                .ok_or("bad image")?
+                .save(&path)
+                .map_err(|e| e.to_string())?;
+            println!("wrote {}", path.display());
+        }
+        o.app.model.picker = Picker::None;
+    }
     Ok(())
 }
 

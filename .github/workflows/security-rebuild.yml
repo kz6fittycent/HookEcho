@@ -72,6 +72,14 @@ jobs:
       - name: Download the stable snap
         id: stable
         run: |
+          # Nothing on stable yet (before the first release): nothing to
+          # rebuild. Skip quietly instead of failing every day.
+          if ! snap info "$SNAP_NAME" | grep -Eq '^ *latest/stable: *[0-9]'; then
+            echo "Nothing released to stable yet - skipping."
+            echo "released=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "released=true" >> "$GITHUB_OUTPUT"
           snap download "$SNAP_NAME" --channel=stable --basename=stable
           version="$(unsquashfs -cat stable.snap meta/snap.yaml | sed -n 's/^version: *//p' | tr -d "'\"")"
           revision="$(snap info "$SNAP_NAME" | sed -n 's#^ *latest/stable: *[^ ]* *[^ ]* *(\([0-9]*\)).*#\1#p')"
@@ -80,6 +88,7 @@ jobs:
           echo "Stable: version $version, revision $revision"
 
       - name: Check for security notices
+        if: steps.stable.outputs.released == 'true'
         run: |
           review-tools.snap-check-notices stable.snap | tee notices-raw.json
           # {"<snap>": {"<revision>": {"<package>": ["USN-...", ...]}}} - empty when none.
@@ -93,6 +102,7 @@ jobs:
 
       - name: Find the commit that released this version
         id: commit
+        if: steps.stable.outputs.released == 'true'
         run: |
           want="${{ steps.stable.outputs.version }}"
           # A v<version> release tag, if releases are tagged, is the exact
@@ -126,6 +136,7 @@ jobs:
 
       - name: Decide
         id: decide
+        if: steps.stable.outputs.released == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           FORCE: ${{ inputs.force }}
@@ -148,6 +159,7 @@ jobs:
           echo "rebuild=$rebuild" >> "$GITHUB_OUTPUT"
 
       - name: Keep the notices for the next job
+        if: steps.stable.outputs.released == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: notices

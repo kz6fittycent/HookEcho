@@ -1,11 +1,12 @@
 //! TDWR (FAA Terminal Doppler Weather Radar) scans from the Level III
 //! bucket: finding them, fetching and decoding them (level3.rs) into the
-//! same one-sweep `Volume` the app draws for Level II.
+//! same `Volume` the app draws for Level II.
 //!
 //! Objects are named `DAL_TZ0_2026_10_28_21_08_23`: the site without its
 //! leading "T" (TDAL → DAL), the product, and the volume time (UTC). A scan
-//! is the short-range reflectivity (TZ0) and the velocity (TV0) of the same
-//! volume time. Sites publish one about every 6 minutes.
+//! is the short-range reflectivity (TZ0), velocity (TV0) and long-range
+//! reflectivity (TZL) of the same volume time. Sites publish one about every
+//! 6 minutes.
 
 use crate::cache::ChunkCache;
 use crate::level2::Volume;
@@ -15,8 +16,9 @@ use crate::sites::{self, SiteKind};
 
 pub const BUCKET: &str = "https://unidata-nexrad-level3.s3.amazonaws.com";
 
-/// Products that make up a scan: short-range reflectivity, then velocity.
-const PRODUCTS: [&str; 2] = ["TZ0", "TV0"];
+/// Products that make up a scan: short-range reflectivity, velocity, then
+/// long-range reflectivity (a second sweep; see level3::sweep_volume).
+const PRODUCTS: [&str; 3] = ["TZ0", "TV0", "TZL"];
 
 /// Whether `site` (e.g. "TDAL") is a TDWR in the bundled site list.
 pub fn is_tdwr(site: &str) -> bool {
@@ -70,7 +72,7 @@ impl Stamp {
 
 /// Days since 1970-01-01 for a proleptic Gregorian date (Howard Hinnant's
 /// `days_from_civil`, public domain).
-fn days_from_civil(y: i64, m: i64, d: i64) -> i64 {
+pub(crate) fn days_from_civil(y: i64, m: i64, d: i64) -> i64 {
     let y = if m <= 2 { y - 1 } else { y };
     let era = y.div_euclid(400);
     let yoe = y - era * 400;
@@ -145,8 +147,8 @@ async fn product(
     }
 }
 
-/// The scan at `stamp` as a one-sweep volume. Reflectivity is required;
-/// velocity joins when present.
+/// The scan at `stamp` as a volume. Short-range reflectivity is required;
+/// velocity and long-range reflectivity join when present.
 pub async fn load(
     bucket: &Bucket,
     cache: &ChunkCache,
@@ -221,6 +223,10 @@ mod tests {
         let s = &v.sweeps[0];
         assert!(s.field(crate::Moment::Reflectivity).is_some());
         assert!(s.field(crate::Moment::Velocity).is_some());
+        // Long range: its own sweep at the same angle, with 0.3 km gates.
+        let long = v.sweeps[1].field(crate::Moment::Reflectivity).unwrap();
+        assert_eq!((v.sweeps.len(), long.gate_km), (2, 0.3));
+        assert_eq!(v.sweeps[1].elevation_deg, s.elevation_deg);
         let _ = std::fs::remove_dir_all(&dir);
     }
 

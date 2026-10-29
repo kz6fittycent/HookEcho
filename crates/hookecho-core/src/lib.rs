@@ -1,6 +1,7 @@
 //! Hook Echo core: decoding, sites, geometry, config. No UI, no GPU.
 #![forbid(unsafe_code)]
 
+pub mod alerts;
 pub mod basemap;
 pub mod cache;
 pub mod config;

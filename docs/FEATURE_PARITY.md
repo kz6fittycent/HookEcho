@@ -73,7 +73,7 @@ Sources (all public, read 2026-10-09):
 | Radar detail with latest operator status message | Base | [radar-list] [not-updating] | P3 | planned | Level III Free Text Message (FTM) product, ICD 2620001 |
 | Nearest radar from my location | Base | [getting-started] | P3 | in progress | Done: radar list nearest-first from the map center with distances; a home point ("Set home", then click the map) that a first run opens near; "Nearest radar" command. Next: GeoClue location |
 | Auto radar selection as location changes (toggle) | Base | [advanced] | P3 | planned | |
-| Show TDWR sites (off by default) | Base | [advanced] [tdwr] | P5 | in progress | Listed in the radar picker ("· airport") and on the map, on by default for now (the owner asked for them). An off switch is still to do. 44 of 47 published on 2026-10-28; TJBQ, TJRV and TPBI had no scans |
+| Show TDWR sites (off by default) | Base | [advanced] [tdwr] | P5 | done | Listed in the radar picker ("· airport") and on the map. On by default (the owner asked for them); side sheet → Layers → "Airport radars (TDWR)" turns them off (a favorite TDWR stays). 44 of 47 published on 2026-10-28; TJBQ, TJRV and TPBI had no scans |
 | Show research radars (off by default) | Base | [advanced] [whatsnew57] | P5 | planned | Free public research feeds only; list TBD |
 | Data update timed to the VCP schedule (no wasteful polling) | Base | [data-overview] | P2 | in progress | Polls the chunk bucket every 4 s with `start-after` (only new keys come back); state changes only, so the idle app is never woken. Predicting chunk times from the VCP is a later refinement |
 | Multiple data providers with automatic fallback | Base | [providers] | P4 | planned | Free substitutes: Unidata chunks → NOAA NODD `noaa-nexrad-level2` → NWS Level III. No paid feeds |
@@ -109,7 +109,7 @@ Sources (all public, read 2026-10-09):
 | Enhanced echo tops (with "topped" range) | Base | [other] [pal-tech] | P3 | planned | Product 135; the TOPPED mask in palettes |
 | Precipitation: DAA, DSA/DTA, DOD, DSD, storm total, one-hour, storm total (classic) | Base | [precip] [classic] | P3 | planned | Products 170, 172, 173, 174, 175, 78, 80 |
 | Precipitation depiction (rain/mix/snow) | Base | [refl] | P5 | planned | **Proprietary** (radar plus surface obs). Free substitute: color reflectivity by MRMS `PrecipFlag` or by the HC class. It will differ from the original |
-| TDWR long-range and short-range reflectivity, velocity | Base | [tdwr] | P5 | in progress | Pulled forward by the owner (2026-10-28). Shown live and in the loop: short-range reflectivity (TZ0) and velocity (TV0), one scan about every 6 minutes (`hookecho-core::tdwr`). Long-range reflectivity (TZL) is decoded but not shown yet |
+| TDWR long-range and short-range reflectivity, velocity | Base | [tdwr] | P5 | done | Pulled forward by the owner (2026-10-28). Shown live and in the loop, one scan about every 6 minutes (`hookecho-core::tdwr`): short-range reflectivity (TZ0) and velocity (TV0), plus long-range reflectivity (TZL, 225 nm) as a second sweep, chosen with side sheet → Layers → "Airport radar long range" |
 | Tilt selection | Base | [product-legend] | P1 | done | Product chip → picker; `[`/`]` keys |
 | Quick product/tilt grid ("product picker" shortcut) | Base | [shortcuts] | P2 | planned | Product chip opens a grid: product × tilt |
 | Progressive sweep display while the volume is still scanning | — | KICKOFF | P2 | done | Real-time chunks decoded as they arrive; the previous volume shows under a sweep still arriving; sweep strip shows in / arriving / pending tilts |
@@ -131,10 +131,10 @@ Sources (all public, read 2026-10-09):
 | Roads: interstates and US highways | Base | [layers] | P1 | in progress | TIGER primary roads (interstates and other limited-access highways) bundled; the rest of the US highways need TIGER secondary roads |
 | Detailed roads and road labels | T2 | [layers] [providers] | P5 | planned | Paid (Mapbox) in the original. Substitute: TIGER secondary roads bundled at higher zoom |
 | Satellite imagery base map | T2 | [layers] | P5 | planned | Paid (Mapbox) in the original. Free option needs a tile source, which conflicts with "no tile server". **Ask first** |
-| NWS warnings: tornado, severe t-storm, flash flood, special marine, snow squall, extreme wind | Base | [bulletins] | P3 | planned | api.weather.gov alerts, 60 s conditional polling |
+| NWS warnings: tornado, severe t-storm, flash flood, special marine, snow squall, extreme wind | Base | [bulletins] | P3 | done | api.weather.gov alerts (`hookecho-core::alerts`), 60 s polling with ETag/If-None-Match, last answer cached on disk. NWS map colors (`design/hazards.rs`), heavier outline for tornado and extreme wind. Click a warning for its full text (card below the site chip; overlapping warnings stack). No requests while switched off |
 | Hurricane, tropical storm, fire, dust storm, storm surge warnings | Base | [appstore] | P3 | planned | Same feed |
 | Pulsing polygons for emergencies and PDS | Base | [providers] | P3 | planned | From the NWS alert parameters/text; honor reduced-motion |
-| Warning type filter | Base | [bulletins] | P3 | planned | Side sheet → Layers |
+| Warning type filter | Base | [bulletins] | P3 | done | Side sheet → Layers → Warnings: master switch plus one per type |
 | Tornado and severe thunderstorm watches (US) | Mixed | [bulletins] [appstore] | P3 | planned | NWS alerts + SPC watch polygons |
 | Canadian warnings and watches; Australian warnings | Base | [bulletins] [advanced] | P5 | planned | ECCC GeoMet (free); BoM (check terms) |
 | Special weather statements | T1 | [upgrading] [bulletins] | P3 | planned | NWS alerts |

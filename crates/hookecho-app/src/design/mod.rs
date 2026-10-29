@@ -2,6 +2,7 @@
 //! component library every screen is built from.
 
 pub mod components;
+pub mod hazards;
 pub mod icons;
 pub mod tokens;
 

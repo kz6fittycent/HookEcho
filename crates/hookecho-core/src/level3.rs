@@ -259,36 +259,40 @@ fn radial_packet(block: &[u8]) -> Result<Radials, Error> {
     Ok((radials, bins, raw))
 }
 
-/// The products of one TDWR scan as a one-sweep volume: reflectivity and
-/// velocity side by side, each field at its own gate spacing. The sweep
-/// takes the first product's radials; a later product joins only if its
-/// radials have the same azimuths (a sweep shares one set), and replaces an
-/// earlier one of the same moment.
+/// The products of one TDWR scan as a volume: each product joins the first
+/// sweep that has the same radial azimuths and lacks its moment, else starts
+/// a sweep of its own. Short-range reflectivity and velocity (same radials)
+/// share the first sweep; long-range reflectivity, at the same angle but
+/// with its own gates, becomes a second sweep the app can show instead.
 pub fn sweep_volume(products: &[Product], site: &str) -> Option<Volume> {
     let first = products.first()?;
-    let same_radials = |p: &Product| {
-        p.radials.len() == first.radials.len()
-            && p.radials
-                .iter()
-                .zip(&first.radials)
+    let same_radials = |a: &[RadialInfo], b: &[RadialInfo]| {
+        a.len() == b.len()
+            && a.iter()
+                .zip(b)
                 .all(|(a, b)| (a.azimuth_deg - b.azimuth_deg).abs() < 0.05)
     };
-    let mut moments: Vec<(Moment, Field)> = Vec::new();
-    for p in products.iter().filter(|p| same_radials(p)) {
-        moments.retain(|(m, _)| *m != p.moment);
-        moments.push((p.moment, p.field.clone()));
+    let mut sweeps: Vec<Sweep> = Vec::new();
+    for p in products {
+        let fits = sweeps
+            .iter_mut()
+            .find(|s| same_radials(&s.radials, &p.radials) && s.field(p.moment).is_none());
+        match fits {
+            Some(s) => s.moments.push((p.moment, p.field.clone())),
+            None => sweeps.push(Sweep {
+                elevation_number: sweeps.len() as u8 + 1,
+                elevation_deg: p.elevation_deg,
+                nominal_elevation_deg: Some(p.elevation_deg),
+                radials: p.radials.clone(),
+                moments: vec![(p.moment, p.field.clone())],
+                complete: true,
+            }),
+        }
     }
     Some(Volume {
         site: Some(site.to_string()),
         vcp: 0,
         vcp_cuts_deg: vec![first.elevation_deg],
-        sweeps: vec![Sweep {
-            elevation_number: 1,
-            elevation_deg: first.elevation_deg,
-            nominal_elevation_deg: Some(first.elevation_deg),
-            radials: first.radials.clone(),
-            moments,
-            complete: true,
-        }],
+        sweeps,
     })
 }

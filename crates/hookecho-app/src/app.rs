@@ -36,6 +36,7 @@ type Waker = std::sync::Arc<std::sync::OnceLock<egui::Context>>;
 pub struct App {
     pub model: Model,
     feed: Option<hookecho_core::live::Feed>,
+    alerts: Option<hookecho_core::alerts::AlertFeed>,
     frames: Option<hookecho_core::frames::LoopLoader>,
     waker: Waker,
     watching: Option<String>,
@@ -100,21 +101,33 @@ impl App {
                     }
                 });
                 let frames = hookecho_core::frames::LoopLoader::start(cache.clone(), wake2);
+                let w = waker.clone();
+                let wake3 = std::sync::Arc::new(move || {
+                    if let Some(ctx) = w.get() {
+                        ctx.request_repaint();
+                    }
+                });
+                let alerts = hookecho_core::alerts::AlertFeed::start(cache.clone(), wake3);
                 (
                     None,
-                    Some((hookecho_core::live::Feed::start(cache, wake), frames)),
+                    Some((
+                        hookecho_core::live::Feed::start(cache, wake),
+                        frames,
+                        alerts,
+                    )),
                 )
             }
         };
-        let (feed, frames) = match feed {
-            Some((f, l)) => (Some(f), Some(l)),
-            None => (None, None),
+        let (feed, frames, alerts) = match feed {
+            Some((f, l, a)) => (Some(f), Some(l), Some(a)),
+            None => (None, None, None),
         };
         let mut model = Model::new(config, initial, size);
         model.palettes = crate::palettes::Library::load(dirs.as_ref().map(|d| d.config.as_path()));
         App {
             model,
             feed,
+            alerts,
             frames,
             waker,
             watching: None,
@@ -246,6 +259,21 @@ impl App {
                     self.model.feed = Some(state);
                 }
                 _ => {}
+            }
+        }
+        // NWS warnings: polled only while the layer is on.
+        if let Some(alerts) = &self.alerts {
+            alerts.enable(self.model.config.warnings);
+            while let Ok(e) = alerts.events.try_recv() {
+                match e {
+                    hookecho_core::alerts::AlertEvent::Alerts(a) => {
+                        self.model.alerts = a;
+                        self.model.alerts_trouble = None;
+                    }
+                    hookecho_core::alerts::AlertEvent::Trouble(why) => {
+                        self.model.alerts_trouble = Some(why);
+                    }
+                }
             }
         }
         // Loop frames for the current site, tilt and live volume.

@@ -75,7 +75,12 @@ pub fn site_picker(ui: &mut Ui, kit: &mut Kit, model: &mut Model, anchor: Rect) 
     let near = model.map_center();
     let by_distance = query.trim().is_empty();
     let fmt = model::Fmt::of(&model.config);
-    let items = model::site_list(&query, &model.config.favorites, Some(near));
+    let items = model::site_list(
+        &query,
+        &model.config.favorites,
+        Some(near),
+        model.config.tdwr,
+    );
     // Rows: section headers interleaved with sites.
     enum Row<'a> {
         Header(String),

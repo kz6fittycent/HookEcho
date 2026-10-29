@@ -201,8 +201,41 @@ fn layers(ui: &mut Ui, kit: &mut Kit, model: &mut Model, b: &mut Body) {
     let c = &mut model.config;
     c.mask_dualpol = b.toggle(ui, kit, "mask", "Hide dual-pol noise", c.mask_dualpol);
     b.hint(kit, "CC, ZDR and PHI only where there's echo");
+    c.tdwr = b.toggle(ui, kit, "tdwr", "Airport radars (TDWR)", c.tdwr);
+    b.hint(kit, "Sharper close-in radars at major airports");
+    if c.tdwr {
+        c.tdwr_long_range = b.toggle(
+            ui,
+            kit,
+            "tdwr-long",
+            "Airport radar long range",
+            c.tdwr_long_range,
+        );
+        b.hint(kit, "Reflectivity to 225 nm instead of 48 nm, coarser");
+    }
     b.gap();
-    b.hint(kit, "Warnings, outlooks and lightning come in a");
+    b.eyebrow(kit, "WARNINGS");
+    let c = &mut model.config;
+    c.warnings = b.toggle(ui, kit, "warnings", "NWS warnings", c.warnings);
+    match &model.alerts_trouble {
+        Some(_) if c.warnings => b.hint(kit, "Can't reach the NWS right now; retrying"),
+        _ => b.hint(kit, "Click a warning on the map to read it"),
+    }
+    if c.warnings {
+        for e in hookecho_core::alerts::Event::ALL {
+            let shown = !c.hidden_warnings.iter().any(|k| k == e.key());
+            let label = e.name().trim_end_matches(" Warning");
+            if b.toggle(ui, kit, e.key(), label, shown) != shown {
+                if shown {
+                    c.hidden_warnings.push(e.key().to_string());
+                } else {
+                    c.hidden_warnings.retain(|k| k != e.key());
+                }
+            }
+        }
+    }
+    b.gap();
+    b.hint(kit, "Watches, outlooks and lightning come in a");
     b.hint(kit, "later update.");
 }
 

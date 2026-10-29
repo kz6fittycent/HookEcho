@@ -189,6 +189,61 @@ mod tests {
         o.frame(SIZE, 1.0, Vec::new());
     }
 
+    /// A click inside a warning opens its card; a click on open map
+    /// closes it; switching warnings off hides them.
+    #[test]
+    fn warning_card_opens_on_click() {
+        let Ok(mut o) = Offscreen::new(None, SIZE) else {
+            eprintln!("no GPU adapter; skipped");
+            return;
+        };
+        let alerts = crate::warnings::sample_alerts().unwrap();
+        let ring = alerts
+            .iter()
+            .find(|a| a.area == "Culberson, TX")
+            .unwrap()
+            .rings[0]
+            .clone();
+        let n = ring.len() as f64;
+        let c = ring
+            .iter()
+            .fold((0.0, 0.0), |s, p| (s.0 + p.0 / n, s.1 + p.1 / n));
+        o.app.model.alerts = std::sync::Arc::new(alerts);
+        let view = [SIZE[0] as f64, SIZE[1] as f64];
+        o.app.model.camera = hookecho_core::geo::Camera::looking_at(c.0, c.1, 300.0, view[0]);
+        o.app.model.motion.zoom_target = o.app.model.camera.scale;
+        o.frame(SIZE, 1.0, Vec::new());
+        let tap = |o: &mut Offscreen, at: (f64, f64)| {
+            let p = o.app.model.camera.latlon_to_screen(at.0, at.1, view);
+            let p = egui::pos2(p[0] as f32, p[1] as f32);
+            let ev = |pressed| egui::Event::PointerButton {
+                pos: p,
+                button: egui::PointerButton::Primary,
+                pressed,
+                modifiers: Default::default(),
+            };
+            o.frame(SIZE, 1.0, vec![egui::Event::PointerMoved(p)]);
+            o.frame(SIZE, 1.0, vec![ev(true), ev(false)]);
+            o.frame(SIZE, 1.0, Vec::new());
+        };
+        tap(&mut o, c);
+        assert!(
+            matches!(&o.app.model.picker, Picker::Warnings { ids, .. } if ids.len() == 1),
+            "{:?}",
+            o.app.model.picker
+        );
+        // Northeast of it, still on screen: open map, no warning.
+        tap(&mut o, (c.0 + 0.3, c.1 + 0.8));
+        assert_eq!(o.app.model.picker, Picker::None);
+        o.app.model.config.warnings = false;
+        tap(&mut o, c);
+        assert_eq!(
+            o.app.model.picker,
+            Picker::None,
+            "hidden warnings don't open"
+        );
+    }
+
     #[test]
     fn pickers_respond_to_clicks() {
         let Ok(mut o) = Offscreen::new(None, SIZE) else {
