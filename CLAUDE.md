@@ -65,7 +65,7 @@ Owner requests for later: a full "command center" with surface obs (temperature,
 **Owner fixes before Phase 3 (2026-10-28), one PR each:**
 1. Done (PR #17, revision 7): new app icon, a red/green velocity-couplet swirl in a counter-clockwise arrow (Northern Hemisphere rotation: green left, red right, with the radar to the south; keep the arrow counter-clockwise). Also security updates (rustls, rustls-webpki, tokio).
 2. Done (PR #18, revision 8): start near the user. Nearest-first radar list from the map center, Menu → Set home (click the map), Menu → Nearest radar, a labeled Menu button. Still to do: "Use my location" (location portal or GeoClue; research and propose first, it needs a dependency and a snap plug).
-3. TDWR: decoder (`hookecho-core::level3`, MetPy byte-exact) and app integration (`hookecho-core::tdwr`, live + loop + picker) as two stacked PRs. TZL (long range) is decoded but not shown yet; a TDWR on/off switch is still to do.
+3. TDWR: decoder (`hookecho-core::level3`, MetPy byte-exact) and app integration (`hookecho-core::tdwr`, live + loop + picker) as two stacked PRs. Merged (PR #21, #22). Then (PR #24): long range (TZL, a second sweep at the same angle; Layers → "Airport radar long range") and an on/off switch (Layers → "Airport radars (TDWR)").
 
 **Data layers, in the owner's order (2026-10-28).** Each is a new endpoint: get approval for it before any code.
 1. NWS warnings and watches (api.weather.gov alerts).

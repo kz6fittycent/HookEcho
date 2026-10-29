@@ -121,6 +121,25 @@ fn scan_as_sweep() {
     assert_eq!(s.radials.len(), 360);
     assert!(s.field(Moment::Reflectivity).is_some() && s.field(Moment::Velocity).is_some());
     assert!(s.complete);
+    assert_eq!(vol.sweeps.len(), 1);
+
+    // Long-range reflectivity collides with TZ0's moment, so it gets a
+    // second sweep instead of being dropped or replacing it.
+    let (l, _) = product("TZL");
+    let (z, _) = product("TZ0");
+    let (v, _) = product("TV0");
+    let vol = sweep_volume(&[z, v, l], "TDAL").unwrap();
+    assert_eq!(vol.sweeps.len(), 2);
+    assert_eq!(
+        vol.sweeps[0].field(Moment::Reflectivity).unwrap().gates,
+        592
+    );
+    assert_eq!(
+        vol.sweeps[1].field(Moment::Reflectivity).unwrap().gates,
+        1390
+    );
+    assert!(vol.sweeps[1].field(Moment::Velocity).is_none());
+    assert_eq!(vol.sweeps[1].elevation_number, 2);
 }
 
 #[test]

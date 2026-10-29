@@ -93,6 +93,11 @@ pub struct Config {
     pub mask_dualpol: bool,
     /// Map label size multiplier (0.85, 1, 1.15 or 1.3).
     pub label_scale: f32,
+    /// Offer the FAA's airport radars (TDWR) in the picker and on the map.
+    pub tdwr: bool,
+    /// Show an airport radar's long-range reflectivity (225 nm, 300 m gates)
+    /// instead of its short-range one (48 nm, 150 m gates).
+    pub tdwr_long_range: bool,
 }
 
 impl Default for Config {
@@ -112,6 +117,8 @@ impl Default for Config {
             speed: Speed::Auto,
             mask_dualpol: true,
             label_scale: 1.0,
+            tdwr: true,
+            tdwr_long_range: false,
         }
     }
 }

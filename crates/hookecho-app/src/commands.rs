@@ -142,7 +142,12 @@ pub const SHORTCUTS: &[ShortcutGroup] = &[
 /// (155 rows would bury everything else), except favorites.
 pub fn all(model: &Model, query: &str) -> Vec<Command> {
     let mut v = Vec::new();
-    let sites = model::site_list(query, &model.config.favorites, Some(model.map_center()));
+    let sites = model::site_list(
+        query,
+        &model.config.favorites,
+        Some(model.map_center()),
+        model.config.tdwr,
+    );
     for (s, fav) in sites
         .into_iter()
         .filter(|(_, fav)| *fav || !query.trim().is_empty())

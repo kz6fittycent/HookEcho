@@ -152,14 +152,25 @@ impl Loaded {
     /// Best sweep for (moment, tilt): the widest-range sweep at that angle
     /// (the surveillance cut for reflectivity), newest on ties.
     pub fn sweep_for(&self, m: Moment, deg: f32) -> Option<usize> {
-        self.volume
+        self.sweep_ranged(m, deg, true)
+    }
+
+    /// Like [`Loaded::sweep_for`], but `widest = false` takes the sweep
+    /// with the fewest gates instead: an airport radar's short-range scan.
+    pub fn sweep_ranged(&self, m: Moment, deg: f32, widest: bool) -> Option<usize> {
+        let at = self
+            .volume
             .sweeps
             .iter()
             .enumerate()
             .filter(|(_, s)| (Self::sweep_deg(s) - deg).abs() < 0.05)
-            .filter_map(|(i, s)| s.field(m).map(|f| (i, f.gates)))
-            .max_by(|a, b| a.1.cmp(&b.1).then(a.0.cmp(&b.0)))
-            .map(|(i, _)| i)
+            .filter_map(|(i, s)| s.field(m).map(|f| (i, f.gates)));
+        if widest {
+            at.max_by(|a, b| a.1.cmp(&b.1).then(a.0.cmp(&b.0)))
+        } else {
+            at.min_by(|a, b| a.1.cmp(&b.1).then(b.0.cmp(&a.0)))
+        }
+        .map(|(i, _)| i)
     }
 
     pub fn has(&self, m: Moment, deg: f32) -> bool {
@@ -612,12 +623,21 @@ impl Model {
 
     pub fn current_sweep(&self) -> Option<usize> {
         let l = self.shown()?;
-        l.sweep_for(self.moment, self.tilt_deg).or_else(|| {
-            // Fall back to the lowest tilt that has this moment.
-            l.tilts()
-                .iter()
-                .find_map(|t| l.sweep_for(self.moment, t.deg))
-        })
+        let widest = self.widest();
+        l.sweep_ranged(self.moment, self.tilt_deg, widest)
+            .or_else(|| {
+                // Fall back to the lowest tilt that has this moment.
+                l.tilts()
+                    .iter()
+                    .find_map(|t| l.sweep_ranged(self.moment, t.deg, widest))
+            })
+    }
+
+    /// Whether to show the widest-range sweep: always for NEXRAD (the
+    /// surveillance cut), for an airport radar only when the user asked for
+    /// long range.
+    fn widest(&self) -> bool {
+        self.site.kind != SiteKind::Tdwr || self.config.tdwr_long_range
     }
 
     pub fn loaded_here(&self) -> Option<&Loaded> {
@@ -671,7 +691,7 @@ impl Model {
             .previous
             .as_ref()
             .filter(|p| p.site.id == self.site.id)?;
-        prev.sweep_for(self.moment, self.tilt_deg)
+        prev.sweep_ranged(self.moment, self.tilt_deg, self.widest())
     }
 
     pub fn select_site(&mut self, site: &'static Site, size: [f64; 2]) {
@@ -753,6 +773,11 @@ pub fn initial_site(config: &hookecho_core::config::Config, fallback: &str) -> &
         .unwrap_or_else(|| sites::by_id(fallback).expect("fallback site"))
 }
 
+/// Radar kinds offered in the picker and on the map.
+pub fn shows_kind(kind: SiteKind, tdwr: bool) -> bool {
+    kind == SiteKind::Nexrad || (tdwr && kind == SiteKind::Tdwr)
+}
+
 /// How well a site matches the query: lower is better, `None` = no match.
 /// State code, then ID prefix, then a name word prefix, then a substring.
 fn match_rank(s: &Site, q: &str) -> Option<u8> {
@@ -776,13 +801,14 @@ fn match_rank(s: &Site, q: &str) -> Option<u8> {
 }
 
 /// Sites the picker offers, filtered by `query` (state, ID, or name).
-/// Favorites first, then operational NEXRADs and TDWRs: nearest to `near` first when
-/// there's no query (so the radars around the map come up top), otherwise
-/// by match quality, state, ID.
+/// Favorites first, then operational NEXRADs and (with `tdwr`) TDWRs:
+/// nearest to `near` first when there's no query (so the radars around the
+/// map come up top), otherwise by match quality, state, ID.
 pub fn site_list(
     query: &str,
     favorites: &[String],
     near: Option<(f64, f64)>,
+    tdwr: bool,
 ) -> Vec<(&'static Site, bool)> {
     let q = query.trim().to_ascii_lowercase();
     let matches = |s: &Site| match_rank(s, &q).is_some();
@@ -794,11 +820,7 @@ pub fn site_list(
         .collect();
     let mut rest: Vec<&'static Site> = sites::all()
         .iter()
-        .filter(|s| {
-            matches!(s.kind, SiteKind::Nexrad | SiteKind::Tdwr)
-                && matches(s)
-                && !favorites.contains(&s.id)
-        })
+        .filter(|s| shows_kind(s.kind, tdwr) && matches(s) && !favorites.contains(&s.id))
         .collect();
     match near {
         Some(p) if q.is_empty() => {
@@ -1042,35 +1064,84 @@ pub fn ensure_upload(
 mod tests {
     use super::*;
 
+    fn site_list_all(
+        q: &str,
+        favorites: &[String],
+        near: Option<(f64, f64)>,
+    ) -> Vec<(&'static Site, bool)> {
+        site_list(q, favorites, near, true)
+    }
+
+    /// With airport radars switched off, the picker offers NEXRADs only,
+    /// but a favorite TDWR stays.
+    #[test]
+    fn airport_radars_switch() {
+        let plano = Some((33.1, -96.75));
+        let off = site_list("", &[], plano, false);
+        assert_eq!(off[0].0.id, "KFWS");
+        assert!(off.iter().all(|(s, _)| s.kind == SiteKind::Nexrad));
+        assert!(site_list("tul", &[], None, false)[0].0.id == "KINX");
+        let fav = site_list("", &["TDAL".into()], plano, false);
+        assert_eq!(fav[0].0.id, "TDAL");
+    }
+
+    /// An airport radar's scan has a short-range and a long-range
+    /// reflectivity sweep at the same angle; the setting picks one.
+    #[test]
+    fn airport_radar_range() {
+        let data = format!("{}/../../tests/data/level3", env!("CARGO_MANIFEST_DIR"));
+        let products: Vec<_> = ["TZ0", "TV0", "TZL"]
+            .iter()
+            .map(|c| {
+                let b = std::fs::read(format!("{data}/DAL_{c}_2026_10_28_21_08_23")).unwrap();
+                hookecho_core::level3::decode(&b).unwrap()
+            })
+            .collect();
+        let volume = hookecho_core::level3::sweep_volume(&products, "TDAL").unwrap();
+        let site = sites::by_id("TDAL").unwrap();
+        let mut m = Model::new(Default::default(), site, [800.0, 600.0]);
+        m.loaded = Some(Loaded::new(site, volume, false));
+        let gates = |m: &Model| {
+            let l = m.shown().unwrap();
+            let i = m.current_sweep().unwrap();
+            l.volume.sweeps[i].field(m.moment).unwrap().gates
+        };
+        assert_eq!(gates(&m), 592, "short range by default");
+        m.config.tdwr_long_range = true;
+        assert_eq!(gates(&m), 1390);
+        m.moment = Moment::Velocity;
+        assert_eq!(gates(&m), 592, "velocity has one range");
+    }
+
     #[test]
     fn site_search() {
-        let all = site_list("", &[], None);
+        let all = site_list_all("", &[], None);
         assert!(all.len() >= 155);
-        let ok = site_list("ok", &[], None);
+        let ok = site_list_all("ok", &[], None);
         assert!(
             ok.iter().take(4).all(|(s, _)| s.state == "OK"),
             "state matches rank first"
         );
         assert!(ok.iter().any(|(s, _)| s.id == "KTLX"));
-        let tul = site_list("tul", &[], None);
+        let tul = site_list_all("tul", &[], None);
         let ids: Vec<&str> = tul.iter().take(2).map(|(s, _)| s.id.as_str()).collect();
         assert_eq!(
             ids,
             ["TTUL", "KINX"],
             "ID (Tulsa airport radar), then name word"
         );
-        let t = site_list("ktlx", &[], None);
+        let t = site_list_all("ktlx", &[], None);
         assert_eq!(t[0].0.id, "KTLX", "exact ID first");
         assert!(
-            site_list("tlx", &[], None)
+            site_list_all("tlx", &[], None)
                 .iter()
                 .any(|(s, _)| s.id == "KTLX"),
             "ID without the K"
         );
-        let fav = site_list("", &["KFWS".into()], None);
+        let fav = site_list_all("", &["KFWS".into()], None);
         assert!(fav[0].1 && fav[0].0.id == "KFWS", "favorites first");
         assert!(
-            site_list("koun", &[], None).is_empty(),
+            site_list_all("koun", &[], None).is_empty(),
             "research radars hidden"
         );
     }
@@ -1081,16 +1152,16 @@ mod tests {
     #[test]
     fn site_list_nearest_first() {
         let plano = Some((33.1, -96.75));
-        let near = site_list("", &[], plano);
+        let near = site_list_all("", &[], plano);
         // The airport radars (TDWR) at DFW and Love Field, then KFWS.
         let ids: Vec<&str> = near.iter().take(3).map(|(s, _)| s.id.as_str()).collect();
         assert_eq!(ids, ["TDFW", "TDAL", "KFWS"]);
-        let fav = site_list("", &["KTLX".into()], plano);
+        let fav = site_list_all("", &["KTLX".into()], plano);
         assert_eq!(
             (fav[0].0.id.as_str(), fav[1].0.id.as_str()),
             ("KTLX", "TDFW")
         );
-        assert_eq!(site_list("ok", &[], plano)[0].0.state, "OK");
+        assert_eq!(site_list_all("ok", &[], plano)[0].0.state, "OK");
     }
 
     #[test]

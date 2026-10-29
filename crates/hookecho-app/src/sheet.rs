@@ -201,6 +201,18 @@ fn layers(ui: &mut Ui, kit: &mut Kit, model: &mut Model, b: &mut Body) {
     let c = &mut model.config;
     c.mask_dualpol = b.toggle(ui, kit, "mask", "Hide dual-pol noise", c.mask_dualpol);
     b.hint(kit, "CC, ZDR and PHI only where there's echo");
+    c.tdwr = b.toggle(ui, kit, "tdwr", "Airport radars (TDWR)", c.tdwr);
+    b.hint(kit, "Sharper close-in radars at major airports");
+    if c.tdwr {
+        c.tdwr_long_range = b.toggle(
+            ui,
+            kit,
+            "tdwr-long",
+            "Airport radar long range",
+            c.tdwr_long_range,
+        );
+        b.hint(kit, "Reflectivity to 225 nm instead of 48 nm, coarser");
+    }
     b.gap();
     b.hint(kit, "Warnings, outlooks and lightning come in a");
     b.hint(kit, "later update.");

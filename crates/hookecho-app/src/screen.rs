@@ -9,7 +9,7 @@ use eframe::egui::{
     self, Align2, Color32, CornerRadius, Id, Key, Pos2, Rect, Sense, Stroke, StrokeKind, Ui,
     WidgetType, pos2, vec2,
 };
-use hookecho_core::sites::{self, SiteKind};
+use hookecho_core::sites;
 
 /// Bands at the top and bottom where chrome lives.
 fn chrome_bands(screen: Rect) -> [Rect; 3] {
@@ -61,7 +61,7 @@ fn markers(model: &Model, screen: Rect) -> Vec<(&'static sites::Site, Pos2, bool
     sites::all()
         .iter()
         .filter(|s| {
-            matches!(s.kind, SiteKind::Nexrad | SiteKind::Tdwr)
+            (crate::model::shows_kind(s.kind, model.config.tdwr) || s.id == model.site.id)
                 && (show_all || s.id == model.site.id)
         })
         .filter_map(|s| {
