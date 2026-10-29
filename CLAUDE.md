@@ -54,21 +54,25 @@ assets/                  fonts, icons, sample data (large samples are fetched, n
 
 Done before 2026-10-29 (merged): Phases 0–2; owner fixes 1–3 (icon PR #17; start near the user PR #18; TDWR PRs #21, #22, #24); NWS storm-based warnings (PR #24).
 
-**Branch `feat/data-layers` (2026-10-29, not pushed yet: ask first).** One commit per layer, owner's order 1–5 plus location:
+**Branch `feat/data-layers` (2026-10-29, pushed with owner approval; PR open, merge needs its own approval).** One commit per layer, owner's order 1–5 plus location:
 1. Watches (SPC outlines) finish data layer 1.
 2. SPC outlooks (days 1–3), watches and MDs: `hookecho-core::spc`, `hookecho-app::spc`; Layers → Storm Prediction Center. `hookecho-core::poll` is the shared polling thread + conditional-GET client; alerts moved onto it.
 3. Surface obs / command center: `hookecho-core::obs` (AWC METAR cache file + Data API history), `hookecho-app::stations` (station plots, station panel bottom left).
 4. GOES-East satellite: `hookecho-core::goes` (hdf5-pure), a satellite pass in `hookecho-render` (per-pixel fixed-grid projection), `design/satellite.rs`. Bands 1 (visible, 1 km), 9, 13. Band 2 skipped: 65 MB a scan.
 5. Space weather: `hookecho-core::space` (SWPC), `hookecho-app::space` (Menu → Space weather card; Layers → Aurora forecast).
 6. "Use my location": option A of `docs/LOCATION.md` (XDG portal via `ashpd`); snap's `location-observe` plug dropped. Error path tested (location off on the dev machine); the success path needs the owner to try it.
-New dependencies: `hdf5-pure` =0.47.0, `ashpd` =0.13.13 (both MIT/Apache, `cargo deny` clean). Screenshots 22–29 in `target/shots/p3/` (29 needs `HOOKECHO_GOES_FILE`).
+7. From owner testing (same branch): Layers sheet reordered (data layers first, warning types folded); Menu group tabs (All/Radars/Products/Layers/Actions/Settings) and wheel scrolling fixed in overlays (`components::pointer_over`: egui's `rect_contains_pointer` is always false on our Foreground layers); the left dock (`dock.rs`, DESIGN §3.11: space weather, station, warnings, inspector pin into it; one `components::panel_header` for every panel); active-layer chips above the legend with × and right-click (DESIGN §3.4.1); Menu layer rows toggle; redraw after any config/picker change.
+New dependencies: `hdf5-pure` =0.47.0, `ashpd` =0.13.13 (both MIT/Apache, `cargo deny` clean). Screenshots 22–31 in `target/shots/p3/` (29 needs `HOOKECHO_GOES_FILE`).
+
+Owner UX rules learned in testing: every feature must be findable without searching (browse, not just search); anything on the map must be one click to turn off; check new controls are visible without scrolling.
 
 Upstream: nexrad-data's short-input panic is already fixed on its `main` and in 1.0.0 (checked 2026-10-29), so no issue was filed. Upgrading from rc.7 to 1.0.0 is a candidate change (our guard can stay).
 
 Still planned: GLM lightning (P3), local storm reports, ProbSevere, models and soundings, mosaic. Moved to Phase 3: `.pal` rain/snow/mix/topped masks and indexed units (need Level III hydrometeor classes and echo tops). Command center next steps: more stations at once, history graphs.
 
 Where to pick up next session:
-- Ask the owner before pushing `feat/data-layers` and opening its PR; each merge to `main` needs its own approval.
+- `feat/data-layers` PR: watch CI and the snap artifact; ask before merging.
+- Suggested next (owner to confirm): Level III products (KDP, HC, SRV, composite, VIL, echo tops), then storm markers, GLM lightning, warnings polish, tools, multi-pane. Small chore: nexrad-data rc.7 → 1.0.0.
 - Close each older CFT issue once its replacement exists.
 
 Workflow notes: Refresh Radar Data now opens its PR (#27 merged), so the Actions permission is on. Security Rebuild skips quietly until the first stable release.
