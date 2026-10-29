@@ -71,7 +71,7 @@ Sources (all public, read 2026-10-09):
 | Favorite radars (add, remove, reorder) | Base | [radar-list] | P2 | planned | Pinned at the top of the site picker |
 | Radar status dot (receiving / late) | Base | [radar-list] | P2 | planned | From the newest chunk/volume age per site; one cheap S3 listing, cached |
 | Radar detail with latest operator status message | Base | [radar-list] [not-updating] | P3 | planned | Level III Free Text Message (FTM) product, ICD 2620001 |
-| Nearest radar from my location | Base | [getting-started] | P3 | in progress | Done: radar list nearest-first from the map center with distances; a home point ("Set home", then click the map) that a first run opens near; "Nearest radar" command. Next: GeoClue location |
+| Nearest radar from my location | Base | [getting-started] | P3 | done | Radar list nearest-first from the map center with distances; a home point (Set home, then click the map, or "Use my location" through the XDG Location portal) that a first run opens near; "Nearest radar" command |
 | Auto radar selection as location changes (toggle) | Base | [advanced] | P3 | planned | |
 | Show TDWR sites (off by default) | Base | [advanced] [tdwr] | P5 | done | Listed in the radar picker ("· airport") and on the map. On by default (the owner asked for them); side sheet → Layers → "Airport radars (TDWR)" turns them off (a favorite TDWR stays). 44 of 47 published on 2026-10-28; TJBQ, TJRV and TPBI had no scans |
 | Show research radars (off by default) | Base | [advanced] [whatsnew57] | P5 | planned | Free public research feeds only; list TBD |
@@ -164,7 +164,7 @@ Sources (all public, read 2026-10-09):
 | Inspector: value under the pointer, with direction-to-radar indicator | T1 | [tools] [upgrading] | P2 | in progress | Hover card with value, beam height ARL, range/bearing from the radar (Phase 1). Distance from me arrives with location (P3); pin with `I` |
 | Distance tool with beam height, snapping to radar/spotters/reports | Base | [tools] | P3 | planned | |
 | Draw tool (freehand annotations) | Base | [tools] | P5 | planned | |
-| My location (GPS/platform location) | Base | [getting-started] | P3 | planned | GeoClue (D-Bus) on Linux |
+| My location (GPS/platform location) | Base | [getting-started] | P3 | done | Menu → "Use my location": one street-accuracy request to the XDG Location portal (GeoClue behind it, the desktop's own prompt), sets home and goes to the nearest radar. No background tracking |
 | Saved locations: add by search or current position, rename, reorder, delete | Base | [locations] | P3 | planned | Geocoding needs a free service. **Ask first** (phones home); offline fallback: Census places gazetteer |
 | Import/export locations as JSON (≤ 250) | Base | [locations] | P3 | planned | Same `name/lat/lon` shape, for interoperability |
 | Loop animation | Base | [getting-started] | P2 | done | Earlier volumes at the current tilt from the real-time bucket (only the chunks up to that tilt), newest first; plays oldest → live with a longer hold on live |

@@ -52,6 +52,8 @@ pub struct App {
     palettes_applied: u64,
     /// The dual-pol mask setting the uploaded sweeps were made with.
     mask_applied: bool,
+    /// A "Use my location" request in flight (location.rs).
+    locating: Option<mpsc::Receiver<Result<(f64, f64), String>>>,
     /// The satellite image last uploaded to the renderer.
     satellite_applied: Option<std::sync::Arc<Option<hookecho_core::goes::Image>>>,
 }
@@ -140,6 +142,7 @@ impl App {
             palettes_applied: u64::MAX,
             mask_applied: true,
             satellite_applied: None,
+            locating: None,
         }
     }
 
@@ -241,6 +244,38 @@ impl App {
     /// One frame: input → scene render → UI. `egui_renderer` is where the
     /// scene textures get registered for the UI to draw.
     /// Follows the selected site and takes the feed's news.
+    /// "Use my location": starts the portal request when asked, and on the
+    /// answer sets home there and goes to the nearest radar, or says why not.
+    fn poll_location(&mut self, ctx: &egui::Context) {
+        let now = ctx.input(|i| i.time);
+        let m = &mut self.model;
+        if std::mem::take(&mut m.locate_requested) && self.locating.is_none() {
+            let w = self.waker.clone();
+            let _ = self.waker.set(ctx.clone());
+            self.locating = Some(crate::location::locate(std::sync::Arc::new(move || {
+                if let Some(ctx) = w.get() {
+                    ctx.request_repaint();
+                }
+            })));
+            m.notice = Some(("Finding your location…".into(), now + model::NOTICE_S * 3.0));
+        }
+        let Some(r) = self.locating.as_ref().and_then(|rx| rx.try_recv().ok()) else {
+            return;
+        };
+        self.locating = None;
+        let text = match r {
+            Ok(at) => {
+                m.set_home(at);
+                let size = ctx.content_rect().size();
+                m.go_to_nearest([size.x as f64, size.y as f64]);
+                format!("Home set to your location · {}", m.site.id)
+            }
+            Err(why) => format!("{why} · Menu → Set home to click the map instead"),
+        };
+        m.notice = Some((text, now + model::NOTICE_S));
+        self.save_config();
+    }
+
     fn poll_feed(&mut self, ctx: &egui::Context) {
         let Some(feed) = &self.feed else { return };
         let _ = self.waker.set(ctx.clone());
@@ -287,6 +322,7 @@ impl App {
         self.poll_data();
         let ctx = ui.ctx().clone();
         self.poll_feed(&ctx);
+        self.poll_location(&ctx);
         self.take_dropped(&ctx);
         let screen = ctx.content_rect();
         let theme = Theme::get(self.theme_kind(&ctx));

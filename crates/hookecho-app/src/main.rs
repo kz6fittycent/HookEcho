@@ -15,6 +15,7 @@ mod commands;
 mod design;
 mod feeds;
 mod headless;
+mod location;
 mod model;
 mod overlays;
 mod palettes;

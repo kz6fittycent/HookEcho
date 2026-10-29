@@ -359,6 +359,8 @@ pub struct Model {
     pub notice: Option<(String, f64)>,
     /// "Set home" is waiting for a click on the map.
     pub placing_home: bool,
+    /// "Use my location" was chosen; the app starts the request (location.rs).
+    pub locate_requested: bool,
     /// The station pinned to the station panel by a click (stations.rs).
     pub pinned_station: Option<String>,
     /// Cached `no_precipitation` answer, keyed by (generation, sweep, palette version).
@@ -450,6 +452,7 @@ impl Model {
             palettes: crate::palettes::Library::load(None),
             notice: None,
             placing_home: false,
+            locate_requested: false,
             pinned_station: None,
             quiet: None,
             sheet: None,

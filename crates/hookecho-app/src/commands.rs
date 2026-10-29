@@ -52,6 +52,7 @@ pub enum Action {
     SitePicker,
     NearestRadar,
     SetHome,
+    UseMyLocation,
     ProductPicker,
     Sheet(SheetTab),
     Shortcuts,
@@ -186,6 +187,14 @@ pub fn all(model: &Model, query: &str) -> Vec<Command> {
         None,
         "local closest my area",
         Action::NearestRadar,
+    ));
+    v.push(cmd(
+        Group::Sites,
+        "Use my location",
+        "Set home where this computer is, then go to the nearest radar",
+        None,
+        "location gps geoclue where am i near me",
+        Action::UseMyLocation,
     ));
     v.push(cmd(
         Group::Sites,
@@ -638,6 +647,7 @@ pub fn run(model: &mut Model, action: &Action, view: [f64; 2], now: f64) {
         }
         Action::NearestRadar => model.go_to_nearest(view),
         Action::SetHome => model.placing_home = true,
+        Action::UseMyLocation => model.locate_requested = true,
         Action::ProductPicker => model.picker = Picker::Product,
         Action::Sheet(tab) => model.sheet = Some(model::Sheet::new(*tab)),
         Action::Shortcuts => model.picker = Picker::Shortcuts,
@@ -689,9 +699,12 @@ mod tests {
         let m = model();
         let empty = search(all(&m, ""), "");
         assert_eq!(empty[0].action, Action::NearestRadar);
-        assert_eq!(empty[1].action, Action::SetHome);
+        assert_eq!(empty[1].action, Action::UseMyLocation);
+        assert_eq!(empty[2].action, Action::SetHome);
         let found = search(all(&m, "home"), "home");
         assert_eq!(found[0].action, Action::SetHome);
+        let found = search(all(&m, "my location"), "my location");
+        assert_eq!(found[0].action, Action::UseMyLocation);
     }
 
     #[test]
