@@ -9,7 +9,9 @@ This file gives a public source for every data format, algorithm and bundled ass
 | NEXRAD Level II (Archive II, Message 31, Message 1 legacy) | NOAA ROC, *Interface Control Document for the RDA/RPG*, ICD 2620002 (latest revision), <https://www.roc.noaa.gov/interface-control-documents.php> | via `nexrad-decode` (MIT) |
 | NEXRAD Level II real-time chunk layout (`SITE/vol/YYYYMMDD-HHMMSS-seq-S/I/E`, volumes 1–999 in a ring; S = volume header + metadata record, I/E = one LDM record) | Unidata, *NEXRAD Level II real-time data on AWS*, <https://registry.opendata.aws/noaa-nexrad/>; verified against the live bucket 2026-10-10 | `hookecho-core::realtime`, `hookecho-core::live` |
 | S3 ListObjectsV2 (anonymous) | AWS S3 API reference, *ListObjectsV2*, <https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectsV2.html> | `hookecho-core::s3` |
-| NEXRAD Level III products | NOAA ROC, *ICD for the RPG to Class 1 User*, ICD 2620001 | `hookecho-core::level3` (planned) |
+| NEXRAD Level III products (WMO/AWIPS text header, Message Header and Product Description Blocks, bzip2 symbology block, Digital Radial Data Array packet 16) | NOAA ROC, *ICD for the RPG to Class 1 User*, ICD 2620001 Rev AD (Build 24.0), §3.3, Figures 3-3, 3-6 and 3-11c, <https://www.roc.noaa.gov/public-documents/icds/2620001AD.pdf> | `hookecho-core::level3` |
+| TDWR Level III products 180/182/186 (base reflectivity, base velocity, long-range reflectivity; 150 m and 300 m gates) | NOAA ROC, *ICD for the SPG to AWIPS Class 1 User*, ICD 2620063 (Rev E, Build 12.0); gate spacing cross-checked against MetPy 1.7.1's product table (90 and 416 km over 592 and 1390 bins). The ROC site was unreachable when the decoder was written (2026-10-28): re-check the gate spacing against 2620063 itself | `hookecho-core::level3` |
+| TDWR Level III files (`DAL_TZ0_YYYY_MM_DD_HH_MM_SS`: three-letter site, product, volume time) | Unidata, `s3://unidata-nexrad-level3/` (approved in Phase 0), checked 2026-10-28: about 180 files per product per day for TDAL and TDFW | `tests/data/level3/` |
 | NEXRAD site list | NOAA NCEI HOMR, *nexrad-stations.txt*, <https://www.ncei.noaa.gov/access/homr/file/nexrad-stations.txt> | `hookecho-data sites` → `crates/hookecho-core/data/sites.tsv` |
 | Archive II file layout (volume header, LDM bzip2 records, uncompressed 2432-byte segments) | NOAA ROC ICD 2620010 (Archive II/User); cross-checked against MetPy `metpy/io/nexrad.py` | `tools/trim_level2.py` |
 | GRLevelX color table (`.pal`) | Gibson Ridge Software, *Color Table File Specification* (public), plus the extensions publicly documented in the commercial viewer's help center (Color4, SolidColor4, masks, indexed `???` units) | `crates/hookecho-core/src/pal.rs` (masks and indexed units not yet) |
@@ -30,6 +32,7 @@ This file gives a public source for every data format, algorithm and bundled ass
 | Item | Source | Used in |
 |---|---|---|
 | Level II gate-by-gate reference | MetPy 1.7.1 (BSD-3-Clause), `Level2File`, via `tools/verify/dump_metpy.py` | `tests/data/*.metpy.json`, `crates/hookecho-core/tests/level2_vs_metpy.rs` |
+| Level III (TDWR) reference: position, time, elevation, data scaling, radial angles, SHA-256 of the raw codes | MetPy 1.7.1 (BSD-3-Clause), `Level3File`, via `tools/verify/dump_metpy_level3.py` | `tests/data/level3/*.metpy.json`, `crates/hookecho-core/tests/level3_vs_metpy.rs` |
 
 ## Bundled assets
 

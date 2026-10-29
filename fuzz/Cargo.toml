@@ -38,3 +38,9 @@ name = "pal_parse"
 path = "fuzz_targets/pal_parse.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "level3_decode"
+path = "fuzz_targets/level3_decode.rs"
+test = false
+doc = false

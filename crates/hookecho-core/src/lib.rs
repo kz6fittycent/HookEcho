@@ -7,6 +7,7 @@ pub mod config;
 pub mod frames;
 pub mod geo;
 pub mod level2;
+pub mod level3;
 pub mod live;
 pub mod moment;
 pub mod pal;
