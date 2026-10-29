@@ -199,6 +199,10 @@ The **progressive sweep** state lives in the scrubber. The newest tick is drawn 
 
 A compact glass card bottom-right showing the color bar for the current product. The bar is 12 px tall with 4–6 value ticks and units in `text.tertiary`. Hovering the bar shows the value under the pointer. It collapses to a 4 px strip during loop playback if the window is under 1000 px wide.
 
+### 3.4.1 Active-layer chips
+
+Above the legend, right-aligned: one small glass pill (`size.layer_chip_h`, `radius.full`) for each overlay that's on: satellite, SPC outlook, aurora, station plots. Each says what it is and ends in an **×** that turns it off; a right-click anywhere on the pill does the same; the name opens Layers. Owner, testing (2026-10-29): anything on the map must be easy to get rid of, without knowing where its switch lives. In the Menu, a layer row that's on says "On · click to turn off" and does.
+
 ### 3.5 Inspector
 
 A floating card that follows the pointer, offset 16 px right and below. It flips to stay on screen. No click is needed (hover on desktop, long-press on touch). Contents:

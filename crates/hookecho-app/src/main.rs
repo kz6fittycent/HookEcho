@@ -16,6 +16,7 @@ mod design;
 mod dock;
 mod feeds;
 mod headless;
+mod layer_chips;
 mod location;
 mod model;
 mod overlays;

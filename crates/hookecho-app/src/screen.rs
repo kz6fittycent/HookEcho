@@ -395,6 +395,16 @@ pub fn paint(ui: &mut Ui, kit: &mut Kit, model: &mut Model, scene: egui::Texture
     );
     let compact = area.width() < size::COMPACT_BREAKPOINT;
     let legend_rect = legend(ui, kit, model, &painter, area, m, compact);
+    // What's on the map, each with a way to turn it off.
+    crate::layer_chips::draw(
+        ui,
+        kit,
+        model,
+        &painter,
+        legend_rect.max.x,
+        legend_rect.min.y - space::S2,
+        area.min.x + m,
+    );
     timeline(ui, kit, model, &painter, area, m, compact, legend_rect);
     crate::stations::floating(ui, kit, model, &painter, area, m);
     if let Inspect::Hover(at) | Inspect::Pinned(at) = model.inspect {

@@ -381,6 +381,136 @@ mod tests {
     }
 
     #[test]
+    fn aurora_toggles_off_again() {
+        let Ok(mut o) = Offscreen::new(None, SIZE) else {
+            eprintln!("no GPU adapter; skipped");
+            return;
+        };
+        o.frame(SIZE, 1.0, Vec::new());
+        // From the Menu's Layers tab, by clicking the row, twice.
+        for want in [true, false] {
+            crate::overlays::open_command(&mut o.app.model);
+            o.frame(SIZE, 1.0, Vec::new());
+            click(&mut o, egui::Id::new("command-groups").with(3));
+            let rows = crate::commands::search(
+                crate::commands::all_in(&o.app.model, "", Some(crate::commands::Group::Layers)),
+                "",
+            );
+            let (i, c) = rows
+                .iter()
+                .enumerate()
+                .find(|(_, c)| c.label == "Aurora forecast")
+                .unwrap();
+            eprintln!("row {i}: {} · {}", c.label, c.hint);
+            // Scroll it into view, then click it.
+            let id = egui::Id::new(("command", i, &c.label));
+            for _ in 0..30 {
+                let visible = o
+                    .ctx
+                    .read_response(id)
+                    .is_some_and(|r| r.rect.height() >= 30.0);
+                if visible {
+                    break;
+                }
+                let p = egui::pos2(SIZE[0] / 2.0, 400.0);
+                o.frame(
+                    SIZE,
+                    1.0,
+                    vec![
+                        egui::Event::PointerMoved(p),
+                        egui::Event::MouseWheel {
+                            unit: egui::MouseWheelUnit::Point,
+                            delta: egui::vec2(0.0, -60.0), // design-ok: a test wheel event
+                            phase: egui::TouchPhase::Move,
+                            modifiers: Default::default(),
+                        },
+                    ],
+                );
+            }
+            click(&mut o, id);
+            eprintln!(
+                "after click: aurora {} picker {:?}",
+                o.app.model.config.aurora, o.app.model.picker
+            );
+            assert_eq!(o.app.model.config.aurora, want, "menu");
+        }
+        // And what's drawn follows: green over Canada with it on, none off.
+        o.app.model.layers.space = std::sync::Arc::new(crate::space::sample().unwrap());
+        o.app.model.camera = hookecho_core::geo::Camera::looking_at(62.0, -100.0, 5000.0, 1280.0);
+        o.app.model.motion.zoom_target = o.app.model.camera.scale;
+        let green = |o: &mut Offscreen| {
+            let (_, _, px) = o.capture(SIZE, 1.0);
+            px.chunks(4)
+                .filter(|p| p[1] as i32 > p[0] as i32 + 20 && p[1] as i32 > p[2] as i32 + 20)
+                .count()
+        };
+        o.app.model.config.aurora = true;
+        let on = green(&mut o);
+        o.app.model.config.aurora = false;
+        let off = green(&mut o);
+        assert!(on > off * 2, "on {on} off {off}");
+        // From the sheet, twice.
+        let mut sheet = crate::model::Sheet::new(crate::model::SheetTab::Layers);
+        sheet.scroll = 400.0;
+        o.app.model.sheet = Some(sheet);
+        o.frame(SIZE, 1.0, Vec::new());
+        o.frame(SIZE, 1.0, Vec::new());
+        for want in [true, false] {
+            // The click's own frame changes the setting after the map is
+            // drawn, so that frame must ask for another.
+            let r = o
+                .ctx
+                .read_response(egui::Id::new(("sheet", "aurora")))
+                .unwrap()
+                .rect;
+            let ev = |pressed| egui::Event::PointerButton {
+                pos: r.center(),
+                button: egui::PointerButton::Primary,
+                pressed,
+                modifiers: Default::default(),
+            };
+            o.frame(SIZE, 1.0, vec![egui::Event::PointerMoved(r.center())]);
+            o.frame(SIZE, 1.0, vec![ev(true), ev(false)]);
+            assert_eq!(o.app.model.config.aurora, want, "sheet");
+            assert!(o.ctx.has_requested_repaint(), "a repaint is asked for");
+        }
+    }
+
+    /// Each overlay that's on has a chip above the legend: its × turns it
+    /// off, and so does a right-click on the chip.
+    #[test]
+    fn layer_chips_turn_layers_off() {
+        let Ok(mut o) = Offscreen::new(None, SIZE) else {
+            eprintln!("no GPU adapter; skipped");
+            return;
+        };
+        o.app.model.config.aurora = true;
+        o.app.model.config.satellite = Some("infrared".into());
+        o.frame(SIZE, 1.0, Vec::new());
+        click(&mut o, egui::Id::new(("layer-chip-x", "aurora")));
+        assert!(!o.app.model.config.aurora, "the × turns it off");
+        let r = o
+            .ctx
+            .read_response(egui::Id::new(("layer-chip", "satellite")))
+            .expect("satellite chip")
+            .rect;
+        let ev = |pressed| egui::Event::PointerButton {
+            pos: r.center(),
+            button: egui::PointerButton::Secondary,
+            pressed,
+            modifiers: Default::default(),
+        };
+        o.frame(SIZE, 1.0, vec![egui::Event::PointerMoved(r.center())]);
+        o.frame(SIZE, 1.0, vec![ev(true), ev(false)]);
+        o.frame(SIZE, 1.0, Vec::new());
+        assert_eq!(o.app.model.config.satellite, None, "right-click too");
+        assert!(
+            crate::layer_chips::active(&o.app.model).is_empty(),
+            "no chips left"
+        );
+    }
+
+    #[test]
     fn pickers_respond_to_clicks() {
         let Ok(mut o) = Offscreen::new(None, SIZE) else {
             eprintln!("no GPU adapter; skipped");

@@ -173,6 +173,9 @@ pub const SHORTCUTS: &[ShortcutGroup] = &[
     ),
 ];
 
+/// The hint on a layer that's on: what a click will do.
+const ON: &str = "On · click to turn off";
+
 /// Every command for the current state, or one group's (`None`: all). In
 /// "All", sites come only from a query (200 rows would bury everything
 /// else), except favorites; browsing Radars lists every radar, nearest the
@@ -280,28 +283,20 @@ fn everything(model: &Model, query: &str, browse_sites: bool) -> Vec<Command> {
         .satellite
         .as_deref()
         .and_then(hookecho_core::goes::Band::from_key);
+    // A row that's on turns its layer off.
     for band in hookecho_core::goes::Band::ALL {
+        let on = sat == Some(band);
         v.push(cmd(
             Group::Layers,
             format!("Satellite: {}", band.name().to_lowercase()),
-            if sat == Some(band) {
-                "Shown"
+            if on {
+                ON
             } else {
-                "GOES-East under the radar"
+                "Off · GOES-East under the radar"
             },
             None,
-            "goes satellite clouds imagery",
-            Action::Satellite(Some(band)),
-        ));
-    }
-    if sat.is_some() {
-        v.push(cmd(
-            Group::Layers,
-            "Satellite off",
-            "",
-            None,
-            "goes satellite hide",
-            Action::Satellite(None),
+            "goes satellite clouds imagery hide",
+            Action::Satellite((!on).then_some(band)),
         ));
     }
     let outlook_day = c
@@ -310,31 +305,22 @@ fn everything(model: &Model, query: &str, browse_sites: bool) -> Vec<Command> {
         .and_then(hookecho_core::spc::Product::from_key)
         .map(|p| p.day());
     for day in 1..=3u8 {
+        let on = outlook_day == Some(day);
         v.push(cmd(
             Group::Layers,
             format!("SPC outlook, day {day}"),
-            if outlook_day == Some(day) {
-                "Shown"
+            if on {
+                ON
             } else {
-                "Severe weather risk areas"
+                "Off · severe weather risk areas"
             },
             None,
-            "convective outlook risk categorical tornado hail wind",
-            Action::Outlook(Some(day)),
-        ));
-    }
-    if outlook_day.is_some() {
-        v.push(cmd(
-            Group::Layers,
-            "SPC outlook off",
-            "",
-            None,
-            "convective outlook hide",
-            Action::Outlook(None),
+            "convective outlook risk categorical tornado hail wind hide",
+            Action::Outlook((!on).then_some(day)),
         ));
     }
     let map = model.config.map;
-    let state = |on: bool| if on { "Shown" } else { "Hidden" };
+    let state = |on: bool| if on { ON } else { "Off" };
     for (layer, name, on, kw) in [
         (
             Layer::Warnings,
@@ -859,6 +845,15 @@ mod tests {
             .unwrap();
         run(&mut m, &ir.action.clone(), [1280.0, 800.0], 0.0);
         assert_eq!(m.config.satellite.as_deref(), Some("infrared"));
+        // The same row, now on, turns it off.
+        let again = search(all_in(&m, "", Some(Group::Layers)), "");
+        let ir = again
+            .iter()
+            .find(|c| c.label == "Satellite: infrared")
+            .unwrap();
+        assert_eq!(ir.hint, ON);
+        run(&mut m, &ir.action.clone(), [1280.0, 800.0], 0.0);
+        assert_eq!(m.config.satellite, None);
         let day2 = search(all_in(&m, "outlook", None), "outlook");
         let d2 = day2
             .iter()

@@ -452,6 +452,7 @@ impl App {
             screen,
         };
         let before = self.model.config.clone();
+        let picker_before = self.model.picker.clone();
         screen::paint(ui, &mut kit, &mut self.model, scene);
         self.model.chrome = kit
             .panels
@@ -459,6 +460,12 @@ impl App {
             .iter()
             .map(|r| [r.min.x, r.min.y, r.max.x, r.max.y])
             .collect();
+        // The map was drawn before the controls that changed this frame:
+        // draw again, or a switched-off layer stays on screen until the
+        // next input (owner, testing: the aurora "wouldn't turn off").
+        if before != self.model.config || picker_before != self.model.picker {
+            ui.ctx().request_repaint();
+        }
         if before != self.model.config {
             self.save_config();
         }
