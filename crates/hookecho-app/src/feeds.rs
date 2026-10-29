@@ -4,6 +4,7 @@
 
 use crate::model::Model;
 use hookecho_core::alerts::{Alert, AlertSource};
+use hookecho_core::obs::{Obs, ObsSource, Wanted};
 use hookecho_core::poll::Feed;
 use hookecho_core::spc::{Spc, SpcSource};
 use std::path::PathBuf;
@@ -14,13 +15,19 @@ pub type Wake = Arc<dyn Fn() + Send + Sync>;
 pub struct Feeds {
     alerts: Feed<Vec<Alert>>,
     spc: Feed<Spc>,
+    obs: Feed<Obs>,
+    /// The station the panel shows, for its history.
+    wanted: Wanted,
 }
 
 impl Feeds {
     pub fn start(cache: PathBuf, wake: Wake) -> Feeds {
+        let wanted = Wanted::default();
         Feeds {
             alerts: Feed::start(AlertSource::default(), cache.clone(), wake.clone()),
-            spc: Feed::start(SpcSource::new(), cache, wake),
+            spc: Feed::start(SpcSource::new(), cache.clone(), wake.clone()),
+            obs: Feed::start(ObsSource::new(wanted.clone()), cache, wake),
+            wanted,
         }
     }
 
@@ -30,9 +37,21 @@ impl Feeds {
         self.alerts.enable(c.warnings);
         self.spc
             .enable(c.watches || c.discussions || c.outlook.is_some());
+        self.obs.enable(c.station_plots || c.station_panel);
+        let want = c
+            .station_panel
+            .then(|| crate::stations::panel_station(model).map(|o| o.id.clone()))
+            .flatten();
+        if let Ok(mut w) = self.wanted.lock()
+            && *w != want
+        {
+            *w = want;
+            self.obs.poll_now();
+        }
         let d = &mut model.layers;
         take(&self.alerts, &mut d.alerts, &mut d.alerts_trouble);
         take(&self.spc, &mut d.spc, &mut d.spc_trouble);
+        take(&self.obs, &mut d.obs, &mut d.obs_trouble);
     }
 }
 

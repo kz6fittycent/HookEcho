@@ -375,6 +375,33 @@ pub fn run(dir: &Path) -> Result<(), String> {
         }
         o.app.model.picker = Picker::None;
         o.app.model.config.outlook = None;
+        o.app.model.layers.spc = Default::default();
+    }
+    // Surface observations: station plots around Oklahoma City and the
+    // station panel (recorded reports, moved to now).
+    if let Some(obs) = crate::stations::sample() {
+        let m = &mut o.app.model;
+        m.layers.obs = std::sync::Arc::new(obs);
+        m.config.station_plots = true;
+        m.config.station_panel = true;
+        m.config.home = Some((35.47, -97.52));
+        m.camera = Camera::looking_at(35.6, -97.4, 520.0, SIZE[0] as f64);
+        m.motion.zoom_target = m.camera.scale;
+        for (theme, name) in [
+            (ThemeKind::Dark, "24-surface-obs"),
+            (ThemeKind::Light, "25-surface-obs-light"),
+        ] {
+            o.app.theme_override = Some(theme);
+            let (w, h, px) = o.capture(SIZE, PPP);
+            let path = dir.join(format!("{name}.png"));
+            image::RgbaImage::from_raw(w, h, px)
+                .ok_or("bad image")?
+                .save(&path)
+                .map_err(|e| e.to_string())?;
+            println!("wrote {}", path.display());
+        }
+        o.app.model.config.station_plots = false;
+        o.app.model.config.home = None;
     }
     Ok(())
 }

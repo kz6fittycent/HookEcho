@@ -11,6 +11,7 @@ pub mod level2;
 pub mod level3;
 pub mod live;
 pub mod moment;
+pub mod obs;
 pub mod pal;
 pub mod paths;
 pub mod poll;

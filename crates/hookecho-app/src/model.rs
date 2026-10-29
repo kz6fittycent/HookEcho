@@ -258,6 +258,9 @@ pub struct LayerData {
     /// SPC outlooks, watches and MDs (hookecho-core::spc).
     pub spc: std::sync::Arc<hookecho_core::spc::Spc>,
     pub spc_trouble: Option<String>,
+    /// Surface observations (hookecho-core::obs).
+    pub obs: std::sync::Arc<hookecho_core::obs::Obs>,
+    pub obs_trouble: Option<String>,
     /// The shown outlook, tessellated (spc.rs).
     pub outlook_mesh: std::cell::RefCell<crate::spc::OutlookCache>,
 }
@@ -344,6 +347,8 @@ pub struct Model {
     pub notice: Option<(String, f64)>,
     /// "Set home" is waiting for a click on the map.
     pub placing_home: bool,
+    /// The station pinned to the station panel by a click (stations.rs).
+    pub pinned_station: Option<String>,
     /// Cached `no_precipitation` answer, keyed by (generation, sweep, palette version).
     quiet: Option<((u64, usize, u64), bool)>,
     pub sheet: Option<Sheet>,
@@ -433,6 +438,7 @@ impl Model {
             palettes: crate::palettes::Library::load(None),
             notice: None,
             placing_home: false,
+            pinned_station: None,
             quiet: None,
             sheet: None,
             chrome: Vec::new(),
@@ -956,7 +962,7 @@ fn expected_volume_s(vcp: u16) -> i64 {
     }
 }
 
-fn ago(age_s: i64) -> String {
+pub fn ago(age_s: i64) -> String {
     match age_s {
         s if s < 120 => "Live".to_string(),
         s if s < 3600 => format!("{} min ago", s / 60),

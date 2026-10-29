@@ -118,7 +118,7 @@ Sources (all public, read 2026-10-09):
 | MRMS national mosaic products | T2 | [upgrading] [whatsnew57] | P5 | planned | `noaa-mrms-pds` on AWS (free) |
 | GOES satellite layers | T2 | [upgrading] | P5 | planned | `noaa-goes18/19` on AWS (free) |
 | RTMA surface analysis | T2 | [appstore] | P5 | planned | NODD (free) |
-| Surface observations | T2 | [appstore] | P5 | planned | aviationweather.gov METAR API (free). Owner request (2026-10-10): part of a full "command center" (see §7). **Ask first** (new endpoint) |
+| Surface observations | T2 | [appstore] | P5 | done | aviationweather.gov METARs (owner-approved 2026-10-29): station plots (temperature, dewpoint, wind barb) when zoomed in; click one to pin it to the station panel. Layers → Surface observations |
 | ProbSevere | T2 | [appstore] | P5 | planned | NOAA/CIMSS public feed; confirm terms |
 | Soundings and hodographs | T2 | [upgrading] [appstore] | P5 | planned | Model soundings from NODD GRIB2; RAOB from a free NOAA source |
 
@@ -220,7 +220,7 @@ Requests users raise against other viewers (mainly [Supercell Wx issues][scwx]) 
 | GeoJSON / KML / shapefile overlays | [scwx] #638, #655, #514 | P5+ | planned | |
 | Vertical cross-section tool | [scwx] #403 | P5+ | planned | We have the full L2 volume on the GPU |
 | Hide dual-pol noise: CC, ZDR and PHI only where there's echo (on by default; side sheet → Layers, command palette) | Owner review (Phase 1 follow-up) | P2 | done | Co-located reflectivity ≥ 5 dBZ; the inspector follows the same rule |
-| "Command center": a station panel beside the radar with temperature, dewpoint, pressure and its trend, wind and gusts, visibility, plus nearby observations on the map | Owner request (2026-10-10) | P5 | planned | Free, no-account sources only (e.g. METARs, NWS station observations, RTMA); each new endpoint needs the owner's approval first |
+| "Command center": a station panel beside the radar with temperature, dewpoint, pressure and its trend, wind and gusts, visibility, plus nearby observations on the map | Owner request (2026-10-10) | P5 | in progress | Done: the station panel (bottom left, the station nearest home or the map center, or a pinned one) with temperature, dew point and RH, wind and gusts, pressure with its 3-hour trend, visibility and weather; station plots on the map. Next: more stations at once, history graphs |
 | Command palette (Ctrl+K or the search button): every site, product, layer, action, setting and palette by typing, fuzzy matched and grouped | KICKOFF §5 | P2 | done | Enter runs the top match; arrows move; Esc closes |
 | Says so when there's little or no precipitation in range (clear air), so a blank map doesn't look broken | Owner feedback (CFT #8) | P2 | done | Under 20 km² of drawn reflectivity in runs of 1 km or more, so clutter speckle doesn't count |
 | Rotational velocity / NROT readout in the inspector | [scwx] #160, #206 | P5+ | planned | |

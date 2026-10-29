@@ -73,7 +73,8 @@ fn markers(model: &Model, screen: Rect) -> Vec<(&'static sites::Site, Pos2, bool
         .collect()
 }
 
-/// Rects the renderer keeps free of place labels: chrome and site markers.
+/// Rects the renderer keeps free of place labels: chrome, site markers and
+/// station plots.
 pub fn label_exclusions(model: &Model, screen: Rect) -> Vec<[f32; 4]> {
     let mut v: Vec<[f32; 4]> = chrome_bands(screen)
         .iter()
@@ -88,6 +89,11 @@ pub fn label_exclusions(model: &Model, screen: Rect) -> Vec<[f32; 4]> {
         };
         v.push([p.x - hw + off, p.y - hh, p.x + hw + off, p.y + hh]);
     }
+    v.extend(crate::stations::label_exclusions(
+        model,
+        screen,
+        view_size(screen),
+    ));
     if model.sheet.is_some() {
         let r = crate::sheet::sheet_rect(screen, margin(screen));
         v.push([r.min.x, r.min.y, r.max.x, r.max.y]);
@@ -172,10 +178,14 @@ pub fn map_input(ui: &mut Ui, model: &mut Model, screen: Rect) -> bool {
         && matches!(model.picker, Picker::None | Picker::Warnings { .. })
         && let Some(p) = pointer
     {
-        let at = model
-            .camera
-            .screen_to_latlon([p.x as f64, p.y as f64], size);
-        crate::warnings::click(model, at);
+        // A station plot pins that station to the panel (stations.rs).
+        let screen = Rect::from_min_size(pos2(0.0, 0.0), vec2(size[0] as f32, size[1] as f32));
+        if !crate::stations::click(model, screen, p, size) {
+            let at = model
+                .camera
+                .screen_to_latlon([p.x as f64, p.y as f64], size);
+            crate::warnings::click(model, at);
+        }
     }
     // Double-click zooms in on the point (DESIGN §3, parity: map interaction).
     if resp.double_clicked()
@@ -355,6 +365,7 @@ pub fn paint(ui: &mut Ui, kit: &mut Kit, model: &mut Model, scene: egui::Texture
     crate::spc::draw_outlook(model, &painter, view_size(screen));
     crate::spc::draw_outlines(kit, model, &painter, view_size(screen));
     crate::warnings::draw(kit, model, &painter, view_size(screen));
+    crate::stations::draw(kit, model, &painter, view_size(screen));
     home_marker(kit, model, &painter);
     site_markers(ui, kit, model, &painter);
     let m = margin(screen);
@@ -375,6 +386,7 @@ pub fn paint(ui: &mut Ui, kit: &mut Kit, model: &mut Model, scene: egui::Texture
     let compact = screen.width() < size::COMPACT_BREAKPOINT;
     let legend_rect = legend(ui, kit, model, &painter, screen, m, compact);
     timeline(ui, kit, model, &painter, screen, m, compact, legend_rect);
+    crate::stations::panel(ui, kit, model, &painter, m);
     if let Inspect::Hover(at) | Inspect::Pinned(at) = model.inspect {
         inspector(kit, model, &painter, at);
     }

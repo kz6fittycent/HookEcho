@@ -236,6 +236,18 @@ fn layers(ui: &mut Ui, kit: &mut Kit, model: &mut Model, b: &mut Body) {
     }
     b.gap();
     spc_layers(ui, kit, model, b);
+    b.gap();
+    b.eyebrow(kit, "SURFACE OBSERVATIONS");
+    let c = &mut model.config;
+    c.station_panel = b.toggle(ui, kit, "station-panel", "Station panel", c.station_panel);
+    b.hint(kit, "Conditions at the station nearest home");
+    c.station_plots = b.toggle(ui, kit, "station-plots", "Station plots", c.station_plots);
+    match &model.layers.obs_trouble {
+        Some(_) if c.station_plots || c.station_panel => {
+            b.hint(kit, "Can't reach aviationweather.gov; retrying")
+        }
+        _ => b.hint(kit, "Zoom in to see them; click one to pin it"),
+    }
 }
 
 /// Watches, MDs and the outlook picker: a day, then a kind for that day.

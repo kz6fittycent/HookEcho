@@ -4,6 +4,7 @@
 pub mod components;
 pub mod hazards;
 pub mod icons;
+pub mod stations;
 pub mod tokens;
 
 use crate::assets;

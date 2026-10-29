@@ -109,6 +109,10 @@ pub struct Config {
     /// The SPC outlook drawn under the radar, by `spc::Product::key`; none
     /// by default.
     pub outlook: Option<String>,
+    /// Station plots (temperature, dewpoint, wind) on the map.
+    pub station_plots: bool,
+    /// The station panel: the nearest station's conditions.
+    pub station_panel: bool,
 }
 
 impl Default for Config {
@@ -135,6 +139,8 @@ impl Default for Config {
             watches: true,
             discussions: true,
             outlook: None,
+            station_plots: false,
+            station_panel: true,
         }
     }
 }

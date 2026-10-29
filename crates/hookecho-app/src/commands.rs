@@ -35,6 +35,8 @@ pub enum Layer {
     Warnings,
     Watches,
     Discussions,
+    StationPlots,
+    StationPanel,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -244,6 +246,18 @@ pub fn all(model: &Model, query: &str) -> Vec<Command> {
             "Mesoscale discussions",
             c.discussions,
             "spc md mcd",
+        ),
+        (
+            Layer::StationPlots,
+            "Station plots",
+            c.station_plots,
+            "surface observations metar temperature dewpoint wind",
+        ),
+        (
+            Layer::StationPanel,
+            "Station panel",
+            c.station_panel,
+            "command center conditions pressure visibility",
         ),
         (Layer::Counties, "County lines", map.counties, "borders"),
         (Layer::Roads, "Highways", map.roads, "roads interstates"),
@@ -588,6 +602,8 @@ pub fn run(model: &mut Model, action: &Action, view: [f64; 2], now: f64) {
                 Layer::Warnings => &mut c.warnings,
                 Layer::Watches => &mut c.watches,
                 Layer::Discussions => &mut c.discussions,
+                Layer::StationPlots => &mut c.station_plots,
+                Layer::StationPanel => &mut c.station_panel,
             };
             *f = !*f;
         }
