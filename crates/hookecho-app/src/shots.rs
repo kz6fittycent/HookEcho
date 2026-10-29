@@ -475,10 +475,17 @@ pub fn run(dir: &Path) -> Result<(), String> {
 /// `--live-screenshot FILE [SITE]` (developer check): the real live feed,
 /// offscreen. Waits up to 90 s for network data, then saves one PNG.
 pub fn live(file: &Path, site: Option<&str>) -> Result<(), String> {
-    let dir = std::env::temp_dir().join(format!("hookecho-live-{}", std::process::id()));
-    let dirs = hookecho_core::paths::Dirs {
-        config: dir.join("config"),
-        cache: dir.join("cache"),
+    // A scratch config, unless HOOKECHO_HOME names one (to check layers
+    // switched on there).
+    let scratch = std::env::var_os("HOOKECHO_HOME")
+        .is_none()
+        .then(|| std::env::temp_dir().join(format!("hookecho-live-{}", std::process::id())));
+    let dirs = match &scratch {
+        Some(dir) => hookecho_core::paths::Dirs {
+            config: dir.join("config"),
+            cache: dir.join("cache"),
+        },
+        None => hookecho_core::paths::Dirs::resolve().ok_or("no HOOKECHO_HOME dirs")?,
     };
     let mut o = Offscreen::with_source(Some(dirs), SIZE, crate::app::Source::Live)?;
     o.app.model.reduced_motion = true;
@@ -494,8 +501,11 @@ pub fn live(file: &Path, site: Option<&str>) -> Result<(), String> {
             - deadline
                 .saturating_duration_since(std::time::Instant::now())
                 .as_secs();
+        // The satellite image too, when that layer is on.
+        let m = &o.app.model;
+        let layers_ready = m.config.satellite.is_none() || crate::satellite::shown(m).is_some();
         if let Some(l) = o.app.model.loaded_here()
-            && (frames >= 3 || waited > 45)
+            && ((frames >= 3 && layers_ready) || waited > 45)
         {
             if let Some(i) = &l.live {
                 eprintln!(
@@ -537,7 +547,9 @@ pub fn live(file: &Path, site: Option<&str>) -> Result<(), String> {
                 .save(file)
                 .map_err(|e| e.to_string())?;
             println!("wrote {}", file.display());
-            let _ = std::fs::remove_dir_all(&dir);
+            if let Some(dir) = &scratch {
+                let _ = std::fs::remove_dir_all(dir);
+            }
             return Ok(());
         }
         std::thread::sleep(std::time::Duration::from_millis(250));
