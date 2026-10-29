@@ -45,46 +45,33 @@ assets/                  fonts, icons, sample data (large samples are fetched, n
 
 ## Status (keep this current)
 
-**Phase 2 complete; awaiting owner sign-off before Phase 3 (2026-10-10).** Public repo: https://github.com/kz6fittycent/HookEcho. Phases 0–2 are merged (last merge: PR #15, `aefa23d`).
+**Phase 2 signed off by the owner (2026-10-29). Phase 3 in progress.** Public repo: https://github.com/kz6fittycent/HookEcho. Last merge to `main`: PR #27 (`b102f77`, radar data refresh).
 
 - Phase 0 was approved: design, the `bzip2-1.0.6` exception, and KDP from Level III.
-- `BSL-1.0` was approved on 2026-10-10, then dropped the same day along with Windows.
 - **Linux only** (owner, 2026-10-10).
-- The snap is registered and the store secret exists. Each push to `main` uploads a candidate and opens a call-for-testing issue. Revision 1 was sample-only; revision 2 brought live radar (CFT #8); revision 3 is PR #7.
+- The snap is registered and the store secret exists. Each push to `main` uploads a candidate and opens a call-for-testing issue (latest: revision 11, CFT #26, closed).
+- **Endpoints approved 2026-10-29** ("all are approved"): api.weather.gov, spc.noaa.gov, aviationweather.gov, services.swpc.noaa.gov, `noaa-goes19` on AWS. All free, no accounts. If a service ever needs money or a key, the owner says to pass that on to the user; none does today.
 
-Phase 2 done:
-- Real-time chunks from `unidata-nexrad-level2-chunks`, progressive sweeps, offline chunk cache, scan-age status (PR #5).
-- Loop and timeline, plain-language product picker, color palettes and GRLevelX `.pal` import (drag and drop; snap `home` plug), a "little or no rain" notice for clear air (PR #7).
-- Side sheet: Layers / Colors / Settings (PR #9).
-- Command palette (Ctrl+K, search button) and the `?` shortcuts sheet (PR #12).
-- Wind speed units, legend hover value, dual-pol noise mask, place labels ranked by population (PR #13).
-- Removing imported palettes, map text size (PR #15).
+Done before 2026-10-29 (merged): Phases 0–2; owner fixes 1–3 (icon PR #17; start near the user PR #18; TDWR PRs #21, #22, #24); NWS storm-based warnings (PR #24).
 
-Owner requests for later: a full "command center" with surface obs (temperature, dewpoint, pressure and trend, wind, visibility). P5 in FEATURE_PARITY; needs approval for each new data endpoint.
+**Branch `feat/data-layers` (2026-10-29, not pushed yet: ask first).** One commit per layer, owner's order 1–5 plus location:
+1. Watches (SPC outlines) finish data layer 1.
+2. SPC outlooks (days 1–3), watches and MDs: `hookecho-core::spc`, `hookecho-app::spc`; Layers → Storm Prediction Center. `hookecho-core::poll` is the shared polling thread + conditional-GET client; alerts moved onto it.
+3. Surface obs / command center: `hookecho-core::obs` (AWC METAR cache file + Data API history), `hookecho-app::stations` (station plots, station panel bottom left).
+4. GOES-East satellite: `hookecho-core::goes` (hdf5-pure), a satellite pass in `hookecho-render` (per-pixel fixed-grid projection), `design/satellite.rs`. Bands 1 (visible, 1 km), 9, 13. Band 2 skipped: 65 MB a scan.
+5. Space weather: `hookecho-core::space` (SWPC), `hookecho-app::space` (Menu → Space weather card; Layers → Aurora forecast).
+6. "Use my location": option A of `docs/LOCATION.md` (XDG portal via `ashpd`); snap's `location-observe` plug dropped. Error path tested (location off on the dev machine); the success path needs the owner to try it.
+New dependencies: `hdf5-pure` =0.47.0, `ashpd` =0.13.13 (both MIT/Apache, `cargo deny` clean). Screenshots 22–29 in `target/shots/p3/` (29 needs `HOOKECHO_GOES_FILE`).
 
-**Owner fixes before Phase 3 (2026-10-28), one PR each:**
-1. Done (PR #17, revision 7): new app icon, a red/green velocity-couplet swirl in a counter-clockwise arrow (Northern Hemisphere rotation: green left, red right, with the radar to the south; keep the arrow counter-clockwise). Also security updates (rustls, rustls-webpki, tokio).
-2. Done (PR #18, revision 8): start near the user. Nearest-first radar list from the map center, Menu → Set home (click the map), Menu → Nearest radar, a labeled Menu button. Still to do: "Use my location". Proposal in `docs/LOCATION.md` (recommends the XDG Location portal via `ashpd`); waiting on the owner's pick before any code.
-3. TDWR: decoder (`hookecho-core::level3`, MetPy byte-exact) and app integration (`hookecho-core::tdwr`, live + loop + picker) as two stacked PRs. Merged (PR #21, #22). Then (PR #24): long range (TZL, a second sweep at the same angle; Layers → "Airport radar long range") and an on/off switch (Layers → "Airport radars (TDWR)").
+Upstream: nexrad-data's short-input panic is already fixed on its `main` and in 1.0.0 (checked 2026-10-29), so no issue was filed. Upgrading from rc.7 to 1.0.0 is a candidate change (our guard can stay).
 
-**Data layers, in the owner's order (2026-10-28).** Each is a new endpoint: get approval for it before any code.
-1. NWS warnings and watches (api.weather.gov alerts). Endpoint approved 2026-10-28 ("do the rest"). Storm-based warnings done (PR #24: `hookecho-core::alerts`, `hookecho-app::warnings`, Layers → Warnings). Watches have no polygon in this feed: draw them from SPC's watch polygons with step 2.
-2. SPC convective outlooks and mesoscale discussions (spc.noaa.gov).
-3. Surface observations, the owner's "command center" (aviationweather.gov METARs).
-4. GOES satellite imagery (`noaa-goes19` on AWS: visible, infrared, water vapor). NetCDF/HDF5 decoding is a project of its own.
-5. Space weather (owner request: friends who are weather people watch it): NOAA SWPC (services.swpc.noaa.gov, free JSON): Kp index, solar wind, X-ray flux and flares, alerts, aurora forecast.
-Also planned and unordered: GLM lightning (P3), local storm reports, ProbSevere, models and soundings, mosaic (nearest-radar reflectivity from every radar on screen; velocity can't be mosaicked).
-
-Workflow failures seen 2026-10-28: Security Rebuild failed daily because `latest/stable` is empty; it now skips quietly until the first stable release (PR #24). Refresh Radar Data publishes fine but can't open its PR: the owner must turn on Settings → Actions → General → "Allow GitHub Actions to create and approve pull requests".
+Still planned: GLM lightning (P3), local storm reports, ProbSevere, models and soundings, mosaic. Moved to Phase 3: `.pal` rain/snow/mix/topped masks and indexed units (need Level III hydrometeor classes and echo tops). Command center next steps: more stations at once, history graphs.
 
 Where to pick up next session:
-- **Get the owner's Phase 2 sign-off first** (KICKOFF gate). End-of-phase screenshots: `target/shots/phase2/` (20 PNGs, gitignored; regenerate with `--screenshots`).
-- **Call-for-testing issues:** revision 7 (PR #15) opens a new CFT issue; close #16 (revision 6) as superseded when it appears. Close each older CFT once its replacement exists.
-- **Phase 3 needs endpoint approval before any code:** NWS alerts API (warnings/watches), SPC outlooks, GOES GLM (lightning). Present options and ask; don't add them unasked.
-- **Command center** (owner request, P5): surface obs (temperature, dewpoint, pressure and trend, wind, visibility), e.g. METARs or NWS station observations. Also new endpoints, so ask first.
-- Moved to Phase 3: `.pal` rain/snow/mix/topped masks and indexed units (need Level III hydrometeor classes and echo tops).
-- Upstream: nexrad-data rc.7 panics on input shorter than 24 bytes (our adapter guards it). **Ask the owner before filing an issue.**
-- Each merge to `main` needs its own explicit approval; approval of one PR never covers the next.
+- Ask the owner before pushing `feat/data-layers` and opening its PR; each merge to `main` needs its own approval.
+- Close each older CFT issue once its replacement exists.
+
+Workflow notes: Refresh Radar Data now opens its PR (#27 merged), so the Actions permission is on. Security Rebuild skips quietly until the first stable release.
 
 Strict-snap results (2026-10-10): Vulkan, llvmpipe and Mesa EGL GL work; NVIDIA EGL GL fails, which is harmless because wgpu picks Vulkan first. Local `snapcraft pack` is blocked by Docker's iptables rules (the owner declined the change), so test PR snaps from the `hookecho-snap` workflow artifact.
 
