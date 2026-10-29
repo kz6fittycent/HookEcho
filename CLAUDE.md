@@ -75,7 +75,7 @@ Owner requests for later: a full "command center" with surface obs (temperature,
 5. Space weather (owner request: friends who are weather people watch it): NOAA SWPC (services.swpc.noaa.gov, free JSON): Kp index, solar wind, X-ray flux and flares, alerts, aurora forecast.
 Also planned and unordered: GLM lightning (P3), local storm reports, ProbSevere, models and soundings, mosaic (nearest-radar reflectivity from every radar on screen; velocity can't be mosaicked).
 
-Daily workflow failures to fix (seen 2026-10-28): Security Rebuild fails because `latest/stable` is empty (it should skip quietly until the first stable release); Refresh Radar Data can't open its PR because the repo doesn't let Actions create pull requests (an owner setting).
+Workflow failures seen 2026-10-28: Security Rebuild failed daily because `latest/stable` is empty; it now skips quietly until the first stable release (PR #24). Refresh Radar Data publishes fine but can't open its PR: the owner must turn on Settings → Actions → General → "Allow GitHub Actions to create and approve pull requests".
 
 Where to pick up next session:
 - **Get the owner's Phase 2 sign-off first** (KICKOFF gate). End-of-phase screenshots: `target/shots/phase2/` (20 PNGs, gitignored; regenerate with `--screenshots`).
