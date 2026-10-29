@@ -19,6 +19,7 @@ mod model;
 mod overlays;
 mod palettes;
 mod pickers;
+mod satellite;
 mod screen;
 mod sheet;
 mod shots;

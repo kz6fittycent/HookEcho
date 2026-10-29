@@ -4,6 +4,7 @@
 
 use crate::model::Model;
 use hookecho_core::alerts::{Alert, AlertSource};
+use hookecho_core::goes::{self, GoesSource, Image};
 use hookecho_core::obs::{Obs, ObsSource, Wanted};
 use hookecho_core::poll::Feed;
 use hookecho_core::space::{SpaceSource, SpaceWeather};
@@ -23,19 +24,28 @@ pub struct Feeds {
     space: Feed<SpaceWeather>,
     /// Whether the space feed fetches the aurora grid.
     aurora: Arc<AtomicBool>,
+    goes: Feed<Option<Image>>,
+    band: goes::Wanted,
 }
 
 impl Feeds {
     pub fn start(cache: PathBuf, wake: Wake) -> Feeds {
         let wanted = Wanted::default();
         let aurora = Arc::new(AtomicBool::new(false));
+        let band = goes::Wanted::default();
         Feeds {
             alerts: Feed::start(AlertSource::default(), cache.clone(), wake.clone()),
             spc: Feed::start(SpcSource::new(), cache.clone(), wake.clone()),
             obs: Feed::start(ObsSource::new(wanted.clone()), cache.clone(), wake.clone()),
             wanted,
-            space: Feed::start(SpaceSource::new(aurora.clone()), cache, wake),
+            space: Feed::start(
+                SpaceSource::new(aurora.clone()),
+                cache.clone(),
+                wake.clone(),
+            ),
             aurora,
+            goes: Feed::start(GoesSource::new(band.clone()), cache, wake),
+            band,
         }
     }
 
@@ -64,11 +74,25 @@ impl Feeds {
         if self.aurora.swap(c.aurora, Ordering::Relaxed) != c.aurora && c.aurora {
             self.space.poll_now();
         }
+        // Satellite: the chosen band, fetched at once when it changes.
+        let want = model
+            .config
+            .satellite
+            .as_deref()
+            .and_then(hookecho_core::goes::Band::from_key);
+        self.goes.enable(want.is_some());
+        if let Ok(mut w) = self.band.lock()
+            && *w != want
+        {
+            *w = want;
+            self.goes.poll_now();
+        }
         let d = &mut model.layers;
         take(&self.alerts, &mut d.alerts, &mut d.alerts_trouble);
         take(&self.spc, &mut d.spc, &mut d.spc_trouble);
         take(&self.obs, &mut d.obs, &mut d.obs_trouble);
         take(&self.space, &mut d.space, &mut d.space_trouble);
+        take(&self.goes, &mut d.goes, &mut d.goes_trouble);
     }
 }
 

@@ -235,6 +235,21 @@ fn layers(ui: &mut Ui, kit: &mut Kit, model: &mut Model, b: &mut Body) {
         }
     }
     b.gap();
+    b.eyebrow(kit, "SATELLITE");
+    let bands = hookecho_core::goes::Band::ALL;
+    let cur = model
+        .config
+        .satellite
+        .as_deref()
+        .and_then(hookecho_core::goes::Band::from_key)
+        .and_then(|b| bands.iter().position(|x| *x == b))
+        .map_or(0, |i| i + 1);
+    if let Some(i) = b.choice(ui, kit, "sat", "GOES", &["Off", "Vis", "IR", "WV"], cur) {
+        model.config.satellite = (i > 0).then(|| bands[i - 1].key().to_string());
+    }
+    let status = crate::satellite::status(model);
+    b.hint(kit, &status);
+    b.gap();
     spc_layers(ui, kit, model, b);
     b.gap();
     b.eyebrow(kit, "SURFACE OBSERVATIONS");

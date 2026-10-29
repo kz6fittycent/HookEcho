@@ -115,6 +115,9 @@ pub struct Config {
     pub station_panel: bool,
     /// The OVATION aurora forecast on the map.
     pub aurora: bool,
+    /// The GOES band drawn under the radar, by `goes::Band::key`; none by
+    /// default.
+    pub satellite: Option<String>,
 }
 
 impl Default for Config {
@@ -144,6 +147,7 @@ impl Default for Config {
             station_plots: false,
             station_panel: true,
             aurora: false,
+            satellite: None,
         }
     }
 }

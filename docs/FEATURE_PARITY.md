@@ -116,7 +116,7 @@ Sources (all public, read 2026-10-09):
 | Velocity dealiasing | — | KICKOFF, [scwx] #290 | P4 | planned | Algorithm and source documented in PROVENANCE.md |
 | Forecast models (8 models incl. RRFS, HRRR), run/hour pickers | T2 | [whatsnew57] [appstore] | P5 | planned | NOAA NODD GRIB2 on AWS (free). Large scope: needs a GRIB2 decoder |
 | MRMS national mosaic products | T2 | [upgrading] [whatsnew57] | P5 | planned | `noaa-mrms-pds` on AWS (free) |
-| GOES satellite layers | T2 | [upgrading] | P5 | planned | `noaa-goes18/19` on AWS (free) |
+| GOES satellite layers | T2 | [upgrading] | P5 | done | GOES-East (`noaa-goes19` on AWS, owner-approved) CONUS imagery under the radar: visible (band 1, 1 km), infrared (band 13, enhanced colors for cold tops), water vapor (band 9). Layers → Satellite. Reprojected per pixel on the GPU from the ABI fixed grid. Not yet: band 2 (0.5 km visible, 65 MB a scan), GOES-West, a satellite loop |
 | RTMA surface analysis | T2 | [appstore] | P5 | planned | NODD (free) |
 | Surface observations | T2 | [appstore] | P5 | done | aviationweather.gov METARs (owner-approved 2026-10-29): station plots (temperature, dewpoint, wind barb) when zoomed in; click one to pin it to the station panel. Layers → Surface observations |
 | ProbSevere | T2 | [appstore] | P5 | planned | NOAA/CIMSS public feed; confirm terms |

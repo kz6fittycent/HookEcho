@@ -268,6 +268,9 @@ pub struct LayerData {
     /// Space weather (hookecho-core::space).
     pub space: std::sync::Arc<hookecho_core::space::SpaceWeather>,
     pub space_trouble: Option<String>,
+    /// The newest image of the chosen GOES band (hookecho-core::goes).
+    pub goes: std::sync::Arc<Option<hookecho_core::goes::Image>>,
+    pub goes_trouble: Option<String>,
     /// The aurora forecast as a mesh (space.rs).
     pub aurora_mesh: std::cell::RefCell<crate::space::AuroraCache>,
     /// The shown outlook, tessellated (spc.rs).

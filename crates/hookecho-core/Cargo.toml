@@ -17,6 +17,8 @@ directories.workspace = true
 thiserror.workspace = true
 # NWS alerts GeoJSON (alerts.rs).
 serde_json.workspace = true
+# GOES ABI NetCDF-4/HDF5 files (goes.rs): pure Rust, read path only.
+hdf5-pure = { version = "=0.47.0", default-features = false, features = ["std", "deflate"] }
 # SPC watch and MD KMZ files are deflated zips (spc.rs).
 flate2.workspace = true
 # Level III product symbology blocks (bzip2-1.0.6 exception, DECODER_PLAN).

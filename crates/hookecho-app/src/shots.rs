@@ -402,6 +402,7 @@ pub fn run(dir: &Path) -> Result<(), String> {
         }
         o.app.model.config.station_plots = false;
         o.app.model.config.home = None;
+        o.app.model.layers.obs = Default::default();
     }
     // Space weather: the card open over the aurora forecast (recorded
     // SWPC answers, moved to now).
@@ -434,6 +435,39 @@ pub fn run(dir: &Path) -> Result<(), String> {
         o.app.model.picker = Picker::None;
         o.app.model.config.aurora = false;
         o.app.model.config.station_panel = true;
+        o.app.model.layers.space = Default::default();
+    }
+    // Satellite, from GOES files on disk (not bundled: 3-12 MB each):
+    // HOOKECHO_GOES_FILE=a.nc[:b.nc...], the band from each name (C01, C09,
+    // C13).
+    if let Ok(files) = std::env::var("HOOKECHO_GOES_FILE") {
+        use hookecho_core::goes::{self, Band};
+        for f in files.split(':') {
+            let band = if f.contains("C01") {
+                Band::Visible
+            } else if f.contains("C09") {
+                Band::WaterVapor
+            } else {
+                Band::Infrared
+            };
+            let bytes = std::fs::read(f).map_err(|e| format!("{f}: {e}"))?;
+            let img = goes::decode(band, bytes, f)?;
+            let m = &mut o.app.model;
+            m.config.satellite = Some(band.key().to_string());
+            m.layers.goes = std::sync::Arc::new(Some(img));
+            m.camera = Camera::looking_at(37.0, -95.0, 4200.0, SIZE[0] as f64);
+            m.motion.zoom_target = m.camera.scale;
+            o.app.theme_override = Some(ThemeKind::Dark);
+            let (w, h, px) = o.capture(SIZE, PPP);
+            let path = dir.join(format!("29-satellite-{}.png", band.key()));
+            image::RgbaImage::from_raw(w, h, px)
+                .ok_or("bad image")?
+                .save(&path)
+                .map_err(|e| e.to_string())?;
+            println!("wrote {}", path.display());
+        }
+        o.app.model.config.satellite = None;
+        o.app.model.layers.goes = Default::default();
     }
     Ok(())
 }

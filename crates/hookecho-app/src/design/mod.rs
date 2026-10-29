@@ -4,6 +4,7 @@
 pub mod components;
 pub mod hazards;
 pub mod icons;
+pub mod satellite;
 pub mod space;
 pub mod stations;
 pub mod tokens;

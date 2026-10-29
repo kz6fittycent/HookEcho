@@ -52,6 +52,8 @@ pub struct App {
     palettes_applied: u64,
     /// The dual-pol mask setting the uploaded sweeps were made with.
     mask_applied: bool,
+    /// The satellite image last uploaded to the renderer.
+    satellite_applied: Option<std::sync::Arc<Option<hookecho_core::goes::Image>>>,
 }
 
 impl App {
@@ -137,6 +139,7 @@ impl App {
             // Built-in defaults are already on the GPU; anything else isn't.
             palettes_applied: u64::MAX,
             mask_applied: true,
+            satellite_applied: None,
         }
     }
 
@@ -322,6 +325,29 @@ impl App {
             });
             self.mask_applied = self.model.config.mask_dualpol;
         }
+        let sat = &self.model.layers.goes;
+        if !self
+            .satellite_applied
+            .as_ref()
+            .is_some_and(|a| std::sync::Arc::ptr_eq(a, sat))
+        {
+            let lut = sat
+                .as_ref()
+                .as_ref()
+                .map(|i| crate::design::satellite::lut(i.band));
+            let img = sat.as_ref().as_ref().zip(lut.as_ref()).map(|(i, lut)| {
+                hookecho_render::SatelliteImage {
+                    width: i.width as u32,
+                    height: i.height as u32,
+                    data: &i.data,
+                    lut,
+                    proj: i.proj,
+                }
+            });
+            self.renderer
+                .set_satellite(gpu.device, gpu.queue, img.as_ref());
+            self.satellite_applied = Some(sat.clone());
+        }
         let changed = self.renderer.ensure_targets(gpu.device, size_px);
         self.register_textures(gpu, egui_renderer, changed);
         // Radar layers: the previous volume's sweep under a sweep that's
@@ -373,6 +399,8 @@ impl App {
                 radar: &radar,
                 style: &style,
                 label_exclusions: &exclusions,
+                satellite: crate::satellite::shown(&self.model)
+                    .map(|_| crate::design::satellite::ALPHA),
             },
         );
         gpu.queue.submit([enc.finish()]);
