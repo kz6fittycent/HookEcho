@@ -1,5 +1,7 @@
 //! NWS warnings on the map (hookecho-core::alerts): colored outlines under
-//! the chrome, and a card with the full text when a warning is clicked.
+//! the chrome, and a card with the full text when a warning is clicked. The
+//! same card shows SPC watches, MDs and the outlook under the click
+//! (spc.rs).
 
 use crate::design::components::{Kit, icon_button};
 use crate::design::hazards;
@@ -44,14 +46,16 @@ pub fn draw(kit: &Kit, model: &Model, painter: &Painter, view: [f64; 2]) {
     }
 }
 
-/// A click on the map at (lat, lon): opens the card for the warnings
-/// there, or closes it if there are none. Returns whether any were hit.
+/// A click on the map at (lat, lon): opens the card for the warnings,
+/// watches, MDs and outlook there, or closes it if there are none. Returns
+/// whether any were hit.
 pub fn click(model: &mut Model, at: (f64, f64)) -> bool {
-    let ids: Vec<String> = model
+    let mut ids: Vec<String> = model
         .visible_alerts(now_ms())
         .filter(|a| a.contains(at.0, at.1))
         .map(|a| a.id.clone())
         .collect();
+    ids.extend(crate::spc::hits(model, at));
     if ids.is_empty() {
         if matches!(model.picker, Picker::Warnings { .. }) {
             model.picker = Picker::None;
@@ -81,11 +85,8 @@ pub fn card(ui: &mut Ui, kit: &mut Kit, model: &mut Model, top_left: Pos2) {
     let Picker::Warnings { ids, mut scroll } = model.picker.clone() else {
         return;
     };
-    let alerts: Vec<Alert> = ids
-        .iter()
-        .filter_map(|id| model.alerts.iter().find(|a| &a.id == id).cloned())
-        .collect();
-    if alerts.is_empty() {
+    let entries = entries(model, &ids);
+    if entries.is_empty() {
         // Expired or withdrawn since it was opened.
         model.picker = Picker::None;
         return;
@@ -101,58 +102,39 @@ pub fn card(ui: &mut Ui, kit: &mut Kit, model: &mut Model, top_left: Pos2) {
     let text_w = top_left.x + w - pad - text_x;
 
     // Lay out first, to size the card to its content.
-    let utc = model.config.utc;
-    let blocks: Vec<_> = alerts
+    let blocks: Vec<_> = entries
         .iter()
-        .map(|a| {
-            let until = format!(
-                "Until {} · {}",
-                model::clock_time(a.expires_ms, utc),
-                a.sender
-            );
+        .map(|e| {
             let mut parts = vec![
                 (
-                    wrapped(
-                        &painter,
-                        a.event.name(),
-                        Type::Label,
-                        t.text_primary,
-                        text_w,
-                    ),
+                    wrapped(&painter, &e.title, Type::Label, t.text_primary, text_w),
                     space::S1,
                 ),
                 (
-                    wrapped(&painter, &until, Type::Caption, t.text_secondary, text_w),
+                    wrapped(&painter, &e.when, Type::Caption, t.text_secondary, text_w),
                     space::S1,
-                ),
-                (
-                    wrapped(&painter, &a.area, Type::Caption, t.text_tertiary, text_w),
-                    space::S2,
-                ),
-                (
-                    wrapped(
-                        &painter,
-                        &tidy(&a.description),
-                        Type::Body,
-                        t.text_primary,
-                        text_w,
-                    ),
-                    space::S2,
                 ),
             ];
-            if !a.instruction.is_empty() {
+            if !e.area.is_empty() {
                 parts.push((
-                    wrapped(
-                        &painter,
-                        &tidy(&a.instruction),
-                        Type::Body,
-                        t.text_secondary,
-                        text_w,
-                    ),
+                    wrapped(&painter, &e.area, Type::Caption, t.text_tertiary, text_w),
+                    space::S2,
+                ));
+            } else {
+                parts.last_mut().expect("title").1 = space::S2;
+            }
+            for (i, body) in e.body.iter().filter(|b| !b.is_empty()).enumerate() {
+                let color = if i == 0 {
+                    t.text_primary
+                } else {
+                    t.text_secondary
+                };
+                parts.push((
+                    wrapped(&painter, &tidy(body), Type::Body, color, text_w),
                     space::S2,
                 ));
             }
-            (a.event, parts)
+            (e.color, parts)
         })
         .collect();
     let content_h: f32 = blocks
@@ -177,7 +159,7 @@ pub fn card(ui: &mut Ui, kit: &mut Kit, model: &mut Model, top_left: Pos2) {
     scroll = scroll.clamp(0.0, (content_h - area.height()).max(0.0));
     let clipped = painter.with_clip_rect(area);
     let mut y = area.min.y - scroll;
-    for (i, (event, parts)) in blocks.iter().enumerate() {
+    for (i, (color, parts)) in blocks.iter().enumerate() {
         if i > 0 {
             kit.divider(&clipped, area.min.x, area.max.x, y + space::S3 / 2.0);
             y += space::S3;
@@ -186,7 +168,7 @@ pub fn card(ui: &mut Ui, kit: &mut Kit, model: &mut Model, top_left: Pos2) {
         clipped.rect_filled(
             Rect::from_min_size(pos2(area.min.x, y), vec2(hazards::CARD_BAR_W, title_h)),
             radius::XS,
-            hazards::color(*event),
+            *color,
         );
         for (g, gap) in parts {
             clipped.galley(pos2(text_x, y), g.clone(), t.text_primary);
@@ -219,6 +201,106 @@ pub fn card(ui: &mut Ui, kit: &mut Kit, model: &mut Model, top_left: Pos2) {
     } else if let Picker::Warnings { scroll: s, .. } = &mut model.picker {
         *s = scroll;
     }
+}
+
+/// One block of the card.
+struct Entry {
+    color: Color32,
+    title: String,
+    /// "Until 8:45 PM · NWS Norman OK".
+    when: String,
+    area: String,
+    /// Paragraph groups: the first in primary text, the rest secondary.
+    body: Vec<String>,
+}
+
+/// The card's blocks for `ids` (alert ids, "ww:N", "md:N", "otlk:lat,lon"),
+/// skipping any no longer there.
+fn entries(model: &Model, ids: &[String]) -> Vec<Entry> {
+    let utc = model.config.utc;
+    let until = |ms| format!("Until {}", model::clock_time(ms, utc));
+    let spc = &model.layers.spc;
+    ids.iter()
+        .filter_map(|id| {
+            if let Some(n) = id.strip_prefix("ww:") {
+                let w = spc.watches.iter().find(|w| w.number.to_string() == n)?;
+                let mut title = format!("{} {}", w.kind.name(), w.number);
+                if w.pds {
+                    title.push_str(" · PDS");
+                }
+                return Some(Entry {
+                    color: hazards::watch_color(w.kind),
+                    title,
+                    when: format!("{} · Storm Prediction Center", until(w.expires_ms)),
+                    area: String::new(),
+                    body: vec![without_header(&w.text)],
+                });
+            }
+            if let Some(n) = id.strip_prefix("md:") {
+                let d = spc.discussions.iter().find(|d| d.number.to_string() == n)?;
+                return Some(Entry {
+                    color: hazards::MD_COLOR,
+                    title: format!("Mesoscale Discussion {}", d.number),
+                    when: format!("{} · Storm Prediction Center", until(d.expires_ms)),
+                    area: [d.areas.as_str(), d.concerning.as_str()]
+                        .iter()
+                        .filter(|s| !s.is_empty())
+                        .copied()
+                        .collect::<Vec<_>>()
+                        .join(" · "),
+                    body: vec![without_header(&d.text)],
+                });
+            }
+            if let Some(at) = id.strip_prefix("otlk:") {
+                let (lat, lon) = at.split_once(',')?;
+                let o = crate::spc::shown_outlook(model)?;
+                let a = o.at(lat.parse().ok()?, lon.parse().ok()?)?;
+                let name = if a.name.is_empty() { &a.label } else { &a.name };
+                return Some(Entry {
+                    color: hazards::outlook_stroke(a.stroke),
+                    title: format!("Day {} outlook · {name}", o.product.day()),
+                    when: format!(
+                        "{} to {} · SPC, {}",
+                        model::clock_time(o.valid_ms, utc),
+                        model::clock_time(o.expires_ms, utc),
+                        o.forecaster
+                    ),
+                    area: String::new(),
+                    body: Vec::new(),
+                });
+            }
+            let a = model.layers.alerts.iter().find(|a| &a.id == id)?;
+            Some(Entry {
+                color: hazards::color(a.event),
+                title: a.event.name().to_string(),
+                when: format!("{} · {}", until(a.expires_ms), a.sender),
+                area: a.area.clone(),
+                body: vec![a.description.clone(), a.instruction.clone()],
+            })
+        })
+        .collect()
+}
+
+/// SPC text without the paragraphs the card already shows above it: the
+/// product header ("URGENT - IMMEDIATE BROADCAST REQUESTED", "Mesoscale
+/// Discussion 1691 / NWS Storm Prediction Center ..."), and an MD's areas,
+/// concern and valid time.
+fn without_header(text: &str) -> String {
+    const SKIP: [&str; 6] = [
+        "URGENT",
+        "BULLETIN",
+        "Mesoscale Discussion",
+        "Areas affected",
+        "Concerning",
+        "Valid",
+    ];
+    text.split("\n\n")
+        .filter(|p| {
+            let p = p.trim_start();
+            !SKIP.iter().any(|s| p.starts_with(s))
+        })
+        .collect::<Vec<_>>()
+        .join("\n\n")
 }
 
 /// The recorded NWS answer in tests/data/alerts (seven flash flood
@@ -266,6 +348,18 @@ pub fn tidy(text: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn spc_headers_are_dropped() {
+        let spc = crate::spc::sample().unwrap();
+        let md = without_header(&spc.discussions[0].text);
+        assert!(md.starts_with("Probability of Watch Issuance"), "{md}");
+        let ww = tidy(&without_header(&spc.watches[0].text));
+        assert!(
+            ww.starts_with("The NWS Storm Prediction Center has issued"),
+            "{ww}"
+        );
+    }
 
     #[test]
     fn tidy_rejoins_paragraphs() {

@@ -32,6 +32,9 @@ pub enum Layer {
     Counties,
     Roads,
     Labels,
+    Warnings,
+    Watches,
+    Discussions,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -221,8 +224,27 @@ pub fn all(model: &Model, query: &str) -> Vec<Command> {
         Action::TiltDown,
     ));
     let map = model.config.map;
+    let c = &model.config;
     let state = |on: bool| if on { "Shown" } else { "Hidden" };
     for (layer, name, on, kw) in [
+        (
+            Layer::Warnings,
+            "NWS warnings",
+            c.warnings,
+            "tornado severe flood alerts",
+        ),
+        (
+            Layer::Watches,
+            "SPC watches",
+            c.watches,
+            "tornado severe thunderstorm",
+        ),
+        (
+            Layer::Discussions,
+            "Mesoscale discussions",
+            c.discussions,
+            "spc md mcd",
+        ),
         (Layer::Counties, "County lines", map.counties, "borders"),
         (Layer::Roads, "Highways", map.roads, "roads interstates"),
         (
@@ -563,6 +585,9 @@ pub fn run(model: &mut Model, action: &Action, view: [f64; 2], now: f64) {
                 Layer::Counties => &mut c.map.counties,
                 Layer::Roads => &mut c.map.roads,
                 Layer::Labels => &mut c.map.labels,
+                Layer::Warnings => &mut c.warnings,
+                Layer::Watches => &mut c.watches,
+                Layer::Discussions => &mut c.discussions,
             };
             *f = !*f;
         }

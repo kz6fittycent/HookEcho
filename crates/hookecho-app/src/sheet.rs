@@ -217,7 +217,7 @@ fn layers(ui: &mut Ui, kit: &mut Kit, model: &mut Model, b: &mut Body) {
     b.eyebrow(kit, "WARNINGS");
     let c = &mut model.config;
     c.warnings = b.toggle(ui, kit, "warnings", "NWS warnings", c.warnings);
-    match &model.alerts_trouble {
+    match &model.layers.alerts_trouble {
         Some(_) if c.warnings => b.hint(kit, "Can't reach the NWS right now; retrying"),
         _ => b.hint(kit, "Click a warning on the map to read it"),
     }
@@ -235,8 +235,64 @@ fn layers(ui: &mut Ui, kit: &mut Kit, model: &mut Model, b: &mut Body) {
         }
     }
     b.gap();
-    b.hint(kit, "Watches, outlooks and lightning come in a");
-    b.hint(kit, "later update.");
+    spc_layers(ui, kit, model, b);
+}
+
+/// Watches, MDs and the outlook picker: a day, then a kind for that day.
+fn spc_layers(ui: &mut Ui, kit: &mut Kit, model: &mut Model, b: &mut Body) {
+    use hookecho_core::spc::Product;
+    b.eyebrow(kit, "STORM PREDICTION CENTER");
+    let c = &mut model.config;
+    c.watches = b.toggle(ui, kit, "watches", "Watches", c.watches);
+    c.discussions = b.toggle(ui, kit, "mds", "Mesoscale discussions", c.discussions);
+    let trouble =
+        model.layers.spc_trouble.is_some() && (c.watches || c.discussions || c.outlook.is_some());
+    b.hint(
+        kit,
+        if trouble {
+            "Can't reach SPC right now; retrying"
+        } else {
+            "Click one on the map to read it"
+        },
+    );
+    let shown = c.outlook.as_deref().and_then(Product::from_key);
+    let day = shown.map_or(0, |p| p.day() as usize);
+    if let Some(i) = b.choice(ui, kit, "otlk-day", "Outlook", &["Off", "1", "2", "3"], day)
+        && i != day
+    {
+        // Keep the kind when switching days, where the new day has it.
+        let kind = shown.map(|p| p.name());
+        c.outlook = (i > 0).then(|| {
+            let of_day = Product::ALL.into_iter().filter(|p| p.day() as usize == i);
+            of_day
+                .clone()
+                .find(|p| Some(p.name()) == kind)
+                .or_else(|| of_day.clone().next())
+                .expect("each day has a categorical outlook")
+                .key()
+        });
+    }
+    if let Some(p) = shown {
+        let kinds: Vec<Product> = Product::ALL
+            .into_iter()
+            .filter(|k| k.day() == p.day())
+            .collect();
+        let labels: Vec<&str> = kinds.iter().map(|k| short_kind(*k)).collect();
+        let cur = kinds.iter().position(|k| *k == p).unwrap_or(0);
+        if let Some(i) = b.choice(ui, kit, "otlk-kind", "Risk", &labels, cur) {
+            c.outlook = Some(kinds[i].key());
+        }
+        b.hint(kit, "Click the map for the risk there");
+    }
+}
+
+fn short_kind(p: hookecho_core::spc::Product) -> &'static str {
+    match p.name() {
+        "Categorical" => "All",
+        "Tornado" => "Tor",
+        "Any severe" => "Severe",
+        n => n,
+    }
 }
 
 fn colors(ui: &mut Ui, kit: &mut Kit, model: &mut Model, b: &mut Body) {

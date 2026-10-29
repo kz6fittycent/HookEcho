@@ -36,7 +36,7 @@ type Waker = std::sync::Arc<std::sync::OnceLock<egui::Context>>;
 pub struct App {
     pub model: Model,
     feed: Option<hookecho_core::live::Feed>,
-    alerts: Option<hookecho_core::alerts::AlertFeed>,
+    feeds: Option<crate::feeds::Feeds>,
     frames: Option<hookecho_core::frames::LoopLoader>,
     waker: Waker,
     watching: Option<String>,
@@ -107,18 +107,14 @@ impl App {
                         ctx.request_repaint();
                     }
                 });
-                let alerts = hookecho_core::alerts::AlertFeed::start(cache.clone(), wake3);
+                let feeds = crate::feeds::Feeds::start(cache.clone(), wake3);
                 (
                     None,
-                    Some((
-                        hookecho_core::live::Feed::start(cache, wake),
-                        frames,
-                        alerts,
-                    )),
+                    Some((hookecho_core::live::Feed::start(cache, wake), frames, feeds)),
                 )
             }
         };
-        let (feed, frames, alerts) = match feed {
+        let (feed, frames, feeds) = match feed {
             Some((f, l, a)) => (Some(f), Some(l), Some(a)),
             None => (None, None, None),
         };
@@ -127,7 +123,7 @@ impl App {
         App {
             model,
             feed,
-            alerts,
+            feeds,
             frames,
             waker,
             watching: None,
@@ -261,20 +257,9 @@ impl App {
                 _ => {}
             }
         }
-        // NWS warnings: polled only while the layer is on.
-        if let Some(alerts) = &self.alerts {
-            alerts.enable(self.model.config.warnings);
-            while let Ok(e) = alerts.events.try_recv() {
-                match e {
-                    hookecho_core::alerts::AlertEvent::Alerts(a) => {
-                        self.model.alerts = a;
-                        self.model.alerts_trouble = None;
-                    }
-                    hookecho_core::alerts::AlertEvent::Trouble(why) => {
-                        self.model.alerts_trouble = Some(why);
-                    }
-                }
-            }
+        // Warnings, SPC and the other data layers: polled only while on.
+        if let Some(feeds) = &self.feeds {
+            feeds.update(&mut self.model);
         }
         // Loop frames for the current site, tilt and live volume.
         if let Some(loader) = &self.frames {

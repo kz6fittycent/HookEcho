@@ -102,6 +102,13 @@ pub struct Config {
     pub warnings: bool,
     /// Warning types switched off, by `alerts::Event::key`.
     pub hidden_warnings: Vec<String>,
+    /// Draw SPC tornado and severe thunderstorm watches.
+    pub watches: bool,
+    /// Draw SPC mesoscale discussions.
+    pub discussions: bool,
+    /// The SPC outlook drawn under the radar, by `spc::Product::key`; none
+    /// by default.
+    pub outlook: Option<String>,
 }
 
 impl Default for Config {
@@ -125,6 +132,9 @@ impl Default for Config {
             tdwr_long_range: false,
             warnings: true,
             hidden_warnings: Vec::new(),
+            watches: true,
+            discussions: true,
+            outlook: None,
         }
     }
 }

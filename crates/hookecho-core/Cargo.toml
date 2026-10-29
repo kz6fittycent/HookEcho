@@ -17,6 +17,8 @@ directories.workspace = true
 thiserror.workspace = true
 # NWS alerts GeoJSON (alerts.rs).
 serde_json.workspace = true
+# SPC watch and MD KMZ files are deflated zips (spc.rs).
+flate2.workspace = true
 # Level III product symbology blocks (bzip2-1.0.6 exception, DECODER_PLAN).
 bzip2 = "0.6.1"
 # Async fetching (KICKOFF §2): tokio + reqwest with rustls (ring provider).

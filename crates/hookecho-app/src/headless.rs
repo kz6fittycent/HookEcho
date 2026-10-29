@@ -208,7 +208,7 @@ mod tests {
         let c = ring
             .iter()
             .fold((0.0, 0.0), |s, p| (s.0 + p.0 / n, s.1 + p.1 / n));
-        o.app.model.alerts = std::sync::Arc::new(alerts);
+        o.app.model.layers.alerts = std::sync::Arc::new(alerts);
         let view = [SIZE[0] as f64, SIZE[1] as f64];
         o.app.model.camera = hookecho_core::geo::Camera::looking_at(c.0, c.1, 300.0, view[0]);
         o.app.model.motion.zoom_target = o.app.model.camera.scale;
@@ -242,6 +242,54 @@ mod tests {
             Picker::None,
             "hidden warnings don't open"
         );
+    }
+
+    /// A click in an MD opens its card, a click in the outlook the risk
+    /// there; with the layers off, nothing opens.
+    #[test]
+    fn spc_card_opens_on_click() {
+        let Ok(mut o) = Offscreen::new(None, SIZE) else {
+            eprintln!("no GPU adapter; skipped");
+            return;
+        };
+        let spc = crate::spc::sample().unwrap();
+        let md_at = (37.6, -78.0); // central Virginia
+        let ring = &spc.outlooks[0].areas[1].polygons[0][0];
+        let n = ring.len() as f64;
+        let otlk_at = ring
+            .iter()
+            .fold((0.0, 0.0), |s, p| (s.0 + p.0 / n, s.1 + p.1 / n));
+        o.app.model.layers.spc = std::sync::Arc::new(spc);
+        o.app.model.config.outlook = Some(hookecho_core::spc::Product::Day1Categorical.key());
+        let view = [SIZE[0] as f64, SIZE[1] as f64];
+        let tap = |o: &mut Offscreen, at: (f64, f64)| {
+            o.app.model.picker = Picker::None;
+            o.app.model.camera = hookecho_core::geo::Camera::looking_at(at.0, at.1, 600.0, view[0]);
+            o.app.model.motion.zoom_target = o.app.model.camera.scale;
+            o.frame(SIZE, 1.0, Vec::new());
+            let p = o.app.model.camera.latlon_to_screen(at.0, at.1, view);
+            let p = egui::pos2(p[0] as f32, p[1] as f32);
+            let ev = |pressed| egui::Event::PointerButton {
+                pos: p,
+                button: egui::PointerButton::Primary,
+                pressed,
+                modifiers: Default::default(),
+            };
+            o.frame(SIZE, 1.0, vec![egui::Event::PointerMoved(p)]);
+            o.frame(SIZE, 1.0, vec![ev(true), ev(false)]);
+            o.frame(SIZE, 1.0, Vec::new());
+            match &o.app.model.picker {
+                Picker::Warnings { ids, .. } => ids.clone(),
+                _ => Vec::new(),
+            }
+        };
+        assert_eq!(tap(&mut o, md_at), ["md:1691"]);
+        let ids = tap(&mut o, otlk_at);
+        assert!(ids.len() == 1 && ids[0].starts_with("otlk:"), "{ids:?}");
+        o.app.model.config.discussions = false;
+        o.app.model.config.outlook = None;
+        assert!(tap(&mut o, md_at).is_empty());
+        assert!(tap(&mut o, otlk_at).is_empty());
     }
 
     #[test]

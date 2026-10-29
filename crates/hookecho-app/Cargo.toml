@@ -23,4 +23,6 @@ image.workspace = true
 pollster.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+# Fills SPC outlook areas (concave, with holes) for the map (spc.rs).
+lyon.workspace = true
 chrono = { version = "0.4.45", default-features = false, features = ["clock", "std"] }

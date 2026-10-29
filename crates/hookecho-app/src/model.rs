@@ -248,6 +248,20 @@ pub enum Picker {
     },
 }
 
+/// The data layers' latest data, and why each feed's last poll failed
+/// (until one succeeds).
+#[derive(Default)]
+pub struct LayerData {
+    /// NWS warnings, most severe first (hookecho-core::alerts).
+    pub alerts: std::sync::Arc<Vec<hookecho_core::alerts::Alert>>,
+    pub alerts_trouble: Option<String>,
+    /// SPC outlooks, watches and MDs (hookecho-core::spc).
+    pub spc: std::sync::Arc<hookecho_core::spc::Spc>,
+    pub spc_trouble: Option<String>,
+    /// The shown outlook, tessellated (spc.rs).
+    pub outlook_mesh: std::cell::RefCell<crate::spc::OutlookCache>,
+}
+
 /// Side sheet sections (DESIGN.md §3.6).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SheetTab {
@@ -335,10 +349,8 @@ pub struct Model {
     pub sheet: Option<Sheet>,
     /// Last frame's glass panels (logical px, [x0, y0, x1, y1]).
     pub chrome: Vec<[f32; 4]>,
-    /// NWS warnings, most severe first (hookecho-core::alerts).
-    pub alerts: std::sync::Arc<Vec<hookecho_core::alerts::Alert>>,
-    /// Why the last warnings poll failed, until one succeeds.
-    pub alerts_trouble: Option<String>,
+    /// What the data-layer feeds last sent (feeds.rs).
+    pub layers: LayerData,
     generation: u64,
 }
 
@@ -424,8 +436,7 @@ impl Model {
             quiet: None,
             sheet: None,
             chrome: Vec::new(),
-            alerts: Default::default(),
-            alerts_trouble: None,
+            layers: LayerData::default(),
             generation: 0,
         }
     }
@@ -437,7 +448,7 @@ impl Model {
         now_ms: i64,
     ) -> impl DoubleEndedIterator<Item = &hookecho_core::alerts::Alert> {
         let c = &self.config;
-        self.alerts.iter().filter(move |a| {
+        self.layers.alerts.iter().filter(move |a| {
             c.warnings && a.active(now_ms) && !c.hidden_warnings.iter().any(|k| k == a.event.key())
         })
     }

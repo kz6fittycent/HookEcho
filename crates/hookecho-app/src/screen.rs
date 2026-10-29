@@ -352,6 +352,8 @@ pub fn paint(ui: &mut Ui, kit: &mut Kit, model: &mut Model, scene: egui::Texture
         Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)),
         Color32::WHITE,
     );
+    crate::spc::draw_outlook(model, &painter, view_size(screen));
+    crate::spc::draw_outlines(kit, model, &painter, view_size(screen));
     crate::warnings::draw(kit, model, &painter, view_size(screen));
     home_marker(kit, model, &painter);
     site_markers(ui, kit, model, &painter);

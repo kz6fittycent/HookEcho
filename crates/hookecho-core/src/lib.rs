@@ -13,9 +13,12 @@ pub mod live;
 pub mod moment;
 pub mod pal;
 pub mod paths;
+pub mod poll;
 pub mod realtime;
 pub mod s3;
 pub mod sites;
+pub mod spc;
 pub mod tdwr;
+pub mod time;
 
 pub use moment::{Moment, RawGates};

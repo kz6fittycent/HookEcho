@@ -135,11 +135,11 @@ Sources (all public, read 2026-10-09):
 | Hurricane, tropical storm, fire, dust storm, storm surge warnings | Base | [appstore] | P3 | planned | Same feed |
 | Pulsing polygons for emergencies and PDS | Base | [providers] | P3 | planned | From the NWS alert parameters/text; honor reduced-motion |
 | Warning type filter | Base | [bulletins] | P3 | done | Side sheet → Layers → Warnings: master switch plus one per type |
-| Tornado and severe thunderstorm watches (US) | Mixed | [bulletins] [appstore] | P3 | planned | NWS alerts + SPC watch polygons |
+| Tornado and severe thunderstorm watches (US) | Mixed | [bulletins] [appstore] | P3 | done | SPC active watch outlines (yellow tornado, pale violet red severe; heavier for PDS) with the watch text on click. Layers → Watches |
 | Canadian warnings and watches; Australian warnings | Base | [bulletins] [advanced] | P5 | planned | ECCC GeoMet (free); BoM (check terms) |
 | Special weather statements | T1 | [upgrading] [bulletins] | P3 | planned | NWS alerts |
-| SPC mesoscale discussions | Mixed | [upgrading] [bulletins] | P3 | planned | spc.noaa.gov |
-| SPC convective outlooks: categorical, tornado, hail, wind | Mixed | [shortcuts] [appstore] | P3 | planned | spc.noaa.gov GeoJSON |
+| SPC mesoscale discussions | Mixed | [upgrading] [bulletins] | P3 | done | Dashed outlines with the full discussion text on click. Layers → Mesoscale discussions |
+| SPC convective outlooks: categorical, tornado, hail, wind | Mixed | [shortcuts] [appstore] | P3 | done | Days 1–2 categorical, tornado, wind, hail; day 3 categorical and any-severe. SPC's colors, translucent over the radar; click for the risk there. Layers → Outlook. Not yet: conditional-intensity hatching |
 | SPC fire weather outlooks | T1 | [appstore] | P5 | planned | spc.noaa.gov |
 | WPC excessive rainfall outlook | T1 | [appstore] | P5 | planned | wpc.ncep.noaa.gov |
 | Local storm reports, with type filter | Mixed | [bulletins] | P5 | planned | NWS LSR products / IEM (free) |

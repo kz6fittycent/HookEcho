@@ -1748,6 +1748,7 @@ dependencies = [
  "hookecho-core",
  "hookecho-render",
  "image",
+ "lyon",
  "pollster",
  "resvg",
  "serde",
@@ -1761,6 +1762,7 @@ version = "0.1.0"
 dependencies = [
  "bzip2",
  "directories",
+ "flate2",
  "nexrad-data",
  "nexrad-model",
  "reqwest",

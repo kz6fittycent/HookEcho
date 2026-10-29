@@ -313,10 +313,11 @@ pub fn run(dir: &Path) -> Result<(), String> {
     if let Some(alerts) = crate::warnings::sample_alerts() {
         let m = &mut o.app.model;
         let at = (31.62, -104.6);
-        m.alerts = std::sync::Arc::new(alerts);
+        m.layers.alerts = std::sync::Arc::new(alerts);
         m.camera = Camera::looking_at(at.0, at.1, 420.0, SIZE[0] as f64);
         m.motion.zoom_target = m.camera.scale;
         let hit = m
+            .layers
             .alerts
             .iter()
             .find(|a| a.area == "Culberson, TX")
@@ -343,6 +344,37 @@ pub fn run(dir: &Path) -> Result<(), String> {
             println!("wrote {}", path.display());
         }
         o.app.model.picker = Picker::None;
+        o.app.model.layers.alerts = Default::default();
+    }
+    // SPC: a categorical outlook, a tornado watch and an MD, the MD's card
+    // open (recorded files, kept in force).
+    if let Some(spc) = crate::spc::sample() {
+        let m = &mut o.app.model;
+        let md = spc.discussions[0].rings[0].clone();
+        m.layers.spc = std::sync::Arc::new(spc);
+        m.config.outlook = Some(hookecho_core::spc::Product::Day1Categorical.key());
+        m.camera = Camera::looking_at(40.5, -84.0, 2600.0, SIZE[0] as f64);
+        m.motion.zoom_target = m.camera.scale;
+        let n = md.len() as f64;
+        let c = md
+            .iter()
+            .fold((0.0, 0.0), |s, p| (s.0 + p.0 / n, s.1 + p.1 / n));
+        for (theme, name) in [
+            (ThemeKind::Dark, "22-spc"),
+            (ThemeKind::Light, "23-spc-light"),
+        ] {
+            crate::warnings::click(&mut o.app.model, c);
+            o.app.theme_override = Some(theme);
+            let (w, h, px) = o.capture(SIZE, PPP);
+            let path = dir.join(format!("{name}.png"));
+            image::RgbaImage::from_raw(w, h, px)
+                .ok_or("bad image")?
+                .save(&path)
+                .map_err(|e| e.to_string())?;
+            println!("wrote {}", path.display());
+        }
+        o.app.model.picker = Picker::None;
+        o.app.model.config.outlook = None;
     }
     Ok(())
 }
