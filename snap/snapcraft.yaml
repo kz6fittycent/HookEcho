@@ -42,7 +42,8 @@ apps:
       - x11
       - opengl
       - network
-      - location-observe
+      # "Use my location" goes through the XDG Location portal (the desktop
+      # plug), not location-observe (docs/LOCATION.md).
       # Reading imported color tables (.pal) the user drops on the window.
       - home
 

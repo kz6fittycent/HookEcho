@@ -81,9 +81,9 @@ pub(crate) fn days_from_civil(y: i64, m: i64, d: i64) -> i64 {
     era * 146_097 + doe - 719_468
 }
 
-/// `YYYY_MM_DD` of the UTC day `days` after the epoch.
-fn day_text(days: i64) -> String {
-    // Inverse of days_from_civil (same source).
+/// (year, month, day) of the UTC day `days` after the epoch: the inverse of
+/// [`days_from_civil`] (same source).
+pub(crate) fn civil_ymd(days: i64) -> (i64, i64, i64) {
     let z = days + 719_468;
     let era = z.div_euclid(146_097);
     let doe = z - era * 146_097;
@@ -93,6 +93,18 @@ fn day_text(days: i64) -> String {
     let d = doy - (153 * mp + 2) / 5 + 1;
     let m = if mp < 10 { mp + 3 } else { mp - 9 };
     let y = yoe + era * 400 + if m <= 2 { 1 } else { 0 };
+    (y, m, d)
+}
+
+/// (year, month) of the UTC day `days` after the epoch.
+pub(crate) fn civil_from_days(days: i64) -> (i64, i64) {
+    let (y, m, _) = civil_ymd(days);
+    (y, m)
+}
+
+/// `YYYY_MM_DD` of the UTC day `days` after the epoch.
+fn day_text(days: i64) -> String {
+    let (y, m, d) = civil_ymd(days);
     format!("{y:04}_{m:02}_{d:02}")
 }
 

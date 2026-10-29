@@ -6,6 +6,7 @@
 
 use eframe::egui::Color32;
 use hookecho_core::alerts::Event;
+use hookecho_core::spc::WatchKind;
 
 const fn rgb(hex: u32) -> Color32 {
     Color32::from_rgb((hex >> 16) as u8, (hex >> 8) as u8, hex as u8)
@@ -47,3 +48,41 @@ pub const HALO_COLOR: Color32 = Color32::from_rgba_premultiplied(0, 0, 0, 170);
 pub const CARD_W: f32 = 380.0;
 pub const CARD_MAX_H: f32 = 460.0;
 pub const CARD_BAR_W: f32 = 4.0;
+
+/// Watch outlines, in the same NWS hazard map colors (tornado watch
+/// yellow, severe thunderstorm watch pale violet red).
+pub fn watch_color(k: WatchKind) -> Color32 {
+    match k {
+        WatchKind::Tornado => rgb(0xFFFF00),
+        WatchKind::SevereThunderstorm => rgb(0xDB7093),
+    }
+}
+
+/// Watch outline width: heavier for "particularly dangerous situation"
+/// watches.
+pub fn watch_stroke(pds: bool) -> f32 {
+    if pds { 3.0 } else { 2.0 }
+}
+
+/// Mesoscale discussions have no NWS map color. SPC's own graphics draw
+/// them blue; this is a light blue that stays clear of every warning and
+/// watch color, dashed so it reads as "discussion", not "in effect".
+pub const MD_COLOR: Color32 = rgb(0x4FC3F7);
+pub const MD_STROKE: f32 = 2.0;
+pub const MD_DASH: f32 = 8.0;
+pub const MD_GAP: f32 = 5.0;
+
+/// Outlook risk areas use SPC's own colors from the feed; the fill is
+/// translucent so the radar stays readable through it.
+const OUTLOOK_FILL_ALPHA: u8 = 64;
+
+/// An outlook level's outline color, from the feed's `stroke`.
+pub fn outlook_stroke(c: [u8; 3]) -> Color32 {
+    Color32::from_rgb(c[0], c[1], c[2])
+}
+
+/// An outlook level's translucent fill, from the feed's `fill`.
+pub fn outlook_fill(c: [u8; 3]) -> Color32 {
+    Color32::from_rgba_unmultiplied(c[0], c[1], c[2], OUTLOOK_FILL_ALPHA)
+}
+pub const OUTLOOK_STROKE: f32 = 1.5;

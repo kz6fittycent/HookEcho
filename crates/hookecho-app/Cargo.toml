@@ -23,4 +23,11 @@ image.workspace = true
 pollster.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+# "Use my location" through the XDG Location portal (location.rs,
+# docs/LOCATION.md option A). zbus and tokio are already in the tree.
+ashpd = { version = "=0.13.13", default-features = false, features = ["tokio", "location"] }
+futures-util = { version = "0.3", default-features = false }
+tokio = { version = "1.53", default-features = false, features = ["rt", "time"] }
+# Fills SPC outlook areas (concave, with holes) for the map (spc.rs).
+lyon.workspace = true
 chrono = { version = "0.4.45", default-features = false, features = ["clock", "std"] }

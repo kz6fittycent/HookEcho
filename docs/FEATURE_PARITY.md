@@ -71,7 +71,7 @@ Sources (all public, read 2026-10-09):
 | Favorite radars (add, remove, reorder) | Base | [radar-list] | P2 | planned | Pinned at the top of the site picker |
 | Radar status dot (receiving / late) | Base | [radar-list] | P2 | planned | From the newest chunk/volume age per site; one cheap S3 listing, cached |
 | Radar detail with latest operator status message | Base | [radar-list] [not-updating] | P3 | planned | Level III Free Text Message (FTM) product, ICD 2620001 |
-| Nearest radar from my location | Base | [getting-started] | P3 | in progress | Done: radar list nearest-first from the map center with distances; a home point ("Set home", then click the map) that a first run opens near; "Nearest radar" command. Next: GeoClue location |
+| Nearest radar from my location | Base | [getting-started] | P3 | done | Radar list nearest-first from the map center with distances; a home point (Set home, then click the map, or "Use my location" through the XDG Location portal) that a first run opens near; "Nearest radar" command |
 | Auto radar selection as location changes (toggle) | Base | [advanced] | P3 | planned | |
 | Show TDWR sites (off by default) | Base | [advanced] [tdwr] | P5 | done | Listed in the radar picker ("· airport") and on the map. On by default (the owner asked for them); side sheet → Layers → "Airport radars (TDWR)" turns them off (a favorite TDWR stays). 44 of 47 published on 2026-10-28; TJBQ, TJRV and TPBI had no scans |
 | Show research radars (off by default) | Base | [advanced] [whatsnew57] | P5 | planned | Free public research feeds only; list TBD |
@@ -116,9 +116,9 @@ Sources (all public, read 2026-10-09):
 | Velocity dealiasing | — | KICKOFF, [scwx] #290 | P4 | planned | Algorithm and source documented in PROVENANCE.md |
 | Forecast models (8 models incl. RRFS, HRRR), run/hour pickers | T2 | [whatsnew57] [appstore] | P5 | planned | NOAA NODD GRIB2 on AWS (free). Large scope: needs a GRIB2 decoder |
 | MRMS national mosaic products | T2 | [upgrading] [whatsnew57] | P5 | planned | `noaa-mrms-pds` on AWS (free) |
-| GOES satellite layers | T2 | [upgrading] | P5 | planned | `noaa-goes18/19` on AWS (free) |
+| GOES satellite layers | T2 | [upgrading] | P5 | done | GOES-East (`noaa-goes19` on AWS, owner-approved) CONUS imagery under the radar: visible (band 1, 1 km), infrared (band 13, enhanced colors for cold tops), water vapor (band 9). Layers → Satellite. Reprojected per pixel on the GPU from the ABI fixed grid. Not yet: band 2 (0.5 km visible, 65 MB a scan), GOES-West, a satellite loop |
 | RTMA surface analysis | T2 | [appstore] | P5 | planned | NODD (free) |
-| Surface observations | T2 | [appstore] | P5 | planned | aviationweather.gov METAR API (free). Owner request (2026-10-10): part of a full "command center" (see §7). **Ask first** (new endpoint) |
+| Surface observations | T2 | [appstore] | P5 | done | aviationweather.gov METARs (owner-approved 2026-10-29): station plots (temperature, dewpoint, wind barb) when zoomed in; click one to pin it to the station panel. Layers → Surface observations |
 | ProbSevere | T2 | [appstore] | P5 | planned | NOAA/CIMSS public feed; confirm terms |
 | Soundings and hodographs | T2 | [upgrading] [appstore] | P5 | planned | Model soundings from NODD GRIB2; RAOB from a free NOAA source |
 
@@ -135,11 +135,11 @@ Sources (all public, read 2026-10-09):
 | Hurricane, tropical storm, fire, dust storm, storm surge warnings | Base | [appstore] | P3 | planned | Same feed |
 | Pulsing polygons for emergencies and PDS | Base | [providers] | P3 | planned | From the NWS alert parameters/text; honor reduced-motion |
 | Warning type filter | Base | [bulletins] | P3 | done | Side sheet → Layers → Warnings: master switch plus one per type |
-| Tornado and severe thunderstorm watches (US) | Mixed | [bulletins] [appstore] | P3 | planned | NWS alerts + SPC watch polygons |
+| Tornado and severe thunderstorm watches (US) | Mixed | [bulletins] [appstore] | P3 | done | SPC active watch outlines (yellow tornado, pale violet red severe; heavier for PDS) with the watch text on click. Layers → Watches |
 | Canadian warnings and watches; Australian warnings | Base | [bulletins] [advanced] | P5 | planned | ECCC GeoMet (free); BoM (check terms) |
 | Special weather statements | T1 | [upgrading] [bulletins] | P3 | planned | NWS alerts |
-| SPC mesoscale discussions | Mixed | [upgrading] [bulletins] | P3 | planned | spc.noaa.gov |
-| SPC convective outlooks: categorical, tornado, hail, wind | Mixed | [shortcuts] [appstore] | P3 | planned | spc.noaa.gov GeoJSON |
+| SPC mesoscale discussions | Mixed | [upgrading] [bulletins] | P3 | done | Dashed outlines with the full discussion text on click. Layers → Mesoscale discussions |
+| SPC convective outlooks: categorical, tornado, hail, wind | Mixed | [shortcuts] [appstore] | P3 | done | Days 1–2 categorical, tornado, wind, hail; day 3 categorical and any-severe. SPC's colors, translucent over the radar; click for the risk there. Layers → Outlook. Not yet: conditional-intensity hatching |
 | SPC fire weather outlooks | T1 | [appstore] | P5 | planned | spc.noaa.gov |
 | WPC excessive rainfall outlook | T1 | [appstore] | P5 | planned | wpc.ncep.noaa.gov |
 | Local storm reports, with type filter | Mixed | [bulletins] | P5 | planned | NWS LSR products / IEM (free) |
@@ -164,7 +164,7 @@ Sources (all public, read 2026-10-09):
 | Inspector: value under the pointer, with direction-to-radar indicator | T1 | [tools] [upgrading] | P2 | in progress | Hover card with value, beam height ARL, range/bearing from the radar (Phase 1). Distance from me arrives with location (P3); pin with `I` |
 | Distance tool with beam height, snapping to radar/spotters/reports | Base | [tools] | P3 | planned | |
 | Draw tool (freehand annotations) | Base | [tools] | P5 | planned | |
-| My location (GPS/platform location) | Base | [getting-started] | P3 | planned | GeoClue (D-Bus) on Linux |
+| My location (GPS/platform location) | Base | [getting-started] | P3 | done | Menu → "Use my location": one street-accuracy request to the XDG Location portal (GeoClue behind it, the desktop's own prompt), sets home and goes to the nearest radar. No background tracking |
 | Saved locations: add by search or current position, rename, reorder, delete | Base | [locations] | P3 | planned | Geocoding needs a free service. **Ask first** (phones home); offline fallback: Census places gazetteer |
 | Import/export locations as JSON (≤ 250) | Base | [locations] | P3 | planned | Same `name/lat/lon` shape, for interoperability |
 | Loop animation | Base | [getting-started] | P2 | done | Earlier volumes at the current tilt from the real-time bucket (only the chunks up to that tilt), newest first; plays oldest → live with a longer hold on live |
@@ -220,11 +220,12 @@ Requests users raise against other viewers (mainly [Supercell Wx issues][scwx]) 
 | GeoJSON / KML / shapefile overlays | [scwx] #638, #655, #514 | P5+ | planned | |
 | Vertical cross-section tool | [scwx] #403 | P5+ | planned | We have the full L2 volume on the GPU |
 | Hide dual-pol noise: CC, ZDR and PHI only where there's echo (on by default; side sheet → Layers, command palette) | Owner review (Phase 1 follow-up) | P2 | done | Co-located reflectivity ≥ 5 dBZ; the inspector follows the same rule |
-| "Command center": a station panel beside the radar with temperature, dewpoint, pressure and its trend, wind and gusts, visibility, plus nearby observations on the map | Owner request (2026-10-10) | P5 | planned | Free, no-account sources only (e.g. METARs, NWS station observations, RTMA); each new endpoint needs the owner's approval first |
+| "Command center": a station panel beside the radar with temperature, dewpoint, pressure and its trend, wind and gusts, visibility, plus nearby observations on the map | Owner request (2026-10-10) | P5 | in progress | Done: the station panel (bottom left, the station nearest home or the map center, or a pinned one) with temperature, dew point and RH, wind and gusts, pressure with its 3-hour trend, visibility and weather; station plots on the map. Next: more stations at once, history graphs |
 | Command palette (Ctrl+K or the search button): every site, product, layer, action, setting and palette by typing, fuzzy matched and grouped | KICKOFF §5 | P2 | done | Enter runs the top match; arrows move; Esc closes |
 | Says so when there's little or no precipitation in range (clear air), so a blank map doesn't look broken | Owner feedback (CFT #8) | P2 | done | Under 20 km² of drawn reflectivity in runs of 1 km or more, so clutter speckle doesn't count |
 | Rotational velocity / NROT readout in the inspector | [scwx] #160, #206 | P5+ | planned | |
-| Space weather: Kp index, solar wind, X-ray flux and flares, SWPC alerts, aurora forecast | Owner request (2026-10-28) | P5 | planned | NOAA SWPC JSON (services.swpc.noaa.gov, free). New endpoint: ask first. Owner's data-layer order: warnings → SPC → surface obs → satellite → space weather |
+| Space weather: Kp index, solar wind, X-ray flux and flares, SWPC alerts, aurora forecast | Owner request (2026-10-28) | P5 | done | NOAA SWPC JSON (owner-approved 2026-10-29). Menu → "Space weather": R/S/G now, Kp now and a 3-day past/3-day forecast Kp chart, solar wind (speed, density, Bz, Bt), X-ray class and latest flare, the 3-day outlook, latest alerts. Layers → Aurora forecast: the OVATION grid on the map. Not yet: an X-ray flux chart |
+| Dockable panels: space weather, station, warnings/watches/MDs and the inspector pin into a left dock; the map's chrome moves right of it | Owner request (2026-10-29) | P3 | done | DESIGN.md §3.11. Pin/unpin, collapse and close in one header every panel shares; saved between sessions; floats everything in windows under 1000 px |
 | Radar mosaic: the latest reflectivity of every radar on screen, nearest radar wins, then single-radar mode on a storm | Owner question (2026-10-28) | P5+ | planned | Reflectivity only (velocity can't be mosaicked). Uses data we already fetch, or NOAA MRMS (new endpoint) |
 | VAD wind profile (VWP) display | [scwx] #383 | P5+ | planned | Level III product 48 |
 | Audible alerts / TTS for new warnings near me; "follow" an alert | [scwx] #352, #637, #617, #581 | P5+ | planned | Local only, no push service |

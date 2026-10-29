@@ -102,6 +102,27 @@ pub struct Config {
     pub warnings: bool,
     /// Warning types switched off, by `alerts::Event::key`.
     pub hidden_warnings: Vec<String>,
+    /// Draw SPC tornado and severe thunderstorm watches.
+    pub watches: bool,
+    /// Draw SPC mesoscale discussions.
+    pub discussions: bool,
+    /// The SPC outlook drawn under the radar, by `spc::Product::key`; none
+    /// by default.
+    pub outlook: Option<String>,
+    /// Station plots (temperature, dewpoint, wind) on the map.
+    pub station_plots: bool,
+    /// The station panel: the nearest station's conditions.
+    pub station_panel: bool,
+    /// The OVATION aurora forecast on the map.
+    pub aurora: bool,
+    /// The GOES band drawn under the radar, by `goes::Band::key`; none by
+    /// default.
+    pub satellite: Option<String>,
+    /// Panels docked in the left column, top to bottom (the app's
+    /// `dock::Panel` keys).
+    pub dock: Vec<String>,
+    /// Docked panels shown collapsed to their headers.
+    pub dock_collapsed: Vec<String>,
 }
 
 impl Default for Config {
@@ -125,6 +146,15 @@ impl Default for Config {
             tdwr_long_range: false,
             warnings: true,
             hidden_warnings: Vec::new(),
+            watches: true,
+            discussions: true,
+            outlook: None,
+            station_plots: false,
+            station_panel: true,
+            aurora: false,
+            satellite: None,
+            dock: Vec::new(),
+            dock_collapsed: Vec::new(),
         }
     }
 }

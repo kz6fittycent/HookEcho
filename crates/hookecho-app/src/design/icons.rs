@@ -26,6 +26,9 @@ pub enum Icon {
     Gauge,
     Zap,
     Menu,
+    Pin,
+    PinOff,
+    ChevronUp,
 }
 
 impl Icon {
@@ -48,6 +51,9 @@ impl Icon {
             Icon::Gauge => asset_str!("icons/gauge.svg"),
             Icon::Zap => asset_str!("icons/zap.svg"),
             Icon::Menu => asset_str!("icons/menu.svg"),
+            Icon::Pin => asset_str!("icons/pin.svg"),
+            Icon::PinOff => asset_str!("icons/pin-off.svg"),
+            Icon::ChevronUp => asset_str!("icons/chevron-up.svg"),
         }
     }
 }

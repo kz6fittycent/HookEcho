@@ -13,15 +13,23 @@ mod commands;
 // some pieces are first used by Phase 2 screens (side sheet, palette, timeline).
 #[allow(dead_code)]
 mod design;
+mod dock;
+mod feeds;
 mod headless;
+mod layer_chips;
+mod location;
 mod model;
 mod overlays;
 mod palettes;
 mod pickers;
+mod satellite;
 mod screen;
 mod sheet;
 mod shots;
 mod smoke;
+mod space;
+mod spc;
+mod stations;
 mod warnings;
 
 use eframe::egui;

@@ -199,6 +199,10 @@ The **progressive sweep** state lives in the scrubber. The newest tick is drawn 
 
 A compact glass card bottom-right showing the color bar for the current product. The bar is 12 px tall with 4–6 value ticks and units in `text.tertiary`. Hovering the bar shows the value under the pointer. It collapses to a 4 px strip during loop playback if the window is under 1000 px wide.
 
+### 3.4.1 Active-layer chips
+
+Above the legend, right-aligned: one small glass pill (`size.layer_chip_h`, `radius.full`) for each overlay that's on: satellite, SPC outlook, aurora, station plots. Each says what it is and ends in an **×** that turns it off; a right-click anywhere on the pill does the same; the name opens Layers. Owner, testing (2026-10-29): anything on the map must be easy to get rid of, without knowing where its switch lives. In the Menu, a layer row that's on says "On · click to turn off" and does.
+
 ### 3.5 Inspector
 
 A floating card that follows the pointer, offset 16 px right and below. It flips to stay on screen. No click is needed (hover on desktop, long-press on touch). Contents:
@@ -229,7 +233,7 @@ A picker drops down from its chip (`radius.lg`, `elevation.2`), max 420 px tall,
 
 ### 3.8 Command palette (Ctrl+K)
 
-A centered card, 560 px wide, offset `space.6` from the top, `elevation.3`. The input row uses `type.title`. Results are grouped (Sites, Products, Layers, Actions, Settings), each row showing an icon, a label, a secondary hint and a right-aligned shortcut keycap. Fuzzy matching. `Enter` runs the selected row; `Esc` closes.
+A centered card, 560 px wide, offset `space.6` from the top, `elevation.3`. The input row uses `type.title`. Under it, a segmented row of group tabs (All · Radars · Products · Layers · Actions · Settings) lets people browse without knowing what to type (owner, 2026-10-29); the Radars tab lists every radar. Results are grouped (Radars, Products, Layers, Actions, Settings), each row showing an icon, a label, a secondary hint and a right-aligned shortcut keycap. Fuzzy matching. `Enter` runs the selected row; `Esc` closes.
 
 ### 3.9 Shortcuts sheet (`?`)
 
@@ -238,6 +242,16 @@ A centered glass card with a 2-column list of keycaps and actions, grouped. Tool
 ### 3.10 Multi-pane
 
 Two (side by side, or stacked when taller than wide) or four (2×2) panes. Panes are separated by a 1 px `glass.stroke` divider with a 6 px grab zone. The camera is shared. Each pane has its own **product chip** in its top-left; the site chip appears once, in pane 1. The timeline and legend are shared (the legend shows the focused pane's product).
+
+### 3.11 Dock (left)
+
+Owner request (2026-10-29). A column on the left, `size.dock_w` (360 px) wide and full height minus the window margin, `radius.lg`, glass at `elevation.1`. It exists only while a panel is docked in it. With the dock open the map runs under it, but all map chrome (chips, timeline, legend, notices, floating cards) lays out right of it, and the map recenters by half the dock's width so the middle of the visible map doesn't move.
+
+- **Panels:** Warnings and watches, Weather station, Space weather, Inspector. Each can float over the map (where it always has: the warning card under the site chip, the station panel bottom left, space weather centered, the inspector at the pointer) or sit in the dock, stacked in the order docked, each a card with a divider between.
+- **One header for every panel**, docked or floating (`components::panel_header`): the title in `type.label`, then right-aligned icon buttons: collapse/expand (`chevron-up`/`chevron-down`, docked only), pin (`pin`, floating: "Dock this panel at the left") or unpin (`pin-off`, docked: "Float this panel over the map"), and close. The inspector has no close (unpin is its way out); its close slot stays empty so the buttons line up.
+- **Docked bodies:** Warnings and watches lists everything active (a colored bar, type, end time); a row or a map click shows the full text, with "← Everything active" to go back. The inspector shows the reading at the pointer or pinned spot, and a hint otherwise; the map keeps the reticle.
+- The dock scrolls when its panels don't fit. Its panels and their collapsed state are saved. Windows narrower than `size.dock_min_window` (1000 px) float every panel instead and give the map the full width.
+- Menu → "Dock the inspector" (it has no header to click while it follows the pointer); Menu → "Space weather" expands a docked space weather panel.
 
 ## 4. States
 
