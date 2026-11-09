@@ -45,7 +45,7 @@ assets/                  fonts, icons, sample data (large samples are fetched, n
 
 ## Status (keep this current)
 
-**Phase 2 signed off by the owner (2026-10-29). Phase 3 in progress.** Public repo: https://github.com/kz6fittycent/HookEcho. Last merge to `main`: PR #27 (`b102f77`, radar data refresh).
+**Phase 2 signed off by the owner (2026-10-29). Phase 3 in progress.** Public repo: https://github.com/kz6fittycent/HookEcho. Last merge to `main`: PR #28 (`d4ea776`, data layers 1–5, location, left dock), 2026-11-09.
 
 - Phase 0 was approved: design, the `bzip2-1.0.6` exception, and KDP from Level III.
 - **Linux only** (owner, 2026-10-10).
@@ -54,7 +54,7 @@ assets/                  fonts, icons, sample data (large samples are fetched, n
 
 Done before 2026-10-29 (merged): Phases 0–2; owner fixes 1–3 (icon PR #17; start near the user PR #18; TDWR PRs #21, #22, #24); NWS storm-based warnings (PR #24).
 
-**Branch `feat/data-layers` (2026-10-29, pushed with owner approval; PR open, merge needs its own approval).** One commit per layer, owner's order 1–5 plus location:
+**Data layers (PR #28, merged 2026-11-09).** One commit per layer, owner's order 1–5 plus location:
 1. Watches (SPC outlines) finish data layer 1.
 2. SPC outlooks (days 1–3), watches and MDs: `hookecho-core::spc`, `hookecho-app::spc`; Layers → Storm Prediction Center. `hookecho-core::poll` is the shared polling thread + conditional-GET client; alerts moved onto it.
 3. Surface obs / command center: `hookecho-core::obs` (AWC METAR cache file + Data API history), `hookecho-app::stations` (station plots, station panel bottom left).
@@ -71,7 +71,7 @@ Upstream: nexrad-data's short-input panic is already fixed on its `main` and in 
 Still planned: GLM lightning (P3), local storm reports, ProbSevere, models and soundings, mosaic. Moved to Phase 3: `.pal` rain/snow/mix/topped masks and indexed units (need Level III hydrometeor classes and echo tops). Command center next steps: more stations at once, history graphs.
 
 Where to pick up next session:
-- `feat/data-layers` PR: watch CI and the snap artifact; ask before merging.
+- Check the candidate snap and CFT issue from the PR #28 merge; close the previous CFT once the new one exists.
 - Suggested next (owner to confirm): Level III products (KDP, HC, SRV, composite, VIL, echo tops), then storm markers, GLM lightning, warnings polish, tools, multi-pane. Small chore: nexrad-data rc.7 → 1.0.0.
 - Close each older CFT issue once its replacement exists.
 
@@ -79,7 +79,7 @@ Workflow notes: Refresh Radar Data now opens its PR (#27 merged), so the Actions
 
 Strict-snap results (2026-10-10): Vulkan, llvmpipe and Mesa EGL GL work; NVIDIA EGL GL fails, which is harmless because wgpu picks Vulkan first. Local `snapcraft pack` is blocked by Docker's iptables rules (the owner declined the change), so test PR snaps from the `hookecho-snap` workflow artifact.
 
-Working practice: iterate on branches with PRs. CI runs only on PRs into `main`, so stacked work goes onto the open PR's branch. Pushes to `main` trigger the candidate pipeline. **Ask before pushing.** Before pushing, run all of CI's gates locally: fmt, clippy, tests and `scripts/check-design-tokens.sh`.
+Working practice (owner, 2026-11-09): **no more PRs; commit and push straight to `main`.** `snap-builds.yml` (`rust` + snap `build`) runs on every push to `main`, and `call-for-testing.yml` uploads a candidate and opens a CFT issue only when that run passes, so a bad push goes red instead of shipping. Before each push, run all of CI's gates locally: fmt, clippy, tests and `scripts/check-design-tokens.sh`. **Ask before pushing.** (The bot's weekly radar-data refresh still opens its own PRs.)
 
 Known issues and notes:
 - Memory with a 20-frame loop is about 435 MB against a 300 MB budget: about 150 MB is the GPU driver, about 95 MB the decoded full volume, about 32 MB basemap decode transients. This is Phase 4 work. Use `HOOKECHO_MEM_TRACE=1` for a stage breakdown.
