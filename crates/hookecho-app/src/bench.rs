@@ -71,7 +71,10 @@ pub fn run(
         unit: "ms",
         budget: Some(1000.0),
     });
-    let adapter = o.adapter_name();
+    let adapter = baseline_key(
+        &o.adapter_name(),
+        std::env::var("GITHUB_ACTIONS").ok().as_deref(),
+    );
     let rss_start = rss_mb();
 
     // Decode of the full bundled volume, and the per-sweep share of it.
@@ -257,6 +260,18 @@ pub fn run(
     Ok(())
 }
 
+/// The baseline entry name: the GPU adapter, plus ` @ github-actions` on a
+/// GitHub runner. Software renderers report only their LLVM version, so a
+/// runner image and a dev machine can share an adapter name while running
+/// on very different CPUs (this happened with llvmpipe LLVM 21.1.8).
+fn baseline_key(adapter: &str, github_actions: Option<&str>) -> String {
+    if github_actions == Some("true") {
+        format!("{adapter} @ github-actions")
+    } else {
+        adapter.to_string()
+    }
+}
+
 /// Fails if any metric is more than 10% worse than the baseline for this
 /// adapter. A missing adapter entry is a warning, not a failure, so a new CI
 /// image can record its first baseline.
@@ -291,5 +306,21 @@ fn compare(adapter: &str, results: &Map<String, Value>, path: &Path) -> Result<(
             "bench regressed more than 10%:\n  {}",
             failures.join("\n  ")
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::baseline_key;
+
+    #[test]
+    fn ci_and_local_baselines_never_share_a_key() {
+        let a = "llvmpipe (LLVM 21.1.8, 256 bits) (Vulkan)";
+        assert_eq!(baseline_key(a, None), a);
+        assert_eq!(baseline_key(a, Some("false")), a);
+        assert_eq!(
+            baseline_key(a, Some("true")),
+            "llvmpipe (LLVM 21.1.8, 256 bits) (Vulkan) @ github-actions"
+        );
     }
 }
