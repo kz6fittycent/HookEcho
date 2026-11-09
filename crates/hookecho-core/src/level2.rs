@@ -2,7 +2,7 @@
 //! `nexrad-*` crates. Everything else in Hook Echo sees these types.
 
 use crate::moment::{Moment, RawGates};
-use nexrad_model::data::{CFPMomentData, DataMoment, MomentData, Radial, Scan};
+use nexrad_model::data::{MomentData, Product, Radial, Scan};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -193,9 +193,10 @@ const VOLUME_HEADER_LEN: usize = 24;
 /// Decodes an Archive II volume file (gzip-wrapped or not).
 ///
 /// Never panics: input shorter than a volume header is rejected up front
-/// (nexrad-data 1.0.0-rc.7 slices past the header unchecked; found by
-/// fuzzing), and any other panic inside the decoder crates is converted to
-/// an error so a corrupt download can't take the app down.
+/// (nexrad-data 1.0.0-rc.7 sliced past the header unchecked, found by our
+/// fuzzing; fixed upstream in 1.0.0, kept as a cheap guard), and any other
+/// panic inside the decoder crates is converted to an error so a corrupt
+/// download can't take the app down.
 pub fn decode_volume(bytes: &[u8]) -> Result<Volume, Error> {
     let gzip = bytes.starts_with(&[0x1f, 0x8b]);
     if !gzip && bytes.len() < VOLUME_HEADER_LEN {
@@ -224,12 +225,17 @@ pub fn decode_volume(bytes: &[u8]) -> Result<Volume, Error> {
 }
 
 fn convert(scan: &Scan) -> Volume {
+    // A volume without a coverage pattern message has no nominal cuts;
+    // sweeps then fall back to their measured elevation.
     let cuts: Vec<f32> = scan
         .coverage_pattern()
-        .elevation_cuts()
-        .iter()
-        .map(|c| c.elevation_angle_degrees() as f32)
-        .collect();
+        .map(|p| {
+            p.elevation_cuts()
+                .iter()
+                .map(|c| c.elevation_angle_degrees())
+                .collect()
+        })
+        .unwrap_or_default();
     let sweeps = scan
         .sweeps()
         .iter()
@@ -241,7 +247,7 @@ fn convert(scan: &Scan) -> Volume {
                     azimuth_deg: r.azimuth_angle_degrees(),
                     azimuth_spacing_deg: r.azimuth_spacing_degrees(),
                     elevation_deg: r.elevation_angle_degrees(),
-                    time_ms: r.collection_timestamp(),
+                    time_ms: r.collection_timestamp_millis(),
                 })
                 .collect();
             let elevation_deg = if infos.is_empty() {
@@ -270,14 +276,14 @@ fn convert(scan: &Scan) -> Volume {
         })
         .collect();
     Volume {
-        site: scan.site().map(|s| s.identifier_string()),
+        site: scan.site().map(|s| s.identifier().to_string()),
         vcp: scan.coverage_pattern_number().number(),
         vcp_cuts_deg: cuts,
         sweeps,
     }
 }
 
-/// Geometry and raw bytes common to `MomentData` and `CFPMomentData`.
+/// One radial's geometry and raw bytes for one moment.
 struct Block<'a> {
     gates: usize,
     first_gate_km: f32,
@@ -288,32 +294,29 @@ struct Block<'a> {
     bytes: &'a [u8],
 }
 
-fn block_of<T: DataMoment>(m: &T) -> Block<'_> {
+fn block_of(m: &MomentData) -> Block<'_> {
     Block {
-        gates: m.gate_count() as usize,
+        gates: m.gate_count(),
         first_gate_km: m.first_gate_range_km() as f32,
         gate_km: m.gate_interval_km() as f32,
         word_size: m.data_word_size(),
         scale: m.scale(),
         offset: m.offset(),
-        bytes: m.raw_values(),
+        bytes: m.raw_bytes(),
     }
 }
 
 fn moment_block(r: &Radial, m: Moment) -> Option<Block<'_>> {
-    let data: Option<&MomentData> = match m {
-        Moment::Reflectivity => r.reflectivity(),
-        Moment::Velocity => r.velocity(),
-        Moment::SpectrumWidth => r.spectrum_width(),
-        Moment::DifferentialReflectivity => r.differential_reflectivity(),
-        Moment::DifferentialPhase => r.differential_phase(),
-        Moment::CorrelationCoefficient => r.correlation_coefficient(),
-        Moment::ClutterFilterPower => {
-            let cfp: Option<&CFPMomentData> = r.clutter_filter_power();
-            return cfp.map(block_of);
-        }
+    let product = match m {
+        Moment::Reflectivity => Product::Reflectivity,
+        Moment::Velocity => Product::Velocity,
+        Moment::SpectrumWidth => Product::SpectrumWidth,
+        Moment::DifferentialReflectivity => Product::DifferentialReflectivity,
+        Moment::DifferentialPhase => Product::DifferentialPhase,
+        Moment::CorrelationCoefficient => Product::CorrelationCoefficient,
+        Moment::ClutterFilterPower => Product::ClutterFilterPower,
     };
-    data.map(block_of)
+    r.moment(product).map(block_of)
 }
 
 fn field(radials: &[Radial], m: Moment) -> Option<Field> {
