@@ -1727,6 +1727,7 @@ dependencies = [
  "hookecho-core",
  "hookecho-render",
  "image",
+ "libc",
  "lyon",
  "pollster",
  "resvg",

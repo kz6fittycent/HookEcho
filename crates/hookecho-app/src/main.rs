@@ -5,6 +5,7 @@
 //!   hookecho --screenshots DIR    numbered PNGs from bundled data, both themes
 //!   hookecho --bench [--bench-out FILE] [--bench-baseline FILE]
 
+mod alloc;
 mod app;
 mod assets;
 mod bench;
@@ -46,6 +47,7 @@ fn arg_value(args: &[String], name: &str) -> Option<PathBuf> {
 }
 
 fn main() -> ExitCode {
+    alloc::pin_mmap_threshold();
     let start = std::time::Instant::now();
     let args: Vec<String> = std::env::args().skip(1).collect();
     let has = |f: &str| args.iter().any(|a| a == f);

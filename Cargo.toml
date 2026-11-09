@@ -14,7 +14,7 @@ rust-version = "1.99"
 hookecho-core = { path = "crates/hookecho-core" }
 hookecho-render = { path = "crates/hookecho-render" }
 
-# Level II decoding (see docs/DECODER_PLAN.md). Exact pins: these are release candidates.
+# Level II decoding (see docs/DECODER_PLAN.md). Exact pins: decoder changes are reviewed by hand.
 nexrad-model = { version = "=1.0.0", default-features = false }
 nexrad-data = { version = "=1.0.0", default-features = false, features = ["model"] }
 

@@ -31,3 +31,6 @@ tokio = { version = "1.53", default-features = false, features = ["rt", "time"] 
 # Fills SPC outlook areas (concave, with holes) for the map (spc.rs).
 lyon.workspace = true
 chrono = { version = "0.4.45", default-features = false, features = ["clock", "std"] }
+# One mallopt call at startup pins glibc's mmap threshold (alloc.rs).
+# Already in the tree through many crates.
+libc = "0.2.190"
