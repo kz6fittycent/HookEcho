@@ -66,13 +66,13 @@ New dependencies: `hdf5-pure` =0.47.0, `ashpd` =0.13.13 (both MIT/Apache, `cargo
 
 Owner UX rules learned in testing: every feature must be findable without searching (browse, not just search); anything on the map must be one click to turn off; check new controls are visible without scrolling.
 
-Upstream: nexrad-data's short-input panic is already fixed on its `main` and in 1.0.0 (checked 2026-10-29), so no issue was filed. Upgrading from rc.7 to 1.0.0 is a candidate change (our guard can stay).
+Upstream: nexrad-data/-model/-decode are on 1.0.0 (2026-11-09); its short-input panic is fixed there, and our guard in `decode_volume` stays.
 
 Still planned: GLM lightning (P3), local storm reports, ProbSevere, models and soundings, mosaic. Moved to Phase 3: `.pal` rain/snow/mix/topped masks and indexed units (need Level III hydrometeor classes and echo tops). Command center next steps: more stations at once, history graphs.
 
 Where to pick up next session:
 - Check the candidate snap and CFT issue from the PR #28 merge; close the previous CFT once the new one exists.
-- Suggested next (owner to confirm): Level III products (KDP, HC, SRV, composite, VIL, echo tops), then storm markers, GLM lightning, warnings polish, tools, multi-pane. Small chore: nexrad-data rc.7 → 1.0.0.
+- Suggested next (owner to confirm): Level III products (KDP, HC, SRV, composite, VIL, echo tops), then storm markers, GLM lightning, warnings polish, tools, multi-pane.
 - Close each older CFT issue once its replacement exists.
 
 Workflow notes: Refresh Radar Data now opens its PR (#27 merged), so the Actions permission is on. Security Rebuild skips quietly until the first stable release.
