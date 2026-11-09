@@ -3,7 +3,7 @@
 
 use crate::design::components::{self, Kit, interact, segmented, toggle};
 use crate::design::tokens::{Type, radius, size, space};
-use crate::model::{Model, SheetTab};
+use crate::model::{Model, Picker, Sheet, SheetTab};
 use crate::pickers;
 use eframe::egui::{self, Align2, Id, LayerId, Order, Rect, Ui, WidgetType, pos2, vec2};
 use hookecho_core::config::{Speed, ThemePref, Units};
@@ -160,7 +160,7 @@ pub fn side_sheet(ui: &mut Ui, kit: &mut Kit, model: &mut Model, rect: Rect) {
         pos2(rect.min.x, tabs.max.y + space::S2),
         pos2(rect.max.x, rect.max.y - pad),
     );
-    if ui.rect_contains_pointer(area) {
+    if components::pointer_over(&ui, area) {
         sheet.scroll -= ui.input(|i| i.smooth_scroll_delta.y);
     }
     let clipped = painter.with_clip_rect(area);
@@ -175,7 +175,7 @@ pub fn side_sheet(ui: &mut Ui, kit: &mut Kit, model: &mut Model, rect: Rect) {
     let mut ui = ui.new_child(egui::UiBuilder::new().max_rect(area));
     ui.set_clip_rect(area);
     match sheet.tab {
-        SheetTab::Layers => layers(&mut ui, kit, model, &mut body),
+        SheetTab::Layers => layers(&mut ui, kit, model, &mut body, &mut sheet),
         SheetTab::Colors => colors(&mut ui, kit, model, &mut body),
         SheetTab::Settings => settings(&mut ui, kit, model, &mut body, &mut sheet),
     }
@@ -190,12 +190,48 @@ pub fn side_sheet(ui: &mut Ui, kit: &mut Kit, model: &mut Model, rect: Rect) {
     }
 }
 
-fn layers(ui: &mut Ui, kit: &mut Kit, model: &mut Model, b: &mut Body) {
-    b.eyebrow(kit, "MAP");
-    let map = &mut model.config.map;
-    map.counties = b.toggle(ui, kit, "counties", "County lines", map.counties);
-    map.roads = b.toggle(ui, kit, "roads", "Highways", map.roads);
-    map.labels = b.toggle(ui, kit, "labels", "Place names", map.labels);
+/// Layers, the data layers first (owner, 2026-10-29: the new ones were lost
+/// below the map and radar options), then radar and map options.
+fn layers(ui: &mut Ui, kit: &mut Kit, model: &mut Model, b: &mut Body, sheet: &mut Sheet) {
+    warnings(ui, kit, model, b, sheet);
+    b.gap();
+    spc_layers(ui, kit, model, b);
+    b.gap();
+    b.eyebrow(kit, "SATELLITE");
+    let bands = hookecho_core::goes::Band::ALL;
+    let cur = model
+        .config
+        .satellite
+        .as_deref()
+        .and_then(hookecho_core::goes::Band::from_key)
+        .and_then(|b| bands.iter().position(|x| *x == b))
+        .map_or(0, |i| i + 1);
+    if let Some(i) = b.choice(ui, kit, "sat", "GOES", &["Off", "Vis", "IR", "WV"], cur) {
+        model.config.satellite = (i > 0).then(|| bands[i - 1].key().to_string());
+    }
+    let status = crate::satellite::status(model);
+    b.hint(kit, &status);
+    b.gap();
+    b.eyebrow(kit, "SURFACE OBSERVATIONS");
+    let c = &mut model.config;
+    c.station_panel = b.toggle(ui, kit, "station-panel", "Station panel", c.station_panel);
+    b.hint(kit, "Conditions at the station nearest home");
+    c.station_plots = b.toggle(ui, kit, "station-plots", "Station plots", c.station_plots);
+    match &model.layers.obs_trouble {
+        Some(_) if c.station_plots || c.station_panel => {
+            b.hint(kit, "Can't reach aviationweather.gov; retrying")
+        }
+        _ => b.hint(kit, "Zoom in to see them; click one to pin it"),
+    }
+    b.gap();
+    b.eyebrow(kit, "SPACE WEATHER");
+    let c = &mut model.config;
+    c.aurora = b.toggle(ui, kit, "aurora", "Aurora forecast", c.aurora);
+    b.hint(kit, "Chance of aurora overhead, from NOAA SWPC");
+    let row = b.row();
+    if text_button(ui, kit, b.painter, row, "space", "Space weather conditions") {
+        model.picker = Picker::SpaceWeather { scroll: 0.0 };
+    }
     b.gap();
     b.eyebrow(kit, "RADAR");
     let c = &mut model.config;
@@ -214,15 +250,42 @@ fn layers(ui: &mut Ui, kit: &mut Kit, model: &mut Model, b: &mut Body) {
         b.hint(kit, "Reflectivity to 225 nm instead of 48 nm, coarser");
     }
     b.gap();
+    b.eyebrow(kit, "MAP");
+    let map = &mut model.config.map;
+    map.counties = b.toggle(ui, kit, "counties", "County lines", map.counties);
+    map.roads = b.toggle(ui, kit, "roads", "Highways", map.roads);
+    map.labels = b.toggle(ui, kit, "labels", "Place names", map.labels);
+}
+
+/// NWS warnings: the master switch, and the per-type switches folded
+/// behind one row so they don't push the other layers down.
+fn warnings(ui: &mut Ui, kit: &mut Kit, model: &mut Model, b: &mut Body, sheet: &mut Sheet) {
+    use hookecho_core::alerts::Event;
     b.eyebrow(kit, "WARNINGS");
     let c = &mut model.config;
     c.warnings = b.toggle(ui, kit, "warnings", "NWS warnings", c.warnings);
-    match &model.alerts_trouble {
+    match &model.layers.alerts_trouble {
         Some(_) if c.warnings => b.hint(kit, "Can't reach the NWS right now; retrying"),
         _ => b.hint(kit, "Click a warning on the map to read it"),
     }
-    if c.warnings {
-        for e in hookecho_core::alerts::Event::ALL {
+    if !c.warnings {
+        return;
+    }
+    let shown = Event::ALL
+        .iter()
+        .filter(|e| !c.hidden_warnings.iter().any(|k| k == e.key()))
+        .count();
+    let label = match (sheet.warning_types, shown == Event::ALL.len()) {
+        (true, _) => "Hide warning types".to_string(),
+        (false, true) => "Warning types: all shown".to_string(),
+        (false, false) => format!("Warning types: {shown} of {} shown", Event::ALL.len()),
+    };
+    let row = b.row();
+    if text_button(ui, kit, b.painter, row, "warning-types", &label) {
+        sheet.warning_types = !sheet.warning_types;
+    }
+    if sheet.warning_types {
+        for e in Event::ALL {
             let shown = !c.hidden_warnings.iter().any(|k| k == e.key());
             let label = e.name().trim_end_matches(" Warning");
             if b.toggle(ui, kit, e.key(), label, shown) != shown {
@@ -234,9 +297,63 @@ fn layers(ui: &mut Ui, kit: &mut Kit, model: &mut Model, b: &mut Body) {
             }
         }
     }
-    b.gap();
-    b.hint(kit, "Watches, outlooks and lightning come in a");
-    b.hint(kit, "later update.");
+}
+
+/// Watches, MDs and the outlook picker: a day, then a kind for that day.
+fn spc_layers(ui: &mut Ui, kit: &mut Kit, model: &mut Model, b: &mut Body) {
+    use hookecho_core::spc::Product;
+    b.eyebrow(kit, "STORM PREDICTION CENTER");
+    let c = &mut model.config;
+    c.watches = b.toggle(ui, kit, "watches", "Watches", c.watches);
+    c.discussions = b.toggle(ui, kit, "mds", "Mesoscale discussions", c.discussions);
+    let trouble =
+        model.layers.spc_trouble.is_some() && (c.watches || c.discussions || c.outlook.is_some());
+    b.hint(
+        kit,
+        if trouble {
+            "Can't reach SPC right now; retrying"
+        } else {
+            "Click one on the map to read it"
+        },
+    );
+    let shown = c.outlook.as_deref().and_then(Product::from_key);
+    let day = shown.map_or(0, |p| p.day() as usize);
+    if let Some(i) = b.choice(ui, kit, "otlk-day", "Outlook", &["Off", "1", "2", "3"], day)
+        && i != day
+    {
+        // Keep the kind when switching days, where the new day has it.
+        let kind = shown.map(|p| p.name());
+        c.outlook = (i > 0).then(|| {
+            let of_day = Product::ALL.into_iter().filter(|p| p.day() as usize == i);
+            of_day
+                .clone()
+                .find(|p| Some(p.name()) == kind)
+                .or_else(|| of_day.clone().next())
+                .expect("each day has a categorical outlook")
+                .key()
+        });
+    }
+    if let Some(p) = shown {
+        let kinds: Vec<Product> = Product::ALL
+            .into_iter()
+            .filter(|k| k.day() == p.day())
+            .collect();
+        let labels: Vec<&str> = kinds.iter().map(|k| short_kind(*k)).collect();
+        let cur = kinds.iter().position(|k| *k == p).unwrap_or(0);
+        if let Some(i) = b.choice(ui, kit, "otlk-kind", "Risk", &labels, cur) {
+            c.outlook = Some(kinds[i].key());
+        }
+        b.hint(kit, "Click the map for the risk there");
+    }
+}
+
+fn short_kind(p: hookecho_core::spc::Product) -> &'static str {
+    match p.name() {
+        "Categorical" => "All",
+        "Tornado" => "Tor",
+        "Any severe" => "Severe",
+        n => n,
+    }
 }
 
 fn colors(ui: &mut Ui, kit: &mut Kit, model: &mut Model, b: &mut Body) {

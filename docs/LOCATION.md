@@ -1,5 +1,7 @@
 # "Use my location": proposal (2026-10-28)
 
+**Decided 2026-10-29: option A, built** (`hookecho-app::location`, Menu → "Use my location"). Not run once at first start; the owner can still ask for that.
+
 Owner fix 2 left one piece open: setting home from the computer's own location instead of clicking the map. This is the research and the proposal. **Nothing is built until the owner picks an option.**
 
 ## What's there today

@@ -74,6 +74,7 @@ fn renders_moore_sweep_offscreen() {
             radar: &[(id, ktlx)],
             style: &s,
             label_exclusions: &[],
+            satellite: None,
         },
     );
     queue.submit([enc.finish()]);

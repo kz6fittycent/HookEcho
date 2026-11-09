@@ -223,6 +223,7 @@ pub fn run(dir: &Path) -> Result<(), String> {
                 query: String::new(),
                 selected: 0,
                 scroll: 0.0,
+                group: None,
             },
             inspect: false,
             sheet: None,
@@ -237,6 +238,7 @@ pub fn run(dir: &Path) -> Result<(), String> {
                 query: "vel".into(),
                 selected: 0,
                 scroll: 0.0,
+                group: None,
             },
             inspect: false,
             sheet: None,
@@ -313,10 +315,11 @@ pub fn run(dir: &Path) -> Result<(), String> {
     if let Some(alerts) = crate::warnings::sample_alerts() {
         let m = &mut o.app.model;
         let at = (31.62, -104.6);
-        m.alerts = std::sync::Arc::new(alerts);
+        m.layers.alerts = std::sync::Arc::new(alerts);
         m.camera = Camera::looking_at(at.0, at.1, 420.0, SIZE[0] as f64);
         m.motion.zoom_target = m.camera.scale;
         let hit = m
+            .layers
             .alerts
             .iter()
             .find(|a| a.area == "Culberson, TX")
@@ -343,6 +346,173 @@ pub fn run(dir: &Path) -> Result<(), String> {
             println!("wrote {}", path.display());
         }
         o.app.model.picker = Picker::None;
+        o.app.model.layers.alerts = Default::default();
+    }
+    // SPC: a categorical outlook, a tornado watch and an MD, the MD's card
+    // open (recorded files, kept in force).
+    if let Some(spc) = crate::spc::sample() {
+        let m = &mut o.app.model;
+        let md = spc.discussions[0].rings[0].clone();
+        m.layers.spc = std::sync::Arc::new(spc);
+        m.config.outlook = Some(hookecho_core::spc::Product::Day1Categorical.key());
+        m.camera = Camera::looking_at(40.5, -84.0, 2600.0, SIZE[0] as f64);
+        m.motion.zoom_target = m.camera.scale;
+        let n = md.len() as f64;
+        let c = md
+            .iter()
+            .fold((0.0, 0.0), |s, p| (s.0 + p.0 / n, s.1 + p.1 / n));
+        for (theme, name) in [
+            (ThemeKind::Dark, "22-spc"),
+            (ThemeKind::Light, "23-spc-light"),
+        ] {
+            crate::warnings::click(&mut o.app.model, c);
+            o.app.theme_override = Some(theme);
+            let (w, h, px) = o.capture(SIZE, PPP);
+            let path = dir.join(format!("{name}.png"));
+            image::RgbaImage::from_raw(w, h, px)
+                .ok_or("bad image")?
+                .save(&path)
+                .map_err(|e| e.to_string())?;
+            println!("wrote {}", path.display());
+        }
+        o.app.model.picker = Picker::None;
+        o.app.model.config.outlook = None;
+        o.app.model.layers.spc = Default::default();
+    }
+    // Surface observations: station plots around Oklahoma City and the
+    // station panel (recorded reports, moved to now).
+    if let Some(obs) = crate::stations::sample() {
+        let m = &mut o.app.model;
+        m.layers.obs = std::sync::Arc::new(obs);
+        m.config.station_plots = true;
+        m.config.station_panel = true;
+        m.config.home = Some((35.47, -97.52));
+        m.camera = Camera::looking_at(35.6, -97.4, 520.0, SIZE[0] as f64);
+        m.motion.zoom_target = m.camera.scale;
+        for (theme, name) in [
+            (ThemeKind::Dark, "24-surface-obs"),
+            (ThemeKind::Light, "25-surface-obs-light"),
+        ] {
+            o.app.theme_override = Some(theme);
+            let (w, h, px) = o.capture(SIZE, PPP);
+            let path = dir.join(format!("{name}.png"));
+            image::RgbaImage::from_raw(w, h, px)
+                .ok_or("bad image")?
+                .save(&path)
+                .map_err(|e| e.to_string())?;
+            println!("wrote {}", path.display());
+        }
+        o.app.model.config.station_plots = false;
+        o.app.model.config.home = None;
+        o.app.model.layers.obs = Default::default();
+    }
+    // Space weather: the card open over the aurora forecast (recorded
+    // SWPC answers, moved to now).
+    if let Some(w) = crate::space::sample() {
+        let m = &mut o.app.model;
+        m.layers.space = std::sync::Arc::new(w);
+        m.config.aurora = true;
+        m.config.station_panel = false;
+        m.camera = Camera::looking_at(60.0, -100.0, 6500.0, SIZE[0] as f64);
+        m.motion.zoom_target = m.camera.scale;
+        for (theme, name, card) in [
+            (ThemeKind::Dark, "26-aurora", false),
+            (ThemeKind::Dark, "27-space-weather", true),
+            (ThemeKind::Light, "28-space-weather-light", true),
+        ] {
+            o.app.model.picker = if card {
+                Picker::SpaceWeather { scroll: 0.0 }
+            } else {
+                Picker::None
+            };
+            o.app.theme_override = Some(theme);
+            let (w, h, px) = o.capture(SIZE, PPP);
+            let path = dir.join(format!("{name}.png"));
+            image::RgbaImage::from_raw(w, h, px)
+                .ok_or("bad image")?
+                .save(&path)
+                .map_err(|e| e.to_string())?;
+            println!("wrote {}", path.display());
+        }
+        o.app.model.picker = Picker::None;
+        o.app.model.config.aurora = false;
+        o.app.model.config.station_panel = true;
+        o.app.model.layers.space = Default::default();
+    }
+    // The dock: warnings, the station, space weather and the inspector
+    // pinned at the left, over recorded data.
+    if let (Some(alerts), Some(spc), Some(obs), Some(w)) = (
+        crate::warnings::sample_alerts(),
+        crate::spc::sample(),
+        crate::stations::sample(),
+        crate::space::sample(),
+    ) {
+        let m = &mut o.app.model;
+        m.layers.alerts = std::sync::Arc::new(alerts);
+        m.layers.spc = std::sync::Arc::new(spc);
+        m.layers.obs = std::sync::Arc::new(obs);
+        m.layers.space = std::sync::Arc::new(w);
+        m.config.home = Some((35.47, -97.52));
+        m.config.station_panel = true;
+        m.config.dock = ["bulletins", "station", "inspector", "space"]
+            .map(String::from)
+            .to_vec();
+        m.dock_inset = 0.0;
+        let ball = debris_ball(&o);
+        let m = &mut o.app.model;
+        m.camera = Camera::looking_at(ball.0, ball.1 + 0.25, 140.0, SIZE[0] as f64);
+        m.motion.zoom_target = m.camera.scale;
+        m.inspect = crate::model::Inspect::Pinned(ball);
+        for (theme, name) in [
+            (ThemeKind::Dark, "30-dock"),
+            (ThemeKind::Light, "31-dock-light"),
+        ] {
+            o.app.theme_override = Some(theme);
+            let (w, h, px) = o.capture(SIZE, PPP);
+            let path = dir.join(format!("{name}.png"));
+            image::RgbaImage::from_raw(w, h, px)
+                .ok_or("bad image")?
+                .save(&path)
+                .map_err(|e| e.to_string())?;
+            println!("wrote {}", path.display());
+        }
+        let m = &mut o.app.model;
+        m.config.dock.clear();
+        m.config.home = None;
+        m.inspect = crate::model::Inspect::Off;
+        m.layers = Default::default();
+    }
+    // Satellite, from GOES files on disk (not bundled: 3-12 MB each):
+    // HOOKECHO_GOES_FILE=a.nc[:b.nc...], the band from each name (C01, C09,
+    // C13).
+    if let Ok(files) = std::env::var("HOOKECHO_GOES_FILE") {
+        use hookecho_core::goes::{self, Band};
+        for f in files.split(':') {
+            let band = if f.contains("C01") {
+                Band::Visible
+            } else if f.contains("C09") {
+                Band::WaterVapor
+            } else {
+                Band::Infrared
+            };
+            let bytes = std::fs::read(f).map_err(|e| format!("{f}: {e}"))?;
+            let img = goes::decode(band, bytes, f)?;
+            let m = &mut o.app.model;
+            m.config.satellite = Some(band.key().to_string());
+            m.layers.goes = std::sync::Arc::new(Some(img));
+            m.camera = Camera::looking_at(37.0, -95.0, 4200.0, SIZE[0] as f64);
+            m.motion.zoom_target = m.camera.scale;
+            o.app.theme_override = Some(ThemeKind::Dark);
+            let (w, h, px) = o.capture(SIZE, PPP);
+            let path = dir.join(format!("29-satellite-{}.png", band.key()));
+            image::RgbaImage::from_raw(w, h, px)
+                .ok_or("bad image")?
+                .save(&path)
+                .map_err(|e| e.to_string())?;
+            println!("wrote {}", path.display());
+        }
+        o.app.model.config.satellite = None;
+        o.app.model.layers.goes = Default::default();
     }
     Ok(())
 }
@@ -350,10 +520,17 @@ pub fn run(dir: &Path) -> Result<(), String> {
 /// `--live-screenshot FILE [SITE]` (developer check): the real live feed,
 /// offscreen. Waits up to 90 s for network data, then saves one PNG.
 pub fn live(file: &Path, site: Option<&str>) -> Result<(), String> {
-    let dir = std::env::temp_dir().join(format!("hookecho-live-{}", std::process::id()));
-    let dirs = hookecho_core::paths::Dirs {
-        config: dir.join("config"),
-        cache: dir.join("cache"),
+    // A scratch config, unless HOOKECHO_HOME names one (to check layers
+    // switched on there).
+    let scratch = std::env::var_os("HOOKECHO_HOME")
+        .is_none()
+        .then(|| std::env::temp_dir().join(format!("hookecho-live-{}", std::process::id())));
+    let dirs = match &scratch {
+        Some(dir) => hookecho_core::paths::Dirs {
+            config: dir.join("config"),
+            cache: dir.join("cache"),
+        },
+        None => hookecho_core::paths::Dirs::resolve().ok_or("no HOOKECHO_HOME dirs")?,
     };
     let mut o = Offscreen::with_source(Some(dirs), SIZE, crate::app::Source::Live)?;
     o.app.model.reduced_motion = true;
@@ -369,8 +546,11 @@ pub fn live(file: &Path, site: Option<&str>) -> Result<(), String> {
             - deadline
                 .saturating_duration_since(std::time::Instant::now())
                 .as_secs();
+        // The satellite image too, when that layer is on.
+        let m = &o.app.model;
+        let layers_ready = m.config.satellite.is_none() || crate::satellite::shown(m).is_some();
         if let Some(l) = o.app.model.loaded_here()
-            && (frames >= 3 || waited > 45)
+            && ((frames >= 3 && layers_ready) || waited > 45)
         {
             if let Some(i) = &l.live {
                 eprintln!(
@@ -412,7 +592,9 @@ pub fn live(file: &Path, site: Option<&str>) -> Result<(), String> {
                 .save(file)
                 .map_err(|e| e.to_string())?;
             println!("wrote {}", file.display());
-            let _ = std::fs::remove_dir_all(&dir);
+            if let Some(dir) = &scratch {
+                let _ = std::fs::remove_dir_all(dir);
+            }
             return Ok(());
         }
         std::thread::sleep(std::time::Duration::from_millis(250));

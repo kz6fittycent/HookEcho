@@ -146,6 +146,56 @@ fn fs_radar(in: VsOut) -> @location(0) vec4<f32> {
     return vec4<f32>(c.rgb, c.a * ru.alpha);
 }
 
+// ---------------------------------------------------------------- satellite
+// A GOES ABI image on its fixed grid: each pixel goes screen -> mercator ->
+// lat/lon -> scan angles (GOES-R PUG L2+ Vol. 5 §4.2.8.1) -> image texel.
+// Lengths are in units of the equatorial radius to keep f32 comfortable.
+struct SatU {
+    viewport: vec2<f32>,
+    center_merc: vec2<f32>,
+    px_per_merc: f32,
+    lon0: f32,               // radians
+    h: f32,                  // satellite distance from Earth's center / req
+    rpol: f32,               // polar radius / req
+    x0: f32,                 // scan angle of column 0, row 0 centers, radians
+    dx: f32,
+    y0: f32,
+    dy: f32,
+    size: vec2<f32>,         // image width, height
+    alpha: f32,
+    _pad: f32,
+};
+
+@group(0) @binding(0) var<uniform> su: SatU;
+@group(0) @binding(1) var sat_tex: texture_2d<f32>;     // R8Unorm, 0 = no data
+@group(0) @binding(2) var sat_lut: texture_2d<f32>;     // Rgba8UnormSrgb, 256 × 1
+@group(0) @binding(3) var sat_samp: sampler;
+
+@fragment
+fn fs_sat(in: VsOut) -> @location(0) vec4<f32> {
+    let m = (in.pos.xy - su.viewport * 0.5) / su.px_per_merc + su.center_merc;
+    let lat = atan(sinh(PI * (1.0 - 2.0 * m.y)));
+    let lam = m.x * 2.0 * PI - PI - su.lon0;
+    let rp2 = su.rpol * su.rpol;
+    let e2 = 1.0 - rp2;
+    let phic = atan(rp2 * tan(lat));
+    let rc = su.rpol / sqrt(1.0 - e2 * cos(phic) * cos(phic));
+    let sx = su.h - rc * cos(phic) * cos(lam);
+    let sy = -rc * cos(phic) * sin(lam);
+    let sz = rc * sin(phic);
+    if (su.h * (su.h - sx) < sy * sy + sz * sz / rp2) { discard; }
+    let y = atan(sz / sx);
+    let x = asin(-sy / sqrt(sx * sx + sy * sy + sz * sz));
+    let px = vec2<f32>((x - su.x0) / su.dx, (y - su.y0) / su.dy);
+    if (px.x < -0.5 || px.y < -0.5 || px.x > su.size.x - 0.5 || px.y > su.size.y - 0.5) { discard; }
+    let v = textureSampleLevel(sat_tex, sat_samp, (px + 0.5) / su.size, 0.0).r;
+    // Bilinear sampling next to no-data pixels gives low values: drop them.
+    if (v < 0.5 / 255.0) { discard; }
+    let c = textureLoad(sat_lut, vec2<i32>(i32(v * 255.0 + 0.5), 0), 0);
+    if (c.a <= 0.0) { discard; }
+    return vec4<f32>(c.rgb, c.a * su.alpha);
+}
+
 // --------------------------------------------------------------------- blur
 struct BlurU {
     texel: vec2<f32>,

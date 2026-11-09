@@ -108,7 +108,7 @@ pub mod size {
     pub const LIVE_BUTTON: [f32; 2] = [64.0, 28.0];
     /// Command palette (DESIGN.md §3.8).
     pub const COMMAND_W: f32 = 560.0;
-    pub const COMMAND_MAX_H: f32 = 480.0;
+    pub const COMMAND_MAX_H: f32 = 640.0;
     pub const COMMAND_FIELD_H: f32 = 48.0;
     /// Shortcuts sheet (DESIGN.md §3.9).
     pub const SHORTCUTS_W: f32 = 640.0;
@@ -116,6 +116,15 @@ pub mod size {
     pub const SHORTCUT_ROW_H: f32 = 28.0;
     /// Side sheet (DESIGN.md §3.6).
     pub const SHEET_W: f32 = 360.0;
+    /// The left dock (DESIGN.md §3.11): its width, and the narrowest window
+    /// that keeps it (below this, docked panels float instead).
+    pub const DOCK_W: f32 = 360.0;
+    pub const DOCK_MIN_WINDOW: f32 = 1000.0;
+    /// Active-layer chips above the legend: height, and the × at the end.
+    pub const LAYER_CHIP_H: f32 = 32.0;
+    pub const LAYER_CHIP_X: f32 = 32.0;
+    /// The header every panel shares, docked or floating.
+    pub const PANEL_HEADER_H: f32 = 44.0;
     pub const SEGMENTED_H: f32 = 32.0;
     /// A settings row: label (and hint) on the left, control on the right.
     pub const SETTING_ROW_H: f32 = 48.0;

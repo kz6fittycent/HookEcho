@@ -1,6 +1,7 @@
 //! The command palette's commands (docs/DESIGN.md §3.8): every site,
-//! product, layer, action and setting, reachable by typing. Built from the
-//! model each time the palette opens or the query changes; no egui here.
+//! product, layer, action and setting, reachable by typing or by browsing a
+//! group (the tabs under the search field). Built from the model each time
+//! the palette opens or the query changes; no egui here.
 
 use crate::model::{self, Model, PRODUCTS, Picker, SheetTab};
 use hookecho_core::Moment;
@@ -16,9 +17,29 @@ pub enum Group {
 }
 
 impl Group {
+    /// The tabs under the search field, after "All".
+    pub const ALL: [Group; 5] = [
+        Group::Sites,
+        Group::Products,
+        Group::Layers,
+        Group::Actions,
+        Group::Settings,
+    ];
+
+    /// The tab's name.
+    pub fn tab(self) -> &'static str {
+        match self {
+            Group::Sites => "Radars",
+            Group::Products => "Products",
+            Group::Layers => "Layers",
+            Group::Actions => "Actions",
+            Group::Settings => "Settings",
+        }
+    }
+
     pub fn label(self) -> &'static str {
         match self {
-            Group::Sites => "SITES",
+            Group::Sites => "RADARS",
             Group::Products => "PRODUCTS",
             Group::Layers => "LAYERS",
             Group::Actions => "ACTIONS",
@@ -32,6 +53,12 @@ pub enum Layer {
     Counties,
     Roads,
     Labels,
+    Warnings,
+    Watches,
+    Discussions,
+    StationPlots,
+    StationPanel,
+    Aurora,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -46,6 +73,7 @@ pub enum Action {
     SitePicker,
     NearestRadar,
     SetHome,
+    UseMyLocation,
     ProductPicker,
     Sheet(SheetTab),
     Shortcuts,
@@ -62,6 +90,13 @@ pub enum Action {
     RestoreColors,
     MaskDualPol(bool),
     LabelScale(f32),
+    SpaceWeather,
+    /// Show a GOES band, or none.
+    Satellite(Option<hookecho_core::goes::Band>),
+    /// Show an SPC outlook day (its categorical outlook), or none.
+    Outlook(Option<u8>),
+    /// Dock the inspector, or float it again.
+    DockInspector,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -138,9 +173,23 @@ pub const SHORTCUTS: &[ShortcutGroup] = &[
     ),
 ];
 
-/// Every command for the current state. Sites come only from a query
-/// (155 rows would bury everything else), except favorites.
-pub fn all(model: &Model, query: &str) -> Vec<Command> {
+/// The hint on a layer that's on: what a click will do.
+const ON: &str = "On · click to turn off";
+
+/// Every command for the current state, or one group's (`None`: all). In
+/// "All", sites come only from a query (200 rows would bury everything
+/// else), except favorites; browsing Radars lists every radar, nearest the
+/// map center first.
+pub fn all_in(model: &Model, query: &str, group: Option<Group>) -> Vec<Command> {
+    let browse_sites = group == Some(Group::Sites);
+    let mut v = everything(model, query, browse_sites);
+    if let Some(g) = group {
+        v.retain(|c| c.group == g);
+    }
+    v
+}
+
+fn everything(model: &Model, query: &str, browse_sites: bool) -> Vec<Command> {
     let mut v = Vec::new();
     let sites = model::site_list(
         query,
@@ -148,10 +197,11 @@ pub fn all(model: &Model, query: &str) -> Vec<Command> {
         Some(model.map_center()),
         model.config.tdwr,
     );
+    let limit = if browse_sites { usize::MAX } else { 8 };
     for (s, fav) in sites
         .into_iter()
-        .filter(|(_, fav)| *fav || !query.trim().is_empty())
-        .take(8)
+        .filter(|(_, fav)| *fav || browse_sites || !query.trim().is_empty())
+        .take(limit)
     {
         let hint = if fav {
             format!("{} · favorite", s.state)
@@ -179,6 +229,14 @@ pub fn all(model: &Model, query: &str) -> Vec<Command> {
         None,
         "local closest my area",
         Action::NearestRadar,
+    ));
+    v.push(cmd(
+        Group::Sites,
+        "Use my location",
+        "Set home where this computer is, then go to the nearest radar",
+        None,
+        "location gps geoclue where am i near me",
+        Action::UseMyLocation,
     ));
     v.push(cmd(
         Group::Sites,
@@ -220,9 +278,86 @@ pub fn all(model: &Model, query: &str) -> Vec<Command> {
         "tilt elevation",
         Action::TiltDown,
     ));
+    let c = &model.config;
+    let sat = c
+        .satellite
+        .as_deref()
+        .and_then(hookecho_core::goes::Band::from_key);
+    // A row that's on turns its layer off.
+    for band in hookecho_core::goes::Band::ALL {
+        let on = sat == Some(band);
+        v.push(cmd(
+            Group::Layers,
+            format!("Satellite: {}", band.name().to_lowercase()),
+            if on {
+                ON
+            } else {
+                "Off · GOES-East under the radar"
+            },
+            None,
+            "goes satellite clouds imagery hide",
+            Action::Satellite((!on).then_some(band)),
+        ));
+    }
+    let outlook_day = c
+        .outlook
+        .as_deref()
+        .and_then(hookecho_core::spc::Product::from_key)
+        .map(|p| p.day());
+    for day in 1..=3u8 {
+        let on = outlook_day == Some(day);
+        v.push(cmd(
+            Group::Layers,
+            format!("SPC outlook, day {day}"),
+            if on {
+                ON
+            } else {
+                "Off · severe weather risk areas"
+            },
+            None,
+            "convective outlook risk categorical tornado hail wind hide",
+            Action::Outlook((!on).then_some(day)),
+        ));
+    }
     let map = model.config.map;
-    let state = |on: bool| if on { "Shown" } else { "Hidden" };
+    let state = |on: bool| if on { ON } else { "Off" };
     for (layer, name, on, kw) in [
+        (
+            Layer::Warnings,
+            "NWS warnings",
+            c.warnings,
+            "tornado severe flood alerts",
+        ),
+        (
+            Layer::Watches,
+            "SPC watches",
+            c.watches,
+            "tornado severe thunderstorm",
+        ),
+        (
+            Layer::Discussions,
+            "Mesoscale discussions",
+            c.discussions,
+            "spc md mcd",
+        ),
+        (
+            Layer::StationPlots,
+            "Station plots",
+            c.station_plots,
+            "surface observations metar temperature dewpoint wind",
+        ),
+        (
+            Layer::StationPanel,
+            "Station panel",
+            c.station_panel,
+            "command center conditions pressure visibility",
+        ),
+        (
+            Layer::Aurora,
+            "Aurora forecast",
+            c.aurora,
+            "space weather northern lights ovation",
+        ),
         (Layer::Counties, "County lines", map.counties, "borders"),
         (Layer::Roads, "Highways", map.roads, "roads interstates"),
         (
@@ -310,6 +445,26 @@ pub fn all(model: &Model, query: &str) -> Vec<Command> {
             None,
             "preferences options",
             Action::Sheet(SheetTab::Settings),
+        ),
+        cmd(
+            Group::Actions,
+            "Space weather",
+            "Kp, solar wind, flares, SWPC alerts",
+            None,
+            "aurora geomagnetic storm sun solar kp swpc",
+            Action::SpaceWeather,
+        ),
+        cmd(
+            Group::Actions,
+            if crate::dock::wants_dock(model, crate::dock::Panel::Inspector) {
+                "Float the inspector"
+            } else {
+                "Dock the inspector"
+            },
+            "Read values in the left dock instead of at the pointer",
+            None,
+            "inspector value dock panel pin",
+            Action::DockInspector,
         ),
         cmd(
             Group::Actions,
@@ -563,6 +718,12 @@ pub fn run(model: &mut Model, action: &Action, view: [f64; 2], now: f64) {
                 Layer::Counties => &mut c.map.counties,
                 Layer::Roads => &mut c.map.roads,
                 Layer::Labels => &mut c.map.labels,
+                Layer::Warnings => &mut c.warnings,
+                Layer::Watches => &mut c.watches,
+                Layer::Discussions => &mut c.discussions,
+                Layer::StationPlots => &mut c.station_plots,
+                Layer::StationPanel => &mut c.station_panel,
+                Layer::Aurora => &mut c.aurora,
             };
             *f = !*f;
         }
@@ -580,9 +741,35 @@ pub fn run(model: &mut Model, action: &Action, view: [f64; 2], now: f64) {
         }
         Action::NearestRadar => model.go_to_nearest(view),
         Action::SetHome => model.placing_home = true,
+        Action::UseMyLocation => model.locate_requested = true,
+        Action::Satellite(b) => c.satellite = b.map(|b| b.key().to_string()),
+        Action::Outlook(day) => {
+            c.outlook = day.and_then(|d| {
+                hookecho_core::spc::Product::ALL
+                    .into_iter()
+                    .find(|p| p.day() == d)
+                    .map(|p| p.key())
+            })
+        }
         Action::ProductPicker => model.picker = Picker::Product,
         Action::Sheet(tab) => model.sheet = Some(model::Sheet::new(*tab)),
         Action::Shortcuts => model.picker = Picker::Shortcuts,
+        Action::SpaceWeather => {
+            let p = crate::dock::Panel::Space;
+            if crate::dock::wants_dock(model, p) {
+                model.config.dock_collapsed.retain(|k| k != p.key());
+            } else {
+                model.picker = Picker::SpaceWeather { scroll: 0.0 };
+            }
+        }
+        Action::DockInspector => {
+            let p = crate::dock::Panel::Inspector;
+            if crate::dock::wants_dock(model, p) {
+                crate::dock::undock(model, p);
+            } else {
+                crate::dock::dock(model, p);
+            }
+        }
         Action::ZoomIn | Action::ZoomOut => {
             let k = if *action == Action::ZoomIn {
                 1.6
@@ -628,11 +815,52 @@ mod tests {
     #[test]
     fn location_commands_first() {
         let m = model();
-        let empty = search(all(&m, ""), "");
+        let empty = search(all_in(&m, "", None), "");
         assert_eq!(empty[0].action, Action::NearestRadar);
-        assert_eq!(empty[1].action, Action::SetHome);
-        let found = search(all(&m, "home"), "home");
+        assert_eq!(empty[1].action, Action::UseMyLocation);
+        assert_eq!(empty[2].action, Action::SetHome);
+        let found = search(all_in(&m, "home", None), "home");
         assert_eq!(found[0].action, Action::SetHome);
+        let found = search(all_in(&m, "my location", None), "my location");
+        assert_eq!(found[0].action, Action::UseMyLocation);
+    }
+
+    /// Each tab browses its group with nothing typed; Radars lists every
+    /// radar, and the satellite and outlook layers are there to find.
+    #[test]
+    fn groups_browse_without_typing() {
+        let mut m = model();
+        let radars = search(all_in(&m, "", Some(Group::Sites)), "");
+        let sites = radars
+            .iter()
+            .filter(|c| matches!(c.action, Action::Site(_)))
+            .count();
+        assert!(sites > 150, "{sites}");
+        assert!(search(all_in(&m, "", None), "").len() < radars.len());
+        let layers = search(all_in(&m, "", Some(Group::Layers)), "");
+        assert!(layers.iter().all(|c| c.group == Group::Layers));
+        let ir = layers
+            .iter()
+            .find(|c| c.label == "Satellite: infrared")
+            .unwrap();
+        run(&mut m, &ir.action.clone(), [1280.0, 800.0], 0.0);
+        assert_eq!(m.config.satellite.as_deref(), Some("infrared"));
+        // The same row, now on, turns it off.
+        let again = search(all_in(&m, "", Some(Group::Layers)), "");
+        let ir = again
+            .iter()
+            .find(|c| c.label == "Satellite: infrared")
+            .unwrap();
+        assert_eq!(ir.hint, ON);
+        run(&mut m, &ir.action.clone(), [1280.0, 800.0], 0.0);
+        assert_eq!(m.config.satellite, None);
+        let day2 = search(all_in(&m, "outlook", None), "outlook");
+        let d2 = day2
+            .iter()
+            .find(|c| c.label == "SPC outlook, day 2")
+            .unwrap();
+        run(&mut m, &d2.action.clone(), [1280.0, 800.0], 0.0);
+        assert_eq!(m.config.outlook.as_deref(), Some("day2-cat"));
     }
 
     #[test]
@@ -649,7 +877,12 @@ mod tests {
     #[test]
     fn search_finds_by_label_keyword_and_site() {
         let m = model();
-        let first = |q: &str| search(all(&m, q), q).into_iter().next().map(|c| c.action);
+        let first = |q: &str| {
+            search(all_in(&m, q, None), q)
+                .into_iter()
+                .next()
+                .map(|c| c.action)
+        };
         assert_eq!(first("velocity"), Some(Action::Product(Moment::Velocity)));
         assert_eq!(first("dark mode"), Some(Action::Theme(ThemePref::Dark)));
         assert_eq!(first("utc"), Some(Action::Utc(true)));
@@ -658,14 +891,14 @@ mod tests {
         assert_eq!(first("kfws"), Some(Action::Site("KFWS")));
         assert_eq!(first("roads"), Some(Action::Layer(Layer::Roads)));
         // An empty query lists commands but no (non-favorite) sites.
-        let empty = search(all(&m, ""), "");
+        let empty = search(all_in(&m, "", None), "");
         assert!(empty.iter().all(|c| !matches!(c.action, Action::Site(_))));
         assert!(empty.len() > 20);
         // Grouped in order when nothing is typed.
         let groups: Vec<Group> = empty.iter().map(|c| c.group).collect();
         assert!(groups.windows(2).all(|w| w[0] <= w[1]));
         // Each group appears once, as a block.
-        let typed = search(all(&m, "loop"), "loop");
+        let typed = search(all_in(&m, "loop", None), "loop");
         let mut seen: Vec<Group> = Vec::new();
         for c in &typed {
             if seen.last() != Some(&c.group) {

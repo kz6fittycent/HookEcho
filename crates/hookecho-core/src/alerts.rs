@@ -2,23 +2,22 @@
 //! Weather Service's public alerts API, `api.weather.gov/alerts/active`
 //! (GeoJSON, documented at https://www.weather.gov/documentation/services-web-api).
 //! Each of these warnings carries its own polygon; county-based products
-//! (watches, advisories) have no geometry here and come with SPC's watch
-//! polygons later.
+//! (watches, advisories) have no geometry here; watches are drawn from
+//! SPC's outlines instead (`crate::spc`).
 //!
-//! A background thread polls once a minute with `If-None-Match` (the API
-//! sends an ETag), keeps the last answer on disk for a cold start, and never
-//! blocks the UI. The NWS asks for a descriptive User-Agent; ours is
-//! [`crate::s3::USER_AGENT`].
+//! Polled once a minute through [`crate::poll`] (conditional GETs, the
+//! last answer kept on disk for a cold start). The NWS asks for a
+//! descriptive User-Agent; ours is [`crate::s3::USER_AGENT`].
 
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::sync::{Arc, mpsc};
 use std::time::Duration;
 
 pub const ENDPOINT: &str = "https://api.weather.gov/alerts/active";
 
 /// Warning types drawn on the map, most severe first (the drawing order is
 /// the reverse, so the most severe ends up on top).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum Event {
     Tornado,
     ExtremeWind,
@@ -72,7 +71,7 @@ impl Event {
 }
 
 /// One warning with its polygon(s).
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Alert {
     pub id: String,
     pub event: Event,
@@ -222,141 +221,38 @@ pub fn parse_time(s: &str) -> Option<i64> {
     Some((days * 86_400 + h * 3600 + mi * 60 + sec - offset_s) * 1000)
 }
 
-#[derive(Clone, Debug)]
-pub enum AlertEvent {
-    /// The current warnings (from the network, or the disk cache at start).
-    Alerts(Arc<Vec<Alert>>),
-    /// The last poll failed; the previous warnings still stand.
-    Trouble(String),
+/// Polls the alerts API once a minute.
+#[derive(Default)]
+pub struct AlertSource {
+    /// Whether an answer has been parsed, so an unchanged one isn't resent.
+    seen: bool,
 }
 
-pub struct AlertFeed {
-    enabled: tokio::sync::watch::Sender<bool>,
-    pub events: mpsc::Receiver<AlertEvent>,
-}
+impl crate::poll::Source for AlertSource {
+    type Data = Vec<Alert>;
+    const NAME: &'static str = "alerts";
 
-const POLL: Duration = Duration::from_secs(60);
-const MAX_BACKOFF: Duration = Duration::from_secs(300);
-const CACHE_FILE: &str = "alerts.json";
+    fn every(&self) -> Duration {
+        Duration::from_secs(60)
+    }
 
-impl AlertFeed {
-    /// Starts the polling thread, paused until [`AlertFeed::enable`]. `wake`
-    /// is called after every event so the UI can repaint.
-    pub fn start(cache_dir: std::path::PathBuf, wake: Arc<dyn Fn() + Send + Sync>) -> AlertFeed {
-        let (on_tx, on_rx) = tokio::sync::watch::channel(false);
-        let (tx, rx) = mpsc::channel();
-        std::thread::Builder::new()
-            .name("alerts".into())
-            .spawn(move || {
-                let rt = tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                    .expect("tokio runtime");
-                rt.block_on(run(on_rx, tx, wake, cache_dir));
-            })
-            .expect("spawn alerts feed");
-        AlertFeed {
-            enabled: on_tx,
-            events: rx,
+    async fn fetch(&mut self, http: &mut crate::poll::Http) -> Result<Option<Vec<Alert>>, String> {
+        let got = http.get(&url(), "application/geo+json").await?;
+        if !got.changed && self.seen {
+            return Ok(None);
         }
+        let a = parse(&got.body).map_err(|e| format!("bad answer: {e}"))?;
+        self.seen = true;
+        Ok(Some(a))
     }
 
-    /// Polls while `on`; when off, makes no requests at all.
-    pub fn enable(&self, on: bool) {
-        self.enabled
-            .send_if_modified(|v| std::mem::replace(v, on) != on);
+    fn save(&self, data: &Vec<Alert>) -> Option<Vec<u8>> {
+        serde_json::to_vec(data).ok()
     }
-}
 
-async fn run(
-    mut enabled: tokio::sync::watch::Receiver<bool>,
-    tx: mpsc::Sender<AlertEvent>,
-    wake: Arc<dyn Fn() + Send + Sync>,
-    cache_dir: std::path::PathBuf,
-) {
-    let send = |e: AlertEvent| {
-        let _ = tx.send(e);
-        wake();
-    };
-    let path = cache_dir.join(CACHE_FILE);
-    if let Some(a) = std::fs::read(&path).ok().and_then(|b| parse(&b).ok()) {
-        send(AlertEvent::Alerts(Arc::new(a)));
+    fn load(&self, bytes: &[u8]) -> Option<Vec<Alert>> {
+        serde_json::from_slice(bytes).ok()
     }
-    let _ = rustls::crypto::ring::default_provider().install_default();
-    let Ok(client) = reqwest::Client::builder()
-        .user_agent(crate::s3::USER_AGENT)
-        .connect_timeout(Duration::from_secs(10))
-        .timeout(Duration::from_secs(30))
-        .build()
-    else {
-        return;
-    };
-    let url = url();
-    let mut etag: Option<String> = None;
-    let mut backoff = POLL;
-    loop {
-        while !*enabled.borrow_and_update() {
-            if enabled.changed().await.is_err() {
-                return;
-            }
-        }
-        let wait = match fetch(&client, &url, etag.as_deref()).await {
-            Ok(Some((body, tag))) => match parse(&body) {
-                Ok(a) => {
-                    let _ = std::fs::create_dir_all(&cache_dir);
-                    let _ = std::fs::write(&path, &body);
-                    etag = tag;
-                    send(AlertEvent::Alerts(Arc::new(a)));
-                    backoff = POLL;
-                    POLL
-                }
-                Err(e) => {
-                    send(AlertEvent::Trouble(format!("bad answer: {e}")));
-                    MAX_BACKOFF
-                }
-            },
-            // 304: nothing changed.
-            Ok(None) => {
-                backoff = POLL;
-                POLL
-            }
-            Err(e) => {
-                send(AlertEvent::Trouble(e));
-                backoff = (backoff * 2).min(MAX_BACKOFF);
-                backoff
-            }
-        };
-        tokio::select! {
-            _ = tokio::time::sleep(wait) => {}
-            r = enabled.changed() => if r.is_err() { return },
-        }
-    }
-}
-
-/// One conditional GET: `Ok(None)` when unchanged (304).
-async fn fetch(
-    client: &reqwest::Client,
-    url: &str,
-    etag: Option<&str>,
-) -> Result<Option<(Vec<u8>, Option<String>)>, String> {
-    let mut req = client.get(url).header("Accept", "application/geo+json");
-    if let Some(t) = etag {
-        req = req.header("If-None-Match", t);
-    }
-    let r = req.send().await.map_err(|e| e.to_string())?;
-    if r.status() == reqwest::StatusCode::NOT_MODIFIED {
-        return Ok(None);
-    }
-    if !r.status().is_success() {
-        return Err(format!("HTTP {}", r.status().as_u16()));
-    }
-    let tag = r
-        .headers()
-        .get("etag")
-        .and_then(|v| v.to_str().ok())
-        .map(str::to_string);
-    let body = r.bytes().await.map_err(|e| e.to_string())?;
-    Ok(Some((body.to_vec(), tag)))
 }
 
 #[cfg(test)]
@@ -457,23 +353,15 @@ mod tests {
     #[test]
     #[ignore]
     fn live_alerts() {
+        use crate::poll::Source;
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
             .unwrap();
-        let _ = rustls::crypto::ring::default_provider().install_default();
-        let client = reqwest::Client::builder()
-            .user_agent(crate::s3::USER_AGENT)
-            .build()
-            .unwrap();
-        let (body, tag) = rt.block_on(fetch(&client, &url(), None)).unwrap().unwrap();
-        parse(&body).unwrap();
-        if let Some(tag) = tag {
-            // Usually 304 straight after; a new warning in between is fine too.
-            let again = rt.block_on(fetch(&client, &url(), Some(&tag))).unwrap();
-            if let Some((b, _)) = again {
-                parse(&b).unwrap();
-            }
-        }
+        let mut http = crate::poll::Http::new().unwrap();
+        let mut s = AlertSource::default();
+        rt.block_on(s.fetch(&mut http)).unwrap().unwrap();
+        // Usually unchanged straight after; a new warning in between is fine.
+        rt.block_on(s.fetch(&mut http)).unwrap();
     }
 }

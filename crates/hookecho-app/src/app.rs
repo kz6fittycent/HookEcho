@@ -36,7 +36,7 @@ type Waker = std::sync::Arc<std::sync::OnceLock<egui::Context>>;
 pub struct App {
     pub model: Model,
     feed: Option<hookecho_core::live::Feed>,
-    alerts: Option<hookecho_core::alerts::AlertFeed>,
+    feeds: Option<crate::feeds::Feeds>,
     frames: Option<hookecho_core::frames::LoopLoader>,
     waker: Waker,
     watching: Option<String>,
@@ -52,6 +52,10 @@ pub struct App {
     palettes_applied: u64,
     /// The dual-pol mask setting the uploaded sweeps were made with.
     mask_applied: bool,
+    /// A "Use my location" request in flight (location.rs).
+    locating: Option<mpsc::Receiver<Result<(f64, f64), String>>>,
+    /// The satellite image last uploaded to the renderer.
+    satellite_applied: Option<std::sync::Arc<Option<hookecho_core::goes::Image>>>,
 }
 
 impl App {
@@ -107,18 +111,14 @@ impl App {
                         ctx.request_repaint();
                     }
                 });
-                let alerts = hookecho_core::alerts::AlertFeed::start(cache.clone(), wake3);
+                let feeds = crate::feeds::Feeds::start(cache.clone(), wake3);
                 (
                     None,
-                    Some((
-                        hookecho_core::live::Feed::start(cache, wake),
-                        frames,
-                        alerts,
-                    )),
+                    Some((hookecho_core::live::Feed::start(cache, wake), frames, feeds)),
                 )
             }
         };
-        let (feed, frames, alerts) = match feed {
+        let (feed, frames, feeds) = match feed {
             Some((f, l, a)) => (Some(f), Some(l), Some(a)),
             None => (None, None, None),
         };
@@ -127,7 +127,7 @@ impl App {
         App {
             model,
             feed,
-            alerts,
+            feeds,
             frames,
             waker,
             watching: None,
@@ -141,6 +141,8 @@ impl App {
             // Built-in defaults are already on the GPU; anything else isn't.
             palettes_applied: u64::MAX,
             mask_applied: true,
+            satellite_applied: None,
+            locating: None,
         }
     }
 
@@ -242,6 +244,38 @@ impl App {
     /// One frame: input → scene render → UI. `egui_renderer` is where the
     /// scene textures get registered for the UI to draw.
     /// Follows the selected site and takes the feed's news.
+    /// "Use my location": starts the portal request when asked, and on the
+    /// answer sets home there and goes to the nearest radar, or says why not.
+    fn poll_location(&mut self, ctx: &egui::Context) {
+        let now = ctx.input(|i| i.time);
+        let m = &mut self.model;
+        if std::mem::take(&mut m.locate_requested) && self.locating.is_none() {
+            let w = self.waker.clone();
+            let _ = self.waker.set(ctx.clone());
+            self.locating = Some(crate::location::locate(std::sync::Arc::new(move || {
+                if let Some(ctx) = w.get() {
+                    ctx.request_repaint();
+                }
+            })));
+            m.notice = Some(("Finding your location…".into(), now + model::NOTICE_S * 3.0));
+        }
+        let Some(r) = self.locating.as_ref().and_then(|rx| rx.try_recv().ok()) else {
+            return;
+        };
+        self.locating = None;
+        let text = match r {
+            Ok(at) => {
+                m.set_home(at);
+                let size = ctx.content_rect().size();
+                m.go_to_nearest([size.x as f64, size.y as f64]);
+                format!("Home set to your location · {}", m.site.id)
+            }
+            Err(why) => format!("{why} · Menu → Set home to click the map instead"),
+        };
+        m.notice = Some((text, now + model::NOTICE_S));
+        self.save_config();
+    }
+
     fn poll_feed(&mut self, ctx: &egui::Context) {
         let Some(feed) = &self.feed else { return };
         let _ = self.waker.set(ctx.clone());
@@ -261,20 +295,9 @@ impl App {
                 _ => {}
             }
         }
-        // NWS warnings: polled only while the layer is on.
-        if let Some(alerts) = &self.alerts {
-            alerts.enable(self.model.config.warnings);
-            while let Ok(e) = alerts.events.try_recv() {
-                match e {
-                    hookecho_core::alerts::AlertEvent::Alerts(a) => {
-                        self.model.alerts = a;
-                        self.model.alerts_trouble = None;
-                    }
-                    hookecho_core::alerts::AlertEvent::Trouble(why) => {
-                        self.model.alerts_trouble = Some(why);
-                    }
-                }
-            }
+        // Warnings, SPC and the other data layers: polled only while on.
+        if let Some(feeds) = &self.feeds {
+            feeds.update(&mut self.model);
         }
         // Loop frames for the current site, tilt and live volume.
         if let Some(loader) = &self.frames {
@@ -299,6 +322,7 @@ impl App {
         self.poll_data();
         let ctx = ui.ctx().clone();
         self.poll_feed(&ctx);
+        self.poll_location(&ctx);
         self.take_dropped(&ctx);
         let screen = ctx.content_rect();
         let theme = Theme::get(self.theme_kind(&ctx));
@@ -336,6 +360,29 @@ impl App {
                 keep
             });
             self.mask_applied = self.model.config.mask_dualpol;
+        }
+        let sat = &self.model.layers.goes;
+        if !self
+            .satellite_applied
+            .as_ref()
+            .is_some_and(|a| std::sync::Arc::ptr_eq(a, sat))
+        {
+            let lut = sat
+                .as_ref()
+                .as_ref()
+                .map(|i| crate::design::satellite::lut(i.band));
+            let img = sat.as_ref().as_ref().zip(lut.as_ref()).map(|(i, lut)| {
+                hookecho_render::SatelliteImage {
+                    width: i.width as u32,
+                    height: i.height as u32,
+                    data: &i.data,
+                    lut,
+                    proj: i.proj,
+                }
+            });
+            self.renderer
+                .set_satellite(gpu.device, gpu.queue, img.as_ref());
+            self.satellite_applied = Some(sat.clone());
         }
         let changed = self.renderer.ensure_targets(gpu.device, size_px);
         self.register_textures(gpu, egui_renderer, changed);
@@ -388,6 +435,8 @@ impl App {
                 radar: &radar,
                 style: &style,
                 label_exclusions: &exclusions,
+                satellite: crate::satellite::shown(&self.model)
+                    .map(|_| crate::design::satellite::ALPHA),
             },
         );
         gpu.queue.submit([enc.finish()]);
@@ -403,6 +452,7 @@ impl App {
             screen,
         };
         let before = self.model.config.clone();
+        let picker_before = self.model.picker.clone();
         screen::paint(ui, &mut kit, &mut self.model, scene);
         self.model.chrome = kit
             .panels
@@ -410,6 +460,12 @@ impl App {
             .iter()
             .map(|r| [r.min.x, r.min.y, r.max.x, r.max.y])
             .collect();
+        // The map was drawn before the controls that changed this frame:
+        // draw again, or a switched-off layer stays on screen until the
+        // next input (owner, testing: the aurora "wouldn't turn off").
+        if before != self.model.config || picker_before != self.model.picker {
+            ui.ctx().request_repaint();
+        }
         if before != self.model.config {
             self.save_config();
         }

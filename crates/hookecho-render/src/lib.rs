@@ -54,6 +54,46 @@ pub struct Frame<'a> {
     pub style: &'a SceneStyle,
     /// Screen areas (logical px, [x0, y0, x1, y1]) kept free of labels.
     pub label_exclusions: &'a [[f32; 4]],
+    /// Draw the satellite image set with [`Renderer::set_satellite`], at
+    /// this opacity, under the radar.
+    pub satellite: Option<f32>,
+}
+
+/// A satellite image on the GOES ABI fixed grid (hookecho_core::goes), with
+/// its color table.
+pub struct SatelliteImage<'a> {
+    pub width: u32,
+    pub height: u32,
+    /// Row-major values, 0 = no data.
+    pub data: &'a [u8],
+    /// 256 sRGB RGBA entries; entry 0 is never drawn.
+    pub lut: &'a [u8; 1024],
+    pub proj: hookecho_core::goes::Projection,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
+struct SatU {
+    viewport: [f32; 2],
+    center_merc: [f32; 2],
+    px_per_merc: f32,
+    lon0: f32,
+    h: f32,
+    rpol: f32,
+    x0: f32,
+    dx: f32,
+    y0: f32,
+    dy: f32,
+    size: [f32; 2],
+    alpha: f32,
+    _pad: f32,
+}
+
+struct GpuSat {
+    proj: hookecho_core::goes::Projection,
+    size: [u32; 2],
+    uniform: wgpu::Buffer,
+    bind: wgpu::BindGroup,
 }
 
 #[repr(C)]
@@ -135,16 +175,19 @@ pub struct Renderer {
     fill_pipe: wgpu::RenderPipeline,
     line_pipe: wgpu::RenderPipeline,
     radar_pipe: wgpu::RenderPipeline,
+    sat_pipe: wgpu::RenderPipeline,
     down_pipe: wgpu::RenderPipeline,
     blur_pipe: wgpu::RenderPipeline,
     map_bgl: wgpu::BindGroupLayout,
     radar_bgl: wgpu::BindGroupLayout,
+    sat_bgl: wgpu::BindGroupLayout,
     blur_bgl: wgpu::BindGroupLayout,
     sampler: wgpu::Sampler,
     layers: Vec<map::GpuLayer>,
     labels: labels::Labels,
     luts: HashMap<Moment, Lut>,
     sweeps: HashMap<SweepId, GpuSweep>,
+    satellite: Option<GpuSat>,
     next_id: u64,
     pub targets: Option<Targets>,
 }
@@ -237,6 +280,20 @@ impl Renderer {
                 },
             ],
         });
+        let sat_bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("satellite"),
+            entries: &[
+                uniform_entry(0, frag),
+                texture_entry(1, wgpu::TextureSampleType::Float { filterable: true }),
+                texture_entry(2, wgpu::TextureSampleType::Float { filterable: false }),
+                wgpu::BindGroupLayoutEntry {
+                    binding: 3,
+                    visibility: frag,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
+            ],
+        });
         let pipe = |label: &str,
                     bgl: &wgpu::BindGroupLayout,
                     vs: &str,
@@ -312,6 +369,15 @@ impl Renderer {
             SCENE_FORMAT,
             Some(ALPHA_BLEND),
         );
+        let sat_pipe = pipe(
+            "satellite",
+            &sat_bgl,
+            "vs_fullscreen",
+            "fs_sat",
+            &[],
+            SCENE_FORMAT,
+            Some(ALPHA_BLEND),
+        );
         let down_pipe = pipe(
             "down",
             &blur_bgl,
@@ -347,16 +413,19 @@ impl Renderer {
             fill_pipe,
             line_pipe,
             radar_pipe,
+            sat_pipe,
             down_pipe,
             blur_pipe,
             map_bgl,
             radar_bgl,
+            sat_bgl,
             blur_bgl,
             sampler,
             layers,
             labels,
             luts: HashMap::new(),
             sweeps: HashMap::new(),
+            satellite: None,
             next_id: 0,
             targets: None,
         };
@@ -527,6 +596,90 @@ impl Renderer {
         Some(id)
     }
 
+    /// Replaces the satellite image (or removes it, with `None`).
+    pub fn set_satellite(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        img: Option<&SatelliteImage>,
+    ) {
+        let Some(img) = img else {
+            self.satellite = None;
+            return;
+        };
+        let tex = |label: &str, w: u32, h: u32, format, data: &[u8]| {
+            device
+                .create_texture_with_data(
+                    queue,
+                    &wgpu::TextureDescriptor {
+                        label: Some(label),
+                        size: wgpu::Extent3d {
+                            width: w,
+                            height: h,
+                            depth_or_array_layers: 1,
+                        },
+                        mip_level_count: 1,
+                        sample_count: 1,
+                        dimension: wgpu::TextureDimension::D2,
+                        format,
+                        usage: wgpu::TextureUsages::TEXTURE_BINDING,
+                        view_formats: &[],
+                    },
+                    wgpu::util::TextureDataOrder::LayerMajor,
+                    data,
+                )
+                .create_view(&Default::default())
+        };
+        let image = tex(
+            "satellite",
+            img.width,
+            img.height,
+            wgpu::TextureFormat::R8Unorm,
+            img.data,
+        );
+        let lut = tex(
+            "satellite-lut",
+            256,
+            1,
+            wgpu::TextureFormat::Rgba8UnormSrgb,
+            img.lut,
+        );
+        let uniform = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("satellite-u"),
+            size: std::mem::size_of::<SatU>() as u64,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        let bind = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("satellite"),
+            layout: &self.sat_bgl,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: uniform.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::TextureView(&image),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: wgpu::BindingResource::TextureView(&lut),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
+                    resource: wgpu::BindingResource::Sampler(&self.sampler),
+                },
+            ],
+        });
+        self.satellite = Some(GpuSat {
+            proj: img.proj,
+            size: [img.width, img.height],
+            uniform,
+            bind,
+        });
+    }
+
     pub fn remove_sweep(&mut self, id: SweepId) {
         self.sweeps.remove(&id);
     }
@@ -685,6 +838,26 @@ impl Renderer {
             };
             queue.write_buffer(&s.uniform, 0, bytemuck::bytes_of(&u));
         }
+        let satellite = f.satellite.zip(self.satellite.as_ref());
+        if let Some((alpha, s)) = satellite {
+            let p = &s.proj;
+            let u = SatU {
+                viewport,
+                center_merc: [f.camera.center[0] as f32, f.camera.center[1] as f32],
+                px_per_merc: px_per_merc as f32,
+                lon0: p.lon0.to_radians() as f32,
+                h: (p.h / p.req) as f32,
+                rpol: (p.rpol / p.req) as f32,
+                x0: p.x0 as f32,
+                dx: p.dx as f32,
+                y0: p.y0 as f32,
+                dy: p.dy as f32,
+                size: [s.size[0] as f32, s.size[1] as f32],
+                alpha,
+                _pad: 0.0,
+            };
+            queue.write_buffer(&s.uniform, 0, bytemuck::bytes_of(&u));
+        }
         if style.labels.visible {
             self.labels.prepare(
                 device,
@@ -734,7 +907,7 @@ impl Renderer {
                 }
             };
             let over = |name: &str| style.lines.iter().find(|s| s.0 == name).map(|s| s.3);
-            // Fills, then lines that sit under the radar, then the radar, then
+            // Fills, the satellite, lines that sit under the radar, the radar, then
             // the lines that must stay readable over it, then labels.
             for l in self
                 .layers
@@ -742,6 +915,12 @@ impl Renderer {
                 .filter(|l| matches!(l.geometry, map::Geometry::Fill { .. }))
             {
                 draw(&mut pass, l);
+            }
+            // Satellite over the land and water, under the lines.
+            if let Some((_, s)) = satellite {
+                pass.set_pipeline(&self.sat_pipe);
+                pass.set_bind_group(0, &s.bind, &[]);
+                pass.draw(0..3, 0..1);
             }
             for l in self.layers.iter().filter(|l| over(&l.name) == Some(false)) {
                 draw(&mut pass, l);

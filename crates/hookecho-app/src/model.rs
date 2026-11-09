@@ -238,14 +238,45 @@ pub enum Picker {
         query: String,
         selected: usize,
         scroll: f32,
+        /// The group tab browsed; `None` is "All".
+        group: Option<crate::commands::Group>,
     },
     /// Keyboard shortcuts sheet (`?`).
     Shortcuts,
+    /// The space weather card (space.rs).
+    SpaceWeather {
+        scroll: f32,
+    },
     /// The card for the warnings under a map click (warnings.rs), by id.
     Warnings {
         ids: Vec<String>,
         scroll: f32,
     },
+}
+
+/// The data layers' latest data, and why each feed's last poll failed
+/// (until one succeeds).
+#[derive(Default)]
+pub struct LayerData {
+    /// NWS warnings, most severe first (hookecho-core::alerts).
+    pub alerts: std::sync::Arc<Vec<hookecho_core::alerts::Alert>>,
+    pub alerts_trouble: Option<String>,
+    /// SPC outlooks, watches and MDs (hookecho-core::spc).
+    pub spc: std::sync::Arc<hookecho_core::spc::Spc>,
+    pub spc_trouble: Option<String>,
+    /// Surface observations (hookecho-core::obs).
+    pub obs: std::sync::Arc<hookecho_core::obs::Obs>,
+    pub obs_trouble: Option<String>,
+    /// Space weather (hookecho-core::space).
+    pub space: std::sync::Arc<hookecho_core::space::SpaceWeather>,
+    pub space_trouble: Option<String>,
+    /// The newest image of the chosen GOES band (hookecho-core::goes).
+    pub goes: std::sync::Arc<Option<hookecho_core::goes::Image>>,
+    pub goes_trouble: Option<String>,
+    /// The aurora forecast as a mesh (space.rs).
+    pub aurora_mesh: std::cell::RefCell<crate::space::AuroraCache>,
+    /// The shown outlook, tessellated (spc.rs).
+    pub outlook_mesh: std::cell::RefCell<crate::spc::OutlookCache>,
 }
 
 /// Side sheet sections (DESIGN.md §3.6).
@@ -276,6 +307,8 @@ pub struct Sheet {
     pub cache_bytes: Option<u64>,
     /// Set by the Clear button; the app clears the cache and resets it.
     pub clear_cache: bool,
+    /// Layers: the per-type warning switches are unfolded.
+    pub warning_types: bool,
 }
 
 impl Sheet {
@@ -285,6 +318,7 @@ impl Sheet {
             scroll: 0.0,
             cache_bytes: None,
             clear_cache: false,
+            warning_types: false,
         }
     }
 }
@@ -330,15 +364,26 @@ pub struct Model {
     pub notice: Option<(String, f64)>,
     /// "Set home" is waiting for a click on the map.
     pub placing_home: bool,
+    /// The warnings, watches and MDs selected in the docked bulletins panel
+    /// (card ids, as `Picker::Warnings`); empty lists everything active.
+    pub dock_bulletins: Vec<String>,
+    /// The dock's scroll offset.
+    pub dock_scroll: f32,
+    /// The dock's width last frame (0 without one), to keep the map still
+    /// when it opens or closes.
+    pub dock_inset: f32,
+    /// "Use my location" was chosen; the app starts the request (location.rs).
+    pub locate_requested: bool,
+    /// The station chosen for the station panel by a click on its plot
+    /// (stations.rs); `None` follows the nearest one.
+    pub chosen_station: Option<String>,
     /// Cached `no_precipitation` answer, keyed by (generation, sweep, palette version).
     quiet: Option<((u64, usize, u64), bool)>,
     pub sheet: Option<Sheet>,
     /// Last frame's glass panels (logical px, [x0, y0, x1, y1]).
     pub chrome: Vec<[f32; 4]>,
-    /// NWS warnings, most severe first (hookecho-core::alerts).
-    pub alerts: std::sync::Arc<Vec<hookecho_core::alerts::Alert>>,
-    /// Why the last warnings poll failed, until one succeeds.
-    pub alerts_trouble: Option<String>,
+    /// What the data-layer feeds last sent (feeds.rs).
+    pub layers: LayerData,
     generation: u64,
 }
 
@@ -421,11 +466,15 @@ impl Model {
             palettes: crate::palettes::Library::load(None),
             notice: None,
             placing_home: false,
+            dock_bulletins: Vec::new(),
+            dock_scroll: 0.0,
+            dock_inset: 0.0,
+            locate_requested: false,
+            chosen_station: None,
             quiet: None,
             sheet: None,
             chrome: Vec::new(),
-            alerts: Default::default(),
-            alerts_trouble: None,
+            layers: LayerData::default(),
             generation: 0,
         }
     }
@@ -437,7 +486,7 @@ impl Model {
         now_ms: i64,
     ) -> impl DoubleEndedIterator<Item = &hookecho_core::alerts::Alert> {
         let c = &self.config;
-        self.alerts.iter().filter(move |a| {
+        self.layers.alerts.iter().filter(move |a| {
             c.warnings && a.active(now_ms) && !c.hidden_warnings.iter().any(|k| k == a.event.key())
         })
     }
@@ -762,8 +811,10 @@ impl Model {
     }
 
     /// The (lat, lon) at the middle of the map.
+    /// The middle of the map you can see: right of the dock, if there is one.
     pub fn map_center(&self) -> (f64, f64) {
-        hookecho_core::geo::from_mercator(self.camera.center)
+        let dx = self.dock_inset as f64 / 2.0 / self.camera.scale;
+        hookecho_core::geo::from_mercator([self.camera.center[0] + dx, self.camera.center[1]])
     }
 
     /// Makes `at` (lat, lon) the home point and ends "Set home" placing.
@@ -945,7 +996,7 @@ fn expected_volume_s(vcp: u16) -> i64 {
     }
 }
 
-fn ago(age_s: i64) -> String {
+pub fn ago(age_s: i64) -> String {
     match age_s {
         s if s < 120 => "Live".to_string(),
         s if s < 3600 => format!("{} min ago", s / 60),
