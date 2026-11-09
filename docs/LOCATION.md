@@ -1,12 +1,12 @@
 # "Use my location": proposal (2026-10-28)
 
-**Decided 2026-10-29: option A, built** (`hookecho-app::location`, Menu → "Use my location"). Not run once at first start; the owner can still ask for that.
+**Decided 2026-10-29: option A, built** (`hookecho-app::location`, Radar menu → "Use my location"). Not run once at first start; the owner can still ask for that.
 
 Owner fix 2 left one piece open: setting home from the computer's own location instead of clicking the map. This is the research and the proposal. **Nothing is built until the owner picks an option.**
 
 ## What's there today
 
-- Menu → Set home (click the map) and Menu → Nearest radar (PR #18).
+- Radar menu → Set home (click the map) and Radar menu → Nearest radar (PR #18).
 - The snap already declares the `location-observe` plug (`snap/snapcraft.yaml`), but no code uses it.
 
 ## Options
@@ -27,7 +27,7 @@ GeoClue gets its fix from Wi-Fi networks and, on some distributions, from an onl
 Option A:
 
 1. Add `ashpd` with only the `location` feature (and its tokio integration), on the app side, behind one function: `locate() -> Result<(lat, lon), Why>`.
-2. Add Menu → "Use my location": one request at street accuracy, sets home, then goes to the nearest radar. No background tracking, and nothing is asked for at startup.
+2. Add Radar menu → "Use my location": one request at street accuracy, sets home, then goes to the nearest radar. No background tracking, and nothing is asked for at startup.
 3. When it fails, a notice says why ("Location is turned off in Settings", "No location service on this computer") and offers Set home.
 4. Drop the unused `location-observe` plug from the snap, so the store listing doesn't claim location access we don't use.
 5. PROVENANCE: the XDG Location portal spec. THIRD_PARTY_LICENSES: ashpd.

@@ -3,7 +3,8 @@
 //! group (the tabs under the search field). Built from the model each time
 //! the palette opens or the query changes; no egui here.
 
-use crate::model::{self, Model, PRODUCTS, Picker, SheetTab};
+use crate::menus::MenuId;
+use crate::model::{self, Model, PRODUCTS, Picker};
 use hookecho_core::Moment;
 use hookecho_core::config::{Speed, ThemePref, Units};
 
@@ -59,6 +60,9 @@ pub enum Layer {
     StationPlots,
     StationPanel,
     Aurora,
+    /// Airport radars (TDWR) in the radar list and on the map.
+    Tdwr,
+    TdwrLongRange,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -75,7 +79,10 @@ pub enum Action {
     SetHome,
     UseMyLocation,
     ProductPicker,
-    Sheet(SheetTab),
+    /// Opens one of the menu bar's menus.
+    OpenMenu(MenuId),
+    /// The search palette (Ctrl+K).
+    Search,
     Shortcuts,
     ZoomIn,
     ZoomOut,
@@ -93,10 +100,18 @@ pub enum Action {
     SpaceWeather,
     /// Show a GOES band, or none.
     Satellite(Option<hookecho_core::goes::Band>),
-    /// Show an SPC outlook day (its categorical outlook), or none.
-    Outlook(Option<u8>),
-    /// Dock the inspector, or float it again.
-    DockInspector,
+    /// Show an SPC outlook (by product key), or none.
+    Outlook(Option<String>),
+    /// Show or hide one NWS warning type (by key).
+    WarningType(&'static str),
+    /// Step the loop by frames (stops it).
+    StepFrame(i32),
+    /// The loop's oldest frame (stops it).
+    FirstFrame,
+    /// Empty the radar download cache.
+    ClearCache,
+    /// Put a panel in the left dock, or float it again.
+    ToggleDock(crate::dock::Panel),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -136,10 +151,11 @@ pub const SHORTCUTS: &[ShortcutGroup] = &[
     (
         "GENERAL",
         &[
-            ("Ctrl K", "Menu (search everything)"),
+            ("Ctrl K", "Search everything"),
+            ("F10", "Open the menus"),
             ("S", "Change radar"),
             ("P", "Change product or angle"),
-            ("L", "Layers, colors and settings"),
+            ("L", "Layers menu"),
             ("?", "Keyboard shortcuts"),
             ("Esc", "Close"),
         ],
@@ -306,6 +322,10 @@ fn everything(model: &Model, query: &str, browse_sites: bool) -> Vec<Command> {
         .map(|p| p.day());
     for day in 1..=3u8 {
         let on = outlook_day == Some(day);
+        let categorical = hookecho_core::spc::Product::ALL
+            .into_iter()
+            .find(|p| p.day() == day)
+            .map(|p| p.key());
         v.push(cmd(
             Group::Layers,
             format!("SPC outlook, day {day}"),
@@ -316,7 +336,7 @@ fn everything(model: &Model, query: &str, browse_sites: bool) -> Vec<Command> {
             },
             None,
             "convective outlook risk categorical tornado hail wind hide",
-            Action::Outlook((!on).then_some(day)),
+            Action::Outlook(if on { None } else { categorical }),
         ));
     }
     let map = model.config.map;
@@ -357,6 +377,12 @@ fn everything(model: &Model, query: &str, browse_sites: bool) -> Vec<Command> {
             "Aurora forecast",
             c.aurora,
             "space weather northern lights ovation",
+        ),
+        (
+            Layer::Tdwr,
+            "Airport radars (TDWR)",
+            c.tdwr,
+            "terminal doppler airport radar",
         ),
         (Layer::Counties, "County lines", map.counties, "borders"),
         (Layer::Roads, "Highways", map.roads, "roads interstates"),
@@ -425,26 +451,34 @@ fn everything(model: &Model, query: &str, browse_sites: bool) -> Vec<Command> {
         cmd(
             Group::Actions,
             "Layers",
-            "Side sheet",
+            "Menu",
             Some("L"),
             "map",
-            Action::Sheet(SheetTab::Layers),
+            Action::OpenMenu(MenuId::Layers),
         ),
         cmd(
             Group::Actions,
             "Colors",
-            "Side sheet",
+            "View menu",
             None,
             "palette pal",
-            Action::Sheet(SheetTab::Colors),
+            Action::OpenMenu(MenuId::View),
         ),
         cmd(
             Group::Actions,
             "Settings",
-            "Side sheet",
+            "Menu",
             None,
-            "preferences options",
-            Action::Sheet(SheetTab::Settings),
+            "preferences options units",
+            Action::OpenMenu(MenuId::Settings),
+        ),
+        cmd(
+            Group::Actions,
+            "Clear radar cache",
+            "Free the disk space downloaded scans use",
+            None,
+            "disk storage delete",
+            Action::ClearCache,
         ),
         cmd(
             Group::Actions,
@@ -464,7 +498,7 @@ fn everything(model: &Model, query: &str, browse_sites: bool) -> Vec<Command> {
             "Read values in the left dock instead of at the pointer",
             None,
             "inspector value dock panel pin",
-            Action::DockInspector,
+            Action::ToggleDock(crate::dock::Panel::Inspector),
         ),
         cmd(
             Group::Actions,
@@ -724,6 +758,8 @@ pub fn run(model: &mut Model, action: &Action, view: [f64; 2], now: f64) {
                 Layer::StationPlots => &mut c.station_plots,
                 Layer::StationPanel => &mut c.station_panel,
                 Layer::Aurora => &mut c.aurora,
+                Layer::Tdwr => &mut c.tdwr,
+                Layer::TdwrLongRange => &mut c.tdwr_long_range,
             };
             *f = !*f;
         }
@@ -743,16 +779,29 @@ pub fn run(model: &mut Model, action: &Action, view: [f64; 2], now: f64) {
         Action::SetHome => model.placing_home = true,
         Action::UseMyLocation => model.locate_requested = true,
         Action::Satellite(b) => c.satellite = b.map(|b| b.key().to_string()),
-        Action::Outlook(day) => {
-            c.outlook = day.and_then(|d| {
-                hookecho_core::spc::Product::ALL
-                    .into_iter()
-                    .find(|p| p.day() == d)
-                    .map(|p| p.key())
-            })
+        Action::Outlook(key) => c.outlook = key.clone(),
+        Action::WarningType(key) => {
+            if c.hidden_warnings.iter().any(|k| k == key) {
+                c.hidden_warnings.retain(|k| k != key);
+            } else {
+                c.hidden_warnings.push(key.to_string());
+            }
+        }
+        Action::StepFrame(n) => {
+            model.looping.playing = false;
+            model.step_frame(*n);
+        }
+        Action::FirstFrame => {
+            model.looping.playing = false;
+            model.show_pos(0);
+        }
+        Action::ClearCache => {
+            model.clear_cache = true;
+            model.cache_bytes = None;
         }
         Action::ProductPicker => model.picker = Picker::Product,
-        Action::Sheet(tab) => model.sheet = Some(model::Sheet::new(*tab)),
+        Action::OpenMenu(m) => model.picker = Picker::Menu(crate::model::MenuState::new(*m)),
+        Action::Search => crate::overlays::open_command(model),
         Action::Shortcuts => model.picker = Picker::Shortcuts,
         Action::SpaceWeather => {
             let p = crate::dock::Panel::Space;
@@ -762,12 +811,11 @@ pub fn run(model: &mut Model, action: &Action, view: [f64; 2], now: f64) {
                 model.picker = Picker::SpaceWeather { scroll: 0.0 };
             }
         }
-        Action::DockInspector => {
-            let p = crate::dock::Panel::Inspector;
-            if crate::dock::wants_dock(model, p) {
-                crate::dock::undock(model, p);
+        Action::ToggleDock(p) => {
+            if crate::dock::wants_dock(model, *p) {
+                crate::dock::undock(model, *p);
             } else {
-                crate::dock::dock(model, p);
+                crate::dock::dock(model, *p);
             }
         }
         Action::ZoomIn | Action::ZoomOut => {

@@ -58,6 +58,7 @@ fn markers(model: &Model, screen: Rect) -> Vec<(&'static sites::Site, Pos2, bool
     let size = view_size(screen);
     let show_all = model.camera.km_per_px() > 1.2 || matches!(model.picker, Picker::Site { .. });
     let bands = chrome_bands(crate::dock::map_area(model, screen));
+    let bar = crate::menubar::bar_rect(screen, margin(screen));
     let dock = crate::dock::rect(model, screen);
     sites::all()
         .iter()
@@ -71,6 +72,7 @@ fn markers(model: &Model, screen: Rect) -> Vec<(&'static sites::Site, Pos2, bool
             let pill = show_all && s.id != model.site.id;
             (screen.contains(p)
                 && !bands.iter().any(|b| b.contains(p))
+                && !bar.contains(p)
                 && !dock.is_some_and(|d| d.contains(p)))
             .then_some((s, p, pill))
         })
@@ -99,10 +101,8 @@ pub fn label_exclusions(model: &Model, screen: Rect) -> Vec<[f32; 4]> {
         screen,
         view_size(screen),
     ));
-    if model.sheet.is_some() {
-        let r = crate::sheet::sheet_rect(screen, margin(screen));
-        v.push([r.min.x, r.min.y, r.max.x, r.max.y]);
-    }
+    let r = crate::menubar::bar_rect(screen, margin(screen));
+    v.push([r.min.x, r.min.y, r.max.x, r.max.y]);
     v
 }
 
@@ -256,11 +256,13 @@ pub fn keys(ui: &Ui, model: &mut Model, screen: Rect) {
     let typing = matches!(model.picker, Picker::Site { .. } | Picker::Command { .. });
     ui.input(|i| {
         if i.key_pressed(Key::Escape) {
-            // One layer at a time: a picker first, then the sheet.
-            if matches!(model.picker, Picker::None) {
-                model.sheet = None;
+            // One submenu at a time, then the menu or picker.
+            match &mut model.picker {
+                Picker::Menu(st) if !st.path.is_empty() => {
+                    st.active = st.path.pop();
+                }
+                _ => model.picker = Picker::None,
             }
-            model.picker = Picker::None;
             if matches!(model.inspect, Inspect::Pinned(_)) {
                 model.inspect = Inspect::Off;
             }
@@ -295,7 +297,10 @@ pub fn keys(ui: &Ui, model: &mut Model, screen: Rect) {
             model.picker = Picker::Product;
         }
         if i.key_pressed(Key::L) {
-            model.toggle_sheet();
+            model.toggle_menu(crate::menus::MenuId::Layers);
+        }
+        if i.key_pressed(Key::F10) {
+            model.toggle_menu(crate::menus::MenuId::Radar);
         }
         if matches!(model.picker, Picker::None) {
             if i.key_pressed(Key::Space) {
@@ -379,20 +384,6 @@ pub fn paint(ui: &mut Ui, kit: &mut Kit, model: &mut Model, scene: egui::Texture
     site_markers(ui, kit, model, &painter);
     crate::dock::draw(ui, kit, model, screen);
     let m = margin(area);
-    let site_rect = site_chip(
-        ui,
-        kit,
-        model,
-        &painter,
-        pos2(area.min.x + m, area.min.y + m),
-    );
-    let product_rect = product_chip(
-        ui,
-        kit,
-        model,
-        &painter,
-        pos2(site_rect.max.x + space::S2, area.min.y + m),
-    );
     let compact = area.width() < size::COMPACT_BREAKPOINT;
     let legend_rect = legend(ui, kit, model, &painter, area, m, compact);
     // What's on the map, each with a way to turn it off.
@@ -416,11 +407,12 @@ pub fn paint(ui: &mut Ui, kit: &mut Kit, model: &mut Model, scene: egui::Texture
             inspector(kit, model, &painter, at, None);
         }
     }
-    let search_rect = top_right(ui, kit, model, &painter, screen, m);
-    crate::sheet::side_sheet(ui, kit, model, crate::sheet::sheet_rect(screen, m));
+    let bar = crate::menubar::draw(ui, kit, model, &painter, screen, margin(screen));
+    let search_rect = bar.search;
     match model.picker {
-        Picker::Site { .. } => pickers::site_picker(ui, kit, model, site_rect),
-        Picker::Product => pickers::product_picker(ui, kit, model, product_rect),
+        Picker::Menu(_) => crate::menubar::dropdown(ui, kit, model, &bar, view_size(screen)),
+        Picker::Site { .. } => pickers::site_picker(ui, kit, model, bar.site),
+        Picker::Product => pickers::product_picker(ui, kit, model, bar.product),
         Picker::Palette => pickers::palette_picker(ui, kit, model, legend_rect),
         Picker::Command { .. } => {
             crate::overlays::command_palette(ui, kit, model, view_size(screen), search_rect)
@@ -431,7 +423,7 @@ pub fn paint(ui: &mut Ui, kit: &mut Kit, model: &mut Model, scene: egui::Texture
             ui,
             kit,
             model,
-            pos2(area.min.x + m, site_rect.max.y + space::S2),
+            pos2(area.min.x + m, bar.rect.max.y + space::S2),
             area,
         ),
         Picker::None => {}
@@ -450,62 +442,6 @@ pub fn paint(ui: &mut Ui, kit: &mut Kit, model: &mut Model, scene: egui::Texture
         let text = format!("Little or no rain or snow near {} right now", model.site.id);
         notice(kit, &painter, area, m, &text);
     }
-}
-
-/// Top-right cluster (DESIGN.md §3.2): the Menu (command palette) and side
-/// sheet buttons on one glass chip. Returns the Menu button's rect (the
-/// palette's anchor).
-fn top_right(
-    ui: &mut Ui,
-    kit: &mut Kit,
-    model: &mut Model,
-    painter: &egui::Painter,
-    screen: Rect,
-    m: f32,
-) -> Rect {
-    let h = size::CHIP_H;
-    let b = size::ICON_BUTTON;
-    let inset = (h - b) / 2.0;
-    let menu_w = components::labeled_button_width(kit, painter, "Menu");
-    let w = menu_w + b + space::S1 + 2.0 * inset;
-    let rect = Rect::from_min_size(pos2(screen.max.x - m - w, screen.min.y + m), vec2(w, h));
-    kit.glass(painter, rect, radius::MD, 1);
-    let search = Rect::from_min_size(rect.min + vec2(inset, inset), vec2(menu_w, b));
-    let resp = components::labeled_button(
-        ui,
-        kit,
-        painter,
-        search,
-        Id::new("command-button"),
-        Icon::Menu,
-        "Menu",
-        "Menu: radars, products, layers and settings",
-        Some("Ctrl K"),
-        matches!(model.picker, Picker::Command { .. }),
-    );
-    if resp.clicked() {
-        if matches!(model.picker, Picker::Command { .. }) {
-            model.picker = Picker::None;
-        } else {
-            crate::overlays::open_command(model);
-        }
-    }
-    let button = Rect::from_min_size(pos2(search.max.x + space::S1, search.min.y), vec2(b, b));
-    let resp = components::icon_button(
-        ui,
-        kit,
-        painter,
-        button,
-        Id::new("sheet-button"),
-        Icon::Layers,
-        "Layers, colors and settings",
-        Some("L"),
-        model.sheet.is_some(),
-    );
-    if resp.clicked() {
-        model.toggle_sheet();
-    }
-    search
 }
 
 /// A short message centered above the bottom chrome (palette imports).
@@ -617,15 +553,13 @@ fn site_markers(ui: &mut Ui, kit: &mut Kit, model: &mut Model, painter: &egui::P
     }
 }
 
-fn site_chip(
-    ui: &mut Ui,
-    kit: &mut Kit,
-    model: &mut Model,
-    painter: &egui::Painter,
-    at: Pos2,
-) -> Rect {
-    let t = kit.theme.clone();
-    let pad = space::S3 + 2.0;
+type Parts = Vec<(String, Type, Color32, f32)>;
+
+const CHIP_PAD: f32 = space::S3 + 2.0;
+
+/// The site chip's two lines and its status dot color.
+fn site_lines(kit: &Kit, model: &Model) -> (Parts, Parts, Color32) {
+    let t = kit.theme;
     let line1 = vec![
         (model.site.id.clone(), Type::Label, t.text_primary, 0.0),
         (
@@ -652,12 +586,33 @@ fn site_chip(
         t.text_secondary,
         size::STATUS_DOT + size::CHIP_TEXT_GAP,
     )];
-    let text_x = pad + size::ICON_SM + space::S2;
-    let w = text_x
+    (line1, line2, dot)
+}
+
+pub fn site_chip_width(kit: &Kit, painter: &egui::Painter, model: &Model) -> f32 {
+    let (line1, line2, _) = site_lines(kit, model);
+    CHIP_PAD
+        + size::ICON_SM
+        + space::S2
         + measure(kit, painter, &line1).max(measure(kit, painter, &line2))
         + space::S2
         + size::ICON_SM
-        + pad;
+        + CHIP_PAD
+}
+
+/// The site chip (DESIGN §3.1), in the menu bar at `at`.
+pub fn site_chip(
+    ui: &mut Ui,
+    kit: &mut Kit,
+    model: &mut Model,
+    painter: &egui::Painter,
+    at: Pos2,
+) -> Rect {
+    let t = kit.theme.clone();
+    let pad = CHIP_PAD;
+    let (line1, line2, dot) = site_lines(kit, model);
+    let text_x = pad + size::ICON_SM + space::S2;
+    let w = site_chip_width(kit, painter, model);
     let rect = Rect::from_min_size(at, vec2(w, size::CHIP_H));
     let resp = interact(
         ui,
@@ -667,11 +622,11 @@ fn site_chip(
         &format!("Radar: {} {}", model.site.id, model.site.name),
         None,
     );
-    kit.glass(painter, rect, radius::MD, 1);
+    let fill = rect.shrink(space::S1);
     kit.state_fill(
         painter,
-        rect,
-        radius::MD,
+        fill,
+        radius::SM,
         &resp,
         matches!(model.picker, Picker::Site { .. }),
     );
@@ -706,7 +661,7 @@ fn site_chip(
         size::ICON_SM,
         t.text_secondary,
     );
-    kit.focus_ring(painter, rect, radius::MD, &resp);
+    kit.focus_ring(painter, fill, radius::SM, &resp);
     let tip = match model.loaded_here() {
         Some(l) => format!("Change radar · scan pattern VCP {}", l.volume.vcp),
         None => "Change radar".to_string(),
@@ -725,16 +680,11 @@ fn site_chip(
     rect
 }
 
-fn product_chip(
-    ui: &mut Ui,
-    kit: &mut Kit,
-    model: &mut Model,
-    painter: &egui::Painter,
-    at: Pos2,
-) -> Rect {
-    let t = kit.theme.clone();
-    let pad = space::S3 + 2.0;
-    let tilts = model.loaded_here().map(|l| l.tilts()).unwrap_or_default();
+/// The product chip's two lines and the width of its sweep strip. `brief`
+/// (a menu bar short of room) leaves out the description on line 2.
+fn product_lines(kit: &Kit, model: &Model, brief: bool) -> (Parts, Parts, f32) {
+    let t = kit.theme;
+    let tilts = model.loaded_here().map_or(0, |l| l.tilts().len());
     // Plain words on the chip: what the product shows (DESIGN §3.1).
     let source = model::product_label(model.moment).1;
     let line1 = vec![
@@ -751,13 +701,37 @@ fn product_chip(
             size::CHIP_TEXT_GAP,
         ),
     ];
-    let line2 = vec![(source.to_string(), Type::Caption, t.text_tertiary, 0.0)];
-    let dots_w = tilts.len() as f32 * size::SWEEP_DOT_STEP;
-    let w = pad
+    let line2 = if brief {
+        Vec::new()
+    } else {
+        vec![(source.to_string(), Type::Caption, t.text_tertiary, 0.0)]
+    };
+    (line1, line2, tilts as f32 * size::SWEEP_DOT_STEP)
+}
+
+pub fn product_chip_width(kit: &Kit, painter: &egui::Painter, model: &Model, brief: bool) -> f32 {
+    let (line1, line2, dots_w) = product_lines(kit, model, brief);
+    CHIP_PAD
         + measure(kit, painter, &line1).max(measure(kit, painter, &line2) + space::S3 + dots_w)
         + space::S2
         + size::ICON_SM
-        + pad;
+        + CHIP_PAD
+}
+
+/// The product chip (DESIGN §3.1), in the menu bar at `at`.
+pub fn product_chip(
+    ui: &mut Ui,
+    kit: &mut Kit,
+    model: &mut Model,
+    painter: &egui::Painter,
+    at: Pos2,
+    brief: bool,
+) -> Rect {
+    let t = kit.theme.clone();
+    let pad = CHIP_PAD;
+    let tilts = model.loaded_here().map(|l| l.tilts()).unwrap_or_default();
+    let (line1, line2, _) = product_lines(kit, model, brief);
+    let w = product_chip_width(kit, painter, model, brief);
     let rect = Rect::from_min_size(at, vec2(w, size::CHIP_H));
     let resp = interact(
         ui,
@@ -771,11 +745,11 @@ fn product_chip(
         ),
         None,
     );
-    kit.glass(painter, rect, radius::MD, 1);
+    let fill = rect.shrink(space::S1);
     kit.state_fill(
         painter,
-        rect,
-        radius::MD,
+        fill,
+        radius::SM,
         &resp,
         matches!(model.picker, Picker::Product),
     );
@@ -786,7 +760,7 @@ fn product_chip(
     row(kit, painter, rect.min.x + pad, y1, &line1);
     let end = row(kit, painter, rect.min.x + pad, y2, &line2);
     // Sweep strip: one dot per tilt in the VCP (DESIGN §3.1).
-    let mut x = end + space::S3;
+    let mut x = if brief { end } else { end + space::S3 };
     for tilt in &tilts {
         let current = (tilt.deg - model.tilt_deg).abs() < 0.05;
         let state = match tilt.state {
@@ -807,8 +781,16 @@ fn product_chip(
         size::ICON_SM,
         t.text_secondary,
     );
-    kit.focus_ring(painter, rect, radius::MD, &resp);
-    kit.tooltip(ui, &resp, "Change product or tilt", Some("P"));
+    kit.focus_ring(painter, fill, radius::SM, &resp);
+    let tip = if brief {
+        format!(
+            "{} · change product or tilt",
+            model::product_label(model.moment).1
+        )
+    } else {
+        "Change product or tilt".to_string()
+    };
+    kit.tooltip(ui, &resp, &tip, Some("P"));
     if resp.clicked() {
         model.picker = match model.picker {
             Picker::Product => Picker::None,

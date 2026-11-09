@@ -29,6 +29,8 @@ pub enum Icon {
     Pin,
     PinOff,
     ChevronUp,
+    ChevronRight,
+    Check,
 }
 
 impl Icon {
@@ -54,6 +56,8 @@ impl Icon {
             Icon::Pin => asset_str!("icons/pin.svg"),
             Icon::PinOff => asset_str!("icons/pin-off.svg"),
             Icon::ChevronUp => asset_str!("icons/chevron-up.svg"),
+            Icon::ChevronRight => asset_str!("icons/chevron-right.svg"),
+            Icon::Check => asset_str!("icons/check.svg"),
         }
     }
 }

@@ -3,7 +3,8 @@
 
 use crate::design::tokens::ThemeKind;
 use crate::headless::Offscreen;
-use crate::model::{Inspect, Picker, Sheet, SheetTab};
+use crate::menus::MenuId;
+use crate::model::{Inspect, MenuState, Picker};
 use hookecho_core::Moment;
 use hookecho_core::geo::Camera;
 use std::path::Path;
@@ -43,7 +44,6 @@ struct Shot {
     km_across: f64,
     picker: Picker,
     inspect: bool,
-    sheet: Option<SheetTab>,
 }
 
 pub fn run(dir: &Path) -> Result<(), String> {
@@ -63,7 +63,6 @@ pub fn run(dir: &Path) -> Result<(), String> {
             km_across: 70.0,
             picker: Picker::None,
             inspect: true,
-            sheet: None,
         },
         Shot {
             name: "2-velocity",
@@ -73,7 +72,6 @@ pub fn run(dir: &Path) -> Result<(), String> {
             km_across: 70.0,
             picker: Picker::None,
             inspect: true,
-            sheet: None,
         },
         Shot {
             name: "3-site-picker",
@@ -87,7 +85,6 @@ pub fn run(dir: &Path) -> Result<(), String> {
                 scroll: 0.0,
             },
             inspect: false,
-            sheet: None,
         },
         Shot {
             name: "3b-site-picker-nearest",
@@ -101,7 +98,6 @@ pub fn run(dir: &Path) -> Result<(), String> {
                 scroll: 0.0,
             },
             inspect: false,
-            sheet: None,
         },
         Shot {
             name: "4-product-picker",
@@ -111,7 +107,6 @@ pub fn run(dir: &Path) -> Result<(), String> {
             km_across: 70.0,
             picker: Picker::Product,
             inspect: false,
-            sheet: None,
         },
         Shot {
             name: "5-home-light",
@@ -121,7 +116,6 @@ pub fn run(dir: &Path) -> Result<(), String> {
             km_across: 70.0,
             picker: Picker::None,
             inspect: true,
-            sheet: None,
         },
         Shot {
             name: "6-velocity-light",
@@ -131,7 +125,6 @@ pub fn run(dir: &Path) -> Result<(), String> {
             km_across: 70.0,
             picker: Picker::None,
             inspect: true,
-            sheet: None,
         },
         Shot {
             name: "7-correlation",
@@ -141,7 +134,6 @@ pub fn run(dir: &Path) -> Result<(), String> {
             km_across: 70.0,
             picker: Picker::None,
             inspect: true,
-            sheet: None,
         },
         Shot {
             name: "8-compact",
@@ -151,7 +143,6 @@ pub fn run(dir: &Path) -> Result<(), String> {
             km_across: 56.0,
             picker: Picker::None,
             inspect: true,
-            sheet: None,
         },
         Shot {
             name: "10-palettes",
@@ -161,7 +152,6 @@ pub fn run(dir: &Path) -> Result<(), String> {
             km_across: 70.0,
             picker: Picker::Palette,
             inspect: false,
-            sheet: None,
         },
         Shot {
             name: "9-regional",
@@ -171,47 +161,66 @@ pub fn run(dir: &Path) -> Result<(), String> {
             km_across: 520.0,
             picker: Picker::None,
             inspect: false,
-            sheet: None,
         },
         Shot {
-            name: "11-sheet-layers",
+            name: "11-menu-layers",
             theme: ThemeKind::Dark,
             moment: Moment::Reflectivity,
             size: SIZE,
             km_across: 70.0,
-            picker: Picker::None,
+            picker: Picker::Menu(MenuState {
+                path: vec![],
+                ..MenuState::new(MenuId::Layers)
+            }),
             inspect: false,
-            sheet: Some(SheetTab::Layers),
         },
         Shot {
-            name: "12-sheet-colors",
+            name: "11b-menu-compact",
+            theme: ThemeKind::Dark,
+            moment: Moment::Reflectivity,
+            size: [900.0, 640.0],
+            km_across: 70.0,
+            picker: Picker::Menu(MenuState {
+                path: vec![],
+                ..MenuState::new(MenuId::Layers)
+            }),
+            inspect: false,
+        },
+        Shot {
+            name: "12-menu-colors",
             theme: ThemeKind::Dark,
             moment: Moment::Reflectivity,
             size: SIZE,
             km_across: 70.0,
-            picker: Picker::None,
+            picker: Picker::Menu(MenuState {
+                path: vec![2],
+                ..MenuState::new(MenuId::View)
+            }),
             inspect: false,
-            sheet: Some(SheetTab::Colors),
         },
         Shot {
-            name: "13-sheet-settings",
+            name: "13-menu-settings",
             theme: ThemeKind::Dark,
             moment: Moment::Reflectivity,
             size: SIZE,
             km_across: 70.0,
-            picker: Picker::None,
+            picker: Picker::Menu(MenuState {
+                path: vec![1],
+                ..MenuState::new(MenuId::Settings)
+            }),
             inspect: false,
-            sheet: Some(SheetTab::Settings),
         },
         Shot {
-            name: "14-sheet-settings-light",
+            name: "14-menu-settings-light",
             theme: ThemeKind::Light,
             moment: Moment::Reflectivity,
             size: SIZE,
             km_across: 70.0,
-            picker: Picker::None,
+            picker: Picker::Menu(MenuState {
+                path: vec![1],
+                ..MenuState::new(MenuId::Settings)
+            }),
             inspect: false,
-            sheet: Some(SheetTab::Settings),
         },
         Shot {
             name: "15-command",
@@ -226,7 +235,6 @@ pub fn run(dir: &Path) -> Result<(), String> {
                 group: None,
             },
             inspect: false,
-            sheet: None,
         },
         Shot {
             name: "16-command-query",
@@ -241,7 +249,6 @@ pub fn run(dir: &Path) -> Result<(), String> {
                 group: None,
             },
             inspect: false,
-            sheet: None,
         },
         Shot {
             name: "17-shortcuts",
@@ -251,7 +258,6 @@ pub fn run(dir: &Path) -> Result<(), String> {
             km_across: 70.0,
             picker: Picker::Shortcuts,
             inspect: false,
-            sheet: None,
         },
     ];
     for s in shots {
@@ -261,11 +267,8 @@ pub fn run(dir: &Path) -> Result<(), String> {
         m.camera = Camera::looking_at(35.29, -97.42, s.km_across, s.size[0] as f64);
         m.motion.zoom_target = m.camera.scale;
         m.picker = s.picker;
-        m.sheet = s.sheet.map(|tab| Sheet {
-            // Deterministic: no real cache size in screenshots.
-            cache_bytes: Some(184 * 1024 * 1024),
-            ..Sheet::new(tab)
-        });
+        // Deterministic: no real cache size in screenshots.
+        m.cache_bytes = Some(184 * 1024 * 1024);
         m.inspect = if s.inspect {
             Inspect::Pinned(ball)
         } else {
@@ -282,7 +285,7 @@ pub fn run(dir: &Path) -> Result<(), String> {
     }
     // The legend's hover readout: velocity, pointer at 70% along the bar.
     let m = &mut o.app.model;
-    (m.moment, m.picker, m.sheet, m.inspect) = (Moment::Velocity, Picker::None, None, Inspect::Off);
+    (m.moment, m.picker, m.inspect) = (Moment::Velocity, Picker::None, Inspect::Off);
     o.app.theme_override = Some(ThemeKind::Dark);
     o.frame(SIZE, PPP, Vec::new());
     if let Some(r) = o.ctx.read_response(eframe::egui::Id::new("legend")) {

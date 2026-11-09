@@ -164,7 +164,8 @@ impl Offscreen {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::Picker;
+    use crate::menus::MenuId;
+    use crate::model::{MenuState, Picker};
     use hookecho_core::Moment;
 
     const SIZE: [f32; 2] = [1280.0, 800.0];
@@ -449,10 +450,8 @@ mod tests {
         o.app.model.config.aurora = false;
         let off = green(&mut o);
         assert!(on > off * 2, "on {on} off {off}");
-        // From the sheet, twice.
-        let mut sheet = crate::model::Sheet::new(crate::model::SheetTab::Layers);
-        sheet.scroll = 400.0;
-        o.app.model.sheet = Some(sheet);
+        // From the Layers menu, twice: a switch keeps the menu open.
+        o.app.model.picker = Picker::Menu(MenuState::new(MenuId::Layers));
         o.frame(SIZE, 1.0, Vec::new());
         o.frame(SIZE, 1.0, Vec::new());
         for want in [true, false] {
@@ -460,7 +459,7 @@ mod tests {
             // drawn, so that frame must ask for another.
             let r = o
                 .ctx
-                .read_response(egui::Id::new(("sheet", "aurora")))
+                .read_response(egui::Id::new(("menu-item", 0usize, "Aurora forecast")))
                 .unwrap()
                 .rect;
             let ev = |pressed| egui::Event::PointerButton {
@@ -471,8 +470,12 @@ mod tests {
             };
             o.frame(SIZE, 1.0, vec![egui::Event::PointerMoved(r.center())]);
             o.frame(SIZE, 1.0, vec![ev(true), ev(false)]);
-            assert_eq!(o.app.model.config.aurora, want, "sheet");
+            assert_eq!(o.app.model.config.aurora, want, "menu");
             assert!(o.ctx.has_requested_repaint(), "a repaint is asked for");
+            assert!(
+                matches!(o.app.model.picker, Picker::Menu(_)),
+                "the menu stays open"
+            );
         }
     }
 
@@ -575,34 +578,94 @@ mod tests {
         );
     }
 
+    /// The menu bar: a title opens its menu, pointing at another title
+    /// switches to it, a submenu opens from its row, switches and choices
+    /// apply, and Esc backs out one level at a time.
     #[test]
-    fn side_sheet_controls_respond() {
+    fn menu_bar_works() {
         let Ok(mut o) = Offscreen::new(None, SIZE) else {
             eprintln!("no GPU adapter; skipped");
             return;
         };
         o.app.wait_for_data();
         o.frame(SIZE, 1.0, Vec::new());
-        click(&mut o, egui::Id::new("sheet-button"));
-        assert!(o.app.model.sheet.is_some(), "button opens the sheet");
-        click(&mut o, egui::Id::new(("sheet", "watches")));
-        assert!(!o.app.model.config.watches, "toggle flips");
-        // The warning types open from one row, and their switches work.
-        click(&mut o, egui::Id::new(("sheet-button", "warning-types")));
-        assert!(o.app.model.sheet.as_ref().is_some_and(|s| s.warning_types));
-        click(&mut o, egui::Id::new(("sheet", "tornado")));
-        assert_eq!(o.app.model.config.hidden_warnings, ["tornado"]);
-        click(&mut o, egui::Id::new("sheet-tabs").with(2));
-        assert_eq!(
-            o.app.model.sheet.as_ref().map(|s| s.tab),
-            Some(crate::model::SheetTab::Settings)
+        let open = |o: &Offscreen| match &o.app.model.picker {
+            Picker::Menu(s) => Some((s.menu, s.path.clone())),
+            _ => None,
+        };
+        click(&mut o, egui::Id::new(("menu-title", "Layers")));
+        assert_eq!(open(&o), Some((MenuId::Layers, vec![])), "click opens");
+        click(&mut o, egui::Id::new(("menu-item", 0usize, "SPC watches")));
+        assert!(!o.app.model.config.watches, "a switch flips");
+        assert!(open(&o).is_some(), "and the menu stays");
+        // The warning types open from their row.
+        click(
+            &mut o,
+            egui::Id::new(("menu-item", 0usize, "Warning types")),
         );
-        click(&mut o, egui::Id::new(("sheet", "utc")).with(1));
+        assert!(open(&o).is_some_and(|(_, p)| p.len() == 1));
+        click(&mut o, egui::Id::new(("menu-item", 1usize, "Tornado")));
+        assert_eq!(o.app.model.config.hidden_warnings, ["tornado"]);
+        // Esc closes the submenu, then the menu.
+        key(&mut o, egui::Key::Escape, Default::default());
+        assert_eq!(open(&o), Some((MenuId::Layers, vec![])));
+        // Pointing at another title switches menus.
+        let r = o
+            .ctx
+            .read_response(egui::Id::new(("menu-title", "Settings")))
+            .unwrap()
+            .rect;
+        o.frame(SIZE, 1.0, vec![egui::Event::PointerMoved(r.center())]);
+        o.frame(SIZE, 1.0, Vec::new());
+        assert_eq!(open(&o).map(|x| x.0), Some(MenuId::Settings));
+        click(&mut o, egui::Id::new(("menu-item", 0usize, "Clock")));
+        click(&mut o, egui::Id::new(("menu-item", 1usize, "UTC")));
         assert!(o.app.model.config.utc);
-        click(&mut o, egui::Id::new(("sheet", "frames")).with(1));
-        assert_eq!(o.app.model.config.loop_frames, 30);
-        click(&mut o, egui::Id::new("sheet-button"));
-        assert!(o.app.model.sheet.is_none(), "and closes it");
+        assert!(open(&o).is_none(), "a choice closes the menu");
+        // Keys: L opens Layers; Esc closes it.
+        key(&mut o, egui::Key::L, Default::default());
+        assert_eq!(open(&o).map(|x| x.0), Some(MenuId::Layers));
+        key(&mut o, egui::Key::Escape, Default::default());
+        assert!(open(&o).is_none());
+    }
+
+    /// In a narrow window the menus fold into one "Menu", and asking for a
+    /// menu by key opens it inside.
+    #[test]
+    fn narrow_menu_bar_folds() {
+        const NARROW: [f32; 2] = [900.0, 640.0]; // design-ok: a test window size
+        let Ok(mut o) = Offscreen::new(None, NARROW) else {
+            eprintln!("no GPU adapter; skipped");
+            return;
+        };
+        o.app.wait_for_data();
+        o.frame(NARROW, 1.0, Vec::new());
+        assert!(
+            o.ctx
+                .read_response(egui::Id::new(("menu-title", "Menu")))
+                .is_some()
+        );
+        assert!(
+            o.ctx
+                .read_response(egui::Id::new(("menu-title", "Layers")))
+                .is_none()
+        );
+        o.app.model.picker = Picker::Menu(MenuState::new(MenuId::Layers));
+        o.frame(NARROW, 1.0, Vec::new());
+        o.frame(NARROW, 1.0, Vec::new());
+        let layers = MenuId::BAR
+            .iter()
+            .position(|m| *m == MenuId::Layers)
+            .unwrap();
+        assert!(matches!(
+            &o.app.model.picker,
+            Picker::Menu(s) if s.menu == MenuId::All && s.path == [layers]
+        ));
+        assert!(
+            o.ctx
+                .read_response(egui::Id::new(("menu-item", 1usize, "NWS warnings")))
+                .is_some()
+        );
     }
 
     fn key(o: &mut Offscreen, key: egui::Key, modifiers: egui::Modifiers) {

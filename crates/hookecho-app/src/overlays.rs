@@ -13,14 +13,17 @@ fn icon_for(c: &Command) -> Icon {
         (
             Action::Palette(_)
             | Action::RestoreColors
-            | Action::Sheet(crate::model::SheetTab::Colors),
+            | Action::OpenMenu(crate::menus::MenuId::View),
             _,
         ) => Icon::Palette,
         (Action::Shortcuts, _) => Icon::Keyboard,
         (Action::SpaceWeather, _) => Icon::Zap,
-        (Action::DockInspector, _) => Icon::Pin,
+        (Action::ToggleDock(_), _) => Icon::Pin,
         (Action::NearestRadar | Action::SetHome | Action::UseMyLocation, _) => Icon::MapPin,
-        (Action::Live | Action::PlayPause, _) => Icon::Play,
+        (Action::Live | Action::PlayPause | Action::StepFrame(_) | Action::FirstFrame, _) => {
+            Icon::Play
+        }
+        (Action::OpenMenu(_), _) => Icon::Menu,
         (Action::ZoomIn | Action::ZoomOut, _) => Icon::Search,
         (_, Group::Sites) => Icon::Radar,
         (_, Group::Products) => Icon::Gauge,

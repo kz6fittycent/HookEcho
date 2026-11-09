@@ -114,8 +114,16 @@ pub mod size {
     pub const SHORTCUTS_W: f32 = 640.0;
     pub const SHORTCUT_KEY_COL: f32 = 64.0;
     pub const SHORTCUT_ROW_H: f32 = 28.0;
-    /// Side sheet (DESIGN.md §3.6).
-    pub const SHEET_W: f32 = 360.0;
+    /// Menu bar (DESIGN §3.2): a title's hit target, and the menus.
+    pub const MENU_TITLE_H: f32 = 36.0;
+    pub const MENU_ROW_H: f32 = 32.0;
+    pub const MENU_HEADING_H: f32 = 26.0;
+    pub const MENU_INFO_H: f32 = 22.0;
+    pub const MENU_SEPARATOR_H: f32 = 9.0;
+    /// The left gutter that holds a row's check or radio mark.
+    pub const MENU_MARK_COL: f32 = 28.0;
+    pub const MENU_MIN_W: f32 = 200.0;
+    pub const MENU_RADIO_R: f32 = 3.5;
     /// The left dock (DESIGN.md §3.11): its width, and the narrowest window
     /// that keeps it (below this, docked panels float instead).
     pub const DOCK_W: f32 = 360.0;

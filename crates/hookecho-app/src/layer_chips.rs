@@ -6,7 +6,7 @@
 use crate::design::components::{self, Kit, icon_button};
 use crate::design::icons::Icon;
 use crate::design::tokens::{Type, radius, size, space};
-use crate::model::{Model, Sheet, SheetTab};
+use crate::model::{MenuState, Model, Picker};
 use eframe::egui::{Align2, Id, Painter, Rect, Ui, WidgetType, pos2, vec2};
 
 /// The overlays that are on: (key, label).
@@ -130,7 +130,7 @@ pub fn draw(
         remove(model, k);
     }
     if open_sheet {
-        model.sheet = Some(Sheet::new(SheetTab::Layers));
+        model.picker = Picker::Menu(MenuState::new(crate::menus::MenuId::Layers));
     }
     row
 }

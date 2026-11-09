@@ -64,6 +64,8 @@ Done before 2026-10-29 (merged): Phases 0–2; owner fixes 1–3 (icon PR #17; s
 7. From owner testing (same branch): Layers sheet reordered (data layers first, warning types folded); Menu group tabs (All/Radars/Products/Layers/Actions/Settings) and wheel scrolling fixed in overlays (`components::pointer_over`: egui's `rect_contains_pointer` is always false on our Foreground layers); the left dock (`dock.rs`, DESIGN §3.11: space weather, station, warnings, inspector pin into it; one `components::panel_header` for every panel); active-layer chips above the legend with × and right-click (DESIGN §3.4.1); Menu layer rows toggle; redraw after any config/picker change.
 New dependencies: `hdf5-pure` =0.47.0, `ashpd` =0.13.13 (both MIT/Apache, `cargo deny` clean). Screenshots 22–31 in `target/shots/p3/` (29 needs `HOOKECHO_GOES_FILE`).
 
+**Menu bar (2026-11-09, owner request):** one glass strip across the top replaces the Menu button and the side sheet (overrides DESIGN §1 "no menu bar"). `hookecho-app::menus` builds the menus from the model (every search command is in a menu: tested); `menubar.rs` draws the bar (titles, radar and product chips, Search) and nested submenus. Narrow windows: the product chip drops its description, then the titles fold into one "Menu". `sheet.rs` is gone. Screenshots 11–14 are now menus.
+
 Owner UX rules learned in testing: every feature must be findable without searching (browse, not just search); anything on the map must be one click to turn off; check new controls are visible without scrolling.
 
 Upstream: nexrad-data/-model/-decode are on 1.0.0 (2026-11-09); its short-input panic is fixed there, and our guard in `decode_volume` stays.
@@ -82,6 +84,7 @@ Strict-snap results (2026-10-10): Vulkan, llvmpipe and Mesa EGL GL work; NVIDIA 
 Working practice (owner, 2026-11-09): **no more PRs; commit and push straight to `main`.** `snap-builds.yml` (`rust` + snap `build`) runs on every push to `main`, and `call-for-testing.yml` uploads a candidate and opens a CFT issue only when that run passes, so a bad push goes red instead of shipping. Before each push, run all of CI's gates locally: fmt, clippy, tests and `scripts/check-design-tokens.sh`. **Ask before pushing.** (The bot's weekly radar-data refresh still opens its own PRs.)
 
 Known issues and notes:
+- Bench memory on the RTX 2080 jumped about 65 MB for every build, old ones included, on the afternoon of 2026-11-09 (433 → 498 MB at HEAD; the loop's GPU upload stage); likely driver state, not code. Compare builds back to back, never against an old number.
 - Memory with a 20-frame loop is about 435 MB against a 300 MB budget: about 150 MB is the GPU driver, about 95 MB the decoded full volume, about 32 MB basemap decode transients. This is Phase 4 work. Use `HOOKECHO_MEM_TRACE=1` for a stage breakdown.
 - Bench on the RTX 2080: cold start about 0.5 s, switch about 2 ms, 4K frame p99 about 2.7 ms.
 - Always run manual smoke tests with `HOOKECHO_HOME=<scratch dir>`. Without it they write `~/.config/hookecho`.

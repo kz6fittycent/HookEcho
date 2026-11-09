@@ -208,22 +208,32 @@ impl App {
         }
     }
 
-    /// The Settings tab's cache size (measured once per opening) and Clear.
-    fn sheet_data(&mut self) {
-        let Some(sheet) = &mut self.model.sheet else {
-            return;
-        };
+    /// "Clear radar cache", and the cache's size for the Settings menu
+    /// (measured each time that menu opens).
+    fn cache_data(&mut self) {
         let Some(dirs) = &self.dirs else { return };
+        let m = &mut self.model;
         let cache = hookecho_core::cache::ChunkCache::new(&dirs.cache, 0);
-        if sheet.clear_cache {
-            sheet.clear_cache = false;
-            sheet.cache_bytes = None;
+        if m.clear_cache {
+            m.clear_cache = false;
             if let Err(e) = cache.clear() {
                 eprintln!("hookecho: clearing cache: {e}");
             }
+            m.cache_bytes = Some(cache.size());
         }
-        if sheet.tab == model::SheetTab::Settings && sheet.cache_bytes.is_none() {
-            sheet.cache_bytes = Some(cache.size());
+        use crate::menus::MenuId;
+        let settings = MenuId::BAR.iter().position(|x| *x == MenuId::Settings);
+        let settings_open = match &m.picker {
+            model::Picker::Menu(s) => {
+                s.menu == MenuId::Settings
+                    || (s.menu == MenuId::All && s.path.first().copied() == settings)
+            }
+            _ => false,
+        };
+        if !settings_open {
+            m.cache_bytes = None;
+        } else if m.cache_bytes.is_none() {
+            m.cache_bytes = Some(cache.size());
         }
     }
 
@@ -421,7 +431,7 @@ impl App {
         });
         style.labels.visible = layers.labels;
         style.labels.size *= self.model.config.label_scale.clamp(0.5, 2.0);
-        self.sheet_data();
+        self.cache_data();
         let exclusions = screen::label_exclusions(&self.model, screen);
         let mut enc = gpu.device.create_command_encoder(&Default::default());
         self.renderer.render(

@@ -6,12 +6,12 @@ Hook Echo should feel like a calm, premium consumer app that gets out of the way
 
 ## 1. Principles
 
-1. **Map first.** Radar and basemap fill the window edge to edge. There's no menu bar, toolbar or docked panel. Chrome floats over the map and only takes the space it needs.
-2. **One glance, one answer.** The always-visible chrome answers four questions: *which radar*, *which product*, *how old*, *where in the loop*. Everything else is one click, one key, or Ctrl+K away.
+1. **Map first.** Radar and basemap fill the window edge to edge. Chrome floats over the map as glass and only takes the space it needs. The one exception is the **menu bar** (§3.2), a single glass strip across the top: the owner found a lone Menu button hard to discover and asked for a menu bar with every option in it (2026-11-09, overriding the original "no menu bar" rule).
+2. **One glance, one answer.** The always-visible chrome answers four questions: *which radar*, *which product*, *how old*, *where in the loop*. Everything else is in a menu (browse), one key, or Ctrl+K away (search).
 3. **Quiet chrome, loud data.** UI colors are low-saturation neutrals with one accent. Saturated color is reserved for radar data, warnings, and the scan-age status.
 4. **Glass, not boxes.** Panels show a real blur of the radar beneath them, so the user never loses the storm behind a panel.
 5. **Motion explains, never decorates.** Every animation is 150–200 ms and eased. With reduced motion, animations become instant cross-fades.
-6. **Crowded means wrong.** If a panel feels busy, it holds too much. Move things to the side sheet or the command palette instead of shrinking them.
+6. **Crowded means wrong.** If a panel feels busy, it holds too much. Move things into a menu or submenu instead of shrinking them.
 
 ## 2. Tokens
 
@@ -36,7 +36,7 @@ The window margin (the gap between floating panels and the window edge) is `spac
 |---|---|---|
 | `radius.sm` | 8 | Small controls: segmented items, keycaps, list-row highlight |
 | `radius.md` | 12 | Chips, timeline bar, inspector card, tooltips |
-| `radius.lg` | 16 | Side sheet, command palette, pickers |
+| `radius.lg` | 16 | Command palette, pickers, dock |
 | `radius.full` | 999 | Pills: status dots, toggle tracks |
 
 ### 2.3 Type scale
@@ -114,8 +114,8 @@ Radar colors are *data*, not theme. They're the same in both themes. Only the ba
 | Token | Use |
 |---|---|
 | `elevation.1` | Chips, timeline: shadow blur 12, y 4, 60% of `glass.shadow` alpha |
-| `elevation.2` | Inspector, tooltips, pickers |
-| `elevation.3` | Command palette, side sheet: blur 40, y 16 |
+| `elevation.2` | Inspector, tooltips, pickers, menus |
+| `elevation.3` | Command palette: blur 40, y 16 |
 
 ### 2.6 Backdrop blur
 
@@ -142,10 +142,10 @@ Reduced motion (an `org.gnome.desktop.interface enable-animations=false` / `pref
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
-│ ┌────────────────────────┐ ┌───────────────────────┐            ┌─────┐  │
-│ │ ◉ KTLX  Oklahoma City  │ │ Reflectivity · 0.5° ▾ │            │ ≡ ⌕ │  │
-│ │   12 mi · ● 1 min ago  │ └───────────────────────┘            └─────┘  │
-│ └────────────────────────┘                                               │
+│ ┌──────────────────────────────────────────────────────────────────────┐ │
+│ │ Radar Product Layers … Help │ ◉ KTLX Oklahoma City ▾ │ Refl 0.5° ▾  ⌕│ │
+│ │                             │   12 mi · ● 1 min ago  │ ●●●●●●  Search│ │
+│ └──────────────────────────────────────────────────────────────────────┘ │
 │                                                                          │
 │                        RADAR + BASEMAP (full bleed)                       │
 │                                                                          │
@@ -163,7 +163,9 @@ Reduced motion (an `org.gnome.desktop.interface enable-animations=false` / `pref
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 3.1 Top-left cluster
+### 3.1 Radar and product chips
+
+The two chips sit in the menu bar (§3.2), right of the menu titles, separated by hairline dividers. They have no glass of their own; hover and the open state fill an inset `radius.sm` rect.
 
 - **Site chip.**
   - Line 1: a radar icon, the site ID in `type.label`, and the city in `text.secondary`.
@@ -175,9 +177,16 @@ Reduced motion (an `org.gnome.desktop.interface enable-animations=false` / `pref
   - Click (or `P`) opens the **product picker**.
 - **Bulletins badge** (Phase 3). Appears only when bulletins exist. It's a small round chip with a count, colored by the highest-priority bulletin (warning > watch > statement > discussion > report).
 
-### 3.2 Top-right cluster
+### 3.2 Menu bar
 
-Two buttons: a labeled **Menu** button (`menu` icon plus the word "Menu", Ctrl+K), which opens the command palette, and the **side sheet** icon button (`layers` icon, key `L`). The palette's button carries a label because a bare magnifier didn't read as the app's menu (owner, 2026-10-28). In multi-pane mode a **pane layout** button joins them.
+Owner request (2026-11-09). One glass strip across the top, `size.chip_h` tall, inset by the window margin, `radius.md`, `elevation.1`. Left to right: the menu titles (**Radar · Product · Layers · Loop · Panels · View · Settings · Help**), a divider, the radar chip, a divider, the product chip (§3.1), and **Search** at the right end (`search` icon plus the word, Ctrl+K), which opens the search palette (§3.8). The dock (§3.11) starts below the bar.
+
+- **Titles** are `type.label` text buttons, `size.menu_title_h` tall. Click opens the menu under the title; while one is open, pointing at another title switches to it. `F10` opens Radar, `L` opens Layers, ←/→ move between menus.
+- **Menus** are glass cards (`radius.md`, `elevation.2`) hanging `space.1` under the title. Rows are `size.menu_row_h`. A row has a mark gutter (`size.menu_mark_col`): an accent check for a switch that's on, an accent dot for the chosen one of a set; then the label in `type.body`; then, right-aligned, its keycap, or for a submenu its current value in `text.tertiary` and a `chevron-right`. Small `type.caption` headings group rows; info rows (status, About) are plain caption text.
+- **Submenus** open to the right of their row on hover, click or →, and flip left at the window edge. They nest (Layers → Warning types). Esc or ← closes one level.
+- **Switches keep the menu open** so several layers can be flipped in a row; choosing from a set, or any other command, closes it. A click outside closes it.
+- **Contents:** Radar (change radar, nearest, use my location, set home, favorites, airport radars), Product (products, tilt up/down, the product picker, hide dual-pol noise), Layers (warnings and types, watches, MDs, SPC outlooks by day and kind, satellite, station plots, aurora, map lines and names; a feed that's on but failing says so here), Loop (play, live, frame steps, length, speed), Panels (station panel, space weather, which panels keep to the dock), View (theme, map text, colors for the current product, zoom, reduce motion), Settings (distance, wind speed, clock, clear the radar cache), Help (shortcuts, search, About). Every command the search palette offers is in a menu (a test checks it).
+- **Narrow windows:** when the full bar doesn't fit, the product chip first drops its description line (it moves to the chip's tooltip), then the titles fold into one **Menu** button (`menu` icon plus the word) whose list holds each menu as a submenu.
 
 ### 3.3 Bottom: timeline
 
@@ -201,7 +210,7 @@ A compact glass card bottom-right showing the color bar for the current product.
 
 ### 3.4.1 Active-layer chips
 
-Above the legend, right-aligned: one small glass pill (`size.layer_chip_h`, `radius.full`) for each overlay that's on: satellite, SPC outlook, aurora, station plots. Each says what it is and ends in an **×** that turns it off; a right-click anywhere on the pill does the same; the name opens Layers. Owner, testing (2026-10-29): anything on the map must be easy to get rid of, without knowing where its switch lives. In the Menu, a layer row that's on says "On · click to turn off" and does.
+Above the legend, right-aligned: one small glass pill (`size.layer_chip_h`, `radius.full`) for each overlay that's on: satellite, SPC outlook, aurora, station plots. Each says what it is and ends in an **×** that turns it off; a right-click anywhere on the pill does the same; the name opens Layers. Owner, testing (2026-10-29): anything on the map must be easy to get rid of, without knowing where its switch lives. In the Layers menu a switch that's on shows its check, and one click turns it off; in search, a layer row that's on says "On · click to turn off" and does.
 
 ### 3.5 Inspector
 
@@ -214,15 +223,9 @@ A floating card that follows the pointer, offset 16 px right and below. It flips
 
 It appears after 120 ms of rest and hides during drag/pan. Pressing `I` pins it to the map location until the next click.
 
-### 3.6 Side sheet (right)
+### 3.6 Side sheet (removed)
 
-Hidden by default. It slides in from the right (`motion.base`), 360 px wide, full height minus the window margin, `radius.lg`. A segmented header picks the section: **Layers · Colors · Settings**.
-
-- **Layers:** grouped toggles (Bulletins, Outlooks, Lightning, Storm attributes, Map), each with a short description and per-layer filter.
-- **Colors:** per-product palette list with previews, an **Import .pal…** action and **Restore defaults**.
-- **Settings:** Appearance (theme, font scale, reduced motion), Units, Time (local/UTC), Loop (frames, speed), Data (providers, cache size), Location, About/licenses.
-
-The map stays interactive while the sheet is open. The sheet is dismissed with `Esc` or by clicking the button again.
+Replaced by the menu bar (owner, 2026-11-09): its Layers section is the Layers menu, Colors is View → Colors, and Settings is spread over the Settings and View menus.
 
 ### 3.7 Pickers
 
@@ -231,7 +234,7 @@ A picker drops down from its chip (`radius.lg`, `elevation.2`), max 420 px tall,
 - **Site picker:** Favorites first, then Nearest (if location is known), then by state. Each row shows ID, city, distance and status dot. A star toggles a favorite.
 - **Product picker:** a two-column grid of product groups (Reflectivity, Velocity, Dual-pol, Derived, Precip, Storm) × tilts. Arrow keys move through it.
 
-### 3.8 Command palette (Ctrl+K)
+### 3.8 Search palette (Ctrl+K)
 
 A centered card, 560 px wide, offset `space.6` from the top, `elevation.3`. The input row uses `type.title`. Under it, a segmented row of group tabs (All · Radars · Products · Layers · Actions · Settings) lets people browse without knowing what to type (owner, 2026-10-29); the Radars tab lists every radar. Results are grouped (Radars, Products, Layers, Actions, Settings), each row showing an icon, a label, a secondary hint and a right-aligned shortcut keycap. Fuzzy matching. `Enter` runs the selected row; `Esc` closes.
 
@@ -251,7 +254,7 @@ Owner request (2026-10-29). A column on the left, `size.dock_w` (360 px) wide an
 - **One header for every panel**, docked or floating (`components::panel_header`): the title in `type.label`, then right-aligned icon buttons: collapse/expand (`chevron-up`/`chevron-down`, docked only), pin (`pin`, floating: "Dock this panel at the left") or unpin (`pin-off`, docked: "Float this panel over the map"), and close. The inspector has no close (unpin is its way out); its close slot stays empty so the buttons line up.
 - **Docked bodies:** Warnings and watches lists everything active (a colored bar, type, end time); a row or a map click shows the full text, with "← Everything active" to go back. The inspector shows the reading at the pointer or pinned spot, and a hint otherwise; the map keeps the reticle.
 - The dock scrolls when its panels don't fit. Its panels and their collapsed state are saved. Windows narrower than `size.dock_min_window` (1000 px) float every panel instead and give the map the full width.
-- Menu → "Dock the inspector" (it has no header to click while it follows the pointer); Menu → "Space weather" expands a docked space weather panel.
+- Panels → "Keep in the left dock" switches each panel, including the inspector (it has no header to click while it follows the pointer); Panels → "Space weather" expands a docked space weather panel.
 
 ## 4. States
 
@@ -298,7 +301,8 @@ Located in `hookecho-app/src/design/components/`. Every screen is built only fro
 | `GlassPanel` | Backdrop blur region + fill + hairline + highlight + shadow; the base of everything floating |
 | `Chip` | Glass, `radius.md`, icon + 1–2 lines; hover/press/focus states |
 | `IconButton` | 36×36 hit target, 20 px icon, tooltip with shortcut |
-| `Sheet` | Side sheet container with a segmented header |
+| `MenuBar` | The top strip: menu titles, chips, Search (`menubar.rs`) |
+| `Menu` | A dropdown or submenu list: marks, keycaps, values, headings (`menubar.rs`) |
 | `Palette` | Command palette; also powers pickers' search and lists |
 | `Slider` | Thin track, 14 px thumb, tabular value |
 | `Toggle` | 32×18 pill |

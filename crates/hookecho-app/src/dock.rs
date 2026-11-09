@@ -66,8 +66,10 @@ pub fn rect(model: &Model, screen: Rect) -> Option<Rect> {
         return None;
     }
     let m = space::S4;
+    // Below the menu bar, which spans the window.
+    let top = crate::menubar::bar_rect(screen, m).max.y + space::S2;
     Some(Rect::from_min_max(
-        pos2(screen.min.x + m, screen.min.y + m),
+        pos2(screen.min.x + m, top),
         pos2(screen.min.x + m + size::DOCK_W, screen.max.y - m),
     ))
 }

@@ -243,6 +243,8 @@ pub enum Picker {
     },
     /// Keyboard shortcuts sheet (`?`).
     Shortcuts,
+    /// A menu from the menu bar (menubar.rs).
+    Menu(MenuState),
     /// The space weather card (space.rs).
     SpaceWeather {
         scroll: f32,
@@ -279,46 +281,25 @@ pub struct LayerData {
     pub outlook_mesh: std::cell::RefCell<crate::spc::OutlookCache>,
 }
 
-/// Side sheet sections (DESIGN.md §3.6).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum SheetTab {
-    Layers,
-    Colors,
-    Settings,
-}
-
-impl SheetTab {
-    pub const ALL: [SheetTab; 3] = [SheetTab::Layers, SheetTab::Colors, SheetTab::Settings];
-
-    pub fn label(self) -> &'static str {
-        match self {
-            SheetTab::Layers => "Layers",
-            SheetTab::Colors => "Colors",
-            SheetTab::Settings => "Settings",
-        }
-    }
-}
-
-/// Side sheet state. `cache_bytes` is measured when Settings opens.
+/// An open menu (DESIGN.md §3.2): which one, the submenus opened in it (row
+/// indices, outermost first), and the row the keyboard is on in the
+/// innermost list.
 #[derive(Clone, Debug, PartialEq)]
-pub struct Sheet {
-    pub tab: SheetTab,
-    pub scroll: f32,
-    pub cache_bytes: Option<u64>,
-    /// Set by the Clear button; the app clears the cache and resets it.
-    pub clear_cache: bool,
-    /// Layers: the per-type warning switches are unfolded.
-    pub warning_types: bool,
+pub struct MenuState {
+    pub menu: crate::menus::MenuId,
+    pub path: Vec<usize>,
+    pub active: Option<usize>,
+    /// Scroll offset of each open list (menus taller than the window).
+    pub scroll: Vec<f32>,
 }
 
-impl Sheet {
-    pub fn new(tab: SheetTab) -> Sheet {
-        Sheet {
-            tab,
-            scroll: 0.0,
-            cache_bytes: None,
-            clear_cache: false,
-            warning_types: false,
+impl MenuState {
+    pub fn new(menu: crate::menus::MenuId) -> MenuState {
+        MenuState {
+            menu,
+            path: Vec::new(),
+            active: None,
+            scroll: Vec::new(),
         }
     }
 }
@@ -379,7 +360,11 @@ pub struct Model {
     pub chosen_station: Option<String>,
     /// Cached `no_precipitation` answer, keyed by (generation, sweep, palette version).
     quiet: Option<((u64, usize, u64), bool)>,
-    pub sheet: Option<Sheet>,
+    /// The radar cache's size on disk, measured when the Settings menu
+    /// opens (app.rs); `None` until then.
+    pub cache_bytes: Option<u64>,
+    /// "Clear radar cache" was chosen; the app clears it.
+    pub clear_cache: bool,
     /// Last frame's glass panels (logical px, [x0, y0, x1, y1]).
     pub chrome: Vec<[f32; 4]>,
     /// What the data-layer feeds last sent (feeds.rs).
@@ -472,7 +457,8 @@ impl Model {
             locate_requested: false,
             chosen_station: None,
             quiet: None,
-            sheet: None,
+            cache_bytes: None,
+            clear_cache: false,
             chrome: Vec::new(),
             layers: LayerData::default(),
             generation: 0,
@@ -684,13 +670,12 @@ impl Model {
         quiet
     }
 
-    /// Opens the side sheet (closing any picker), or closes it.
-    pub fn toggle_sheet(&mut self) {
-        self.sheet = match self.sheet {
-            Some(_) => None,
-            None => Some(Sheet::new(SheetTab::Layers)),
+    /// Opens `menu` (closing any other picker), or closes it if open.
+    pub fn toggle_menu(&mut self, menu: crate::menus::MenuId) {
+        self.picker = match &self.picker {
+            Picker::Menu(m) if m.menu == menu => Picker::None,
+            _ => Picker::Menu(MenuState::new(menu)),
         };
-        self.picker = Picker::None;
     }
 
     pub fn current_sweep(&self) -> Option<usize> {
