@@ -197,7 +197,7 @@ Used by:
 - [ashpd 0.13.13](https://github.com/bilelmoussaoui/ashpd)
 - [async-broadcast 0.7.2](https://github.com/smol-rs/async-broadcast)
 - [async-channel 2.5.0](https://github.com/smol-rs/async-channel)
-- [async-executor 1.14.0](https://github.com/smol-rs/async-executor)
+- [async-executor 1.14.1](https://github.com/smol-rs/async-executor)
 - [async-io 2.6.0](https://github.com/smol-rs/async-io)
 - [async-lock 3.4.2](https://github.com/smol-rs/async-lock)
 - [async-process 2.5.0](https://github.com/smol-rs/async-process)
