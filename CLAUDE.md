@@ -81,7 +81,7 @@ Workflow notes: Refresh Radar Data now opens its PR (#27 merged), so the Actions
 
 Strict-snap results (2026-10-10): Vulkan, llvmpipe and Mesa EGL GL work; NVIDIA EGL GL fails, which is harmless because wgpu picks Vulkan first. Local `snapcraft pack` is blocked by Docker's iptables rules (the owner declined the change), so test PR snaps from the `hookecho-snap` workflow artifact.
 
-Working practice (owner, 2026-11-09): **no more PRs; commit and push straight to `main`.** `snap-builds.yml` (`rust` + snap `build`) runs on every push to `main`, and `call-for-testing.yml` uploads a candidate and opens a CFT issue only when that run passes, so a bad push goes red instead of shipping. Before each push, run all of CI's gates locally: fmt, clippy, tests and `scripts/check-design-tokens.sh`. **Ask before pushing.** (The bot's weekly radar-data refresh still opens its own PRs.)
+Working practice (owner, 2026-11-09): **no more PRs; commit and push straight to `main`.** `snap-builds.yml` (`rust` + snap `build`) runs on every push to `main`, and its publish jobs upload that build's snap as a candidate and open a CFT issue only when both pass, so a bad push goes red instead of shipping. Before each push, run all of CI's gates locally: fmt, clippy, tests and `scripts/check-design-tokens.sh`. **Ask before pushing.** (The bot's weekly radar-data refresh still opens its own PRs.)
 
 Known issues and notes:
 - Bench memory on the RTX 2080 jumped about 65 MB for every build, old ones included, on the afternoon of 2026-11-09 (433 → 498 MB at HEAD; the loop's GPU upload stage); likely driver state, not code. Compare builds back to back, never against an old number.

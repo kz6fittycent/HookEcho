@@ -34,8 +34,7 @@ Requires Rust 1.99 (pinned in `rust-toolchain.toml`) and a GPU driver with Vulka
 
 The pipeline matches Desktop Scriptures' (see `docs/CI_NOTES.md`):
 
-- `snap-builds.yml`: every push and PR builds and reviews the snap, then runs Rust CI (fmt, clippy, tests, cargo-deny, the design-token check, the smoke test, screenshots and the bench against `bench/baseline.json`).
-- `call-for-testing.yml`: after a green build on `main`, uploads to `candidate` and opens a call-for-testing issue with VM screenshots.
+- `snap-builds.yml`: every push and PR builds and reviews the snap and runs Rust CI (fmt, clippy, tests, cargo-deny, the design-token check, the smoke test, screenshots and the bench against `bench/baseline.json`). On `main`, once both pass, the same run uploads that snap to `candidate` and opens a call-for-testing issue with VM screenshots.
 - `promote-to-stable.yml`: commenting `/promote <revision> stable done` on that issue releases to stable, after your approval.
 - `security-rebuild.yml`: daily, rebuilds the stable release when Ubuntu publishes fixes for packages bundled in the snap.
 - `refresh-radar-data.yml`: weekly, regenerates the site list and basemap and publishes them to the `radar-data` release.

@@ -6,8 +6,8 @@ Every item below is a real failure documented in the comments of `/home/james/gi
 |---|---|---|
 | All snap builds | `snapcore/action-build@v1` with **`snapcraft-args: pack`** | The input was renamed. `args` is silently ignored and runs bare `snapcraft` |
 | Upload / promote | Channel **`candidate`** / **`stable`**, never `latest/...` | The `snapcraft export-login` macaroon grants bare risk levels; the track-qualified form fails with `invalid-channel-permission` |
-| call-for-testing | Triggered by `workflow_run` on "🧪 Snap Builds" success on `main` | PR builds publish nothing, and a failed main build publishes nothing |
-| call-for-testing | Rebuilds at `workflow_run.head_sha` | The build workflow publishes no artifact |
+| call-for-testing | Jobs in snap-builds.yml that need every build job and run only on pushes to `main` (merged from a separate `workflow_run` workflow, 2026-11-18) | PR builds publish nothing, and a failed main build publishes nothing |
+| call-for-testing | Uploads the build job's artifact, not a rebuild | The rebuild doubled build time for nothing, and the candidate is now the reviewed binary |
 | promote-to-stable | Exact regex `^/promote ([0-9]+(,[0-9]+)*) stable( done)?[[:space:]]*$`; OWNER/MEMBER/COLLABORATOR; `environment: promote-stable`; 👍 reaction | Copy-paste from the issue always works and anything else fails loudly. Trailing newlines from copied code blocks are tolerated |
 | ghvmctl screenshots | `snap install ghvmctl` retried 3× with a 30 s sleep | Transient Snap Store CDN 502 (core22) |
 | ghvmctl screenshots | `ghvmctl exec "sudo snap install <snap> --revision N"`, not `ghvmctl snap-install` | `snap-install` always adds `--classic`, which strict snaps reject |
